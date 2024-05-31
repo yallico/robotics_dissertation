@@ -1,0 +1,13 @@
+{
+    "actionButtons": {
+        "defaultColor": "#0E70CC",  // You can specify the color of the button here
+        "loadNpmCommands": false,  // We don't need NPM commands for this setup
+        "commands": [
+            {
+                "name": "ESP-Config",
+                "color": "green",  // Button color
+                "command": "cd ${workspaceFolder}/src && idf.py menuconfig"  // Command to send input to the terminal
+            }
+        ]
+    }
+}

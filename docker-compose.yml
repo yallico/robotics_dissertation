@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  esp32-dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ./src:/swarmcom/src
+    working_dir: /swarmcom/src
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+
+  esp32-dev-with-device:
+    extends:
+      service: esp32-dev
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    profiles:
+      - with-device
