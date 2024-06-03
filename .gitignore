@@ -3,6 +3,29 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Latex intermediate files
+*.aux
+*.bbl
+*.blg
+*.idx
+*.ind
+*.lof
+*.lot
+*.out
+*.toc
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.ist
+*.fls
+*.bcf
+*.run.xml
+*.synctex.gz
+*.fdb_latexmk
+
 # C extensions
 *.so
 

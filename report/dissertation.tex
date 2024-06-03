@@ -1,0 +1,49 @@
+\documentclass{report}
+% Packages
+\usepackage{titlesec}
+\usepackage{lipsum} % For dummy text, you can remove this
+\usepackage[style=numeric, backend=biber]{biblatex} % Import the package for reading .bib files
+\addbibresource{Communication.bib} % Add the .bib file
+
+% Title page
+\title{Dissertation Title}
+\author{Luis Yallico Ylquimiche}
+\date{\today}
+
+\begin{document}
+
+% Title page
+\maketitle
+
+% Abstract
+\begin{abstract}
+This is the abstract of your dissertation.
+\end{abstract}
+
+% Table of contents
+\tableofcontents
+
+% Chapters
+\chapter{Introduction}
+\section{Background}
+\lipsum[1-2] % Replace with your content
+
+\chapter{Literature Review}
+\section{Previous Studies}
+\lipsum[3-4] % Replace with your content
+
+\chapter{Methodology}
+\section{Experimental Setup}
+\lipsum[5-6] % Replace with your content
+
+\section{Notes}
+Why use ESP-IDF over Arduino IDE in this project? \cite{esp-boards_esp-idf_nodate}\cite{expressif_freertos_nodate}
+
+As we are using a ESP32 microcontroller to build our swarm, which left us with two options to program it: Arduino IDE or ESP-IDF. The reasons we chose the latter are because, first, it is the official development framework for the ESP32 microcontrollers, this means that ESP-IDF is native to ESP32 whereas Arduino is an API wrap around ESP-IDF. Making ESP-IDF more stable and enabling more advanced features, specially for communication data links such as Bluetooth, Wifi and LORA. Secondly, it is more powerful and flexible than Arduino IDE, because it allows the use of FreeRTOS which allows multi core development support (our M5 Stack has two cores) and is a pre-requisite for running microROS in the ESP32 microcontroller (at the time of writing this microROS does not support Arduino), hence making it more suitable for complex projects like this one. Thirdly, it is more efficient in terms of memory and speed (as it enables parallel processing) which is important for a project that requires real-time communication between multiple devices in a swarm. Finally, it is more professional and an industry standard, it allows dependency tracking, Over the Air (OTA) updates, unit testing, enhanced debugging and comprehensive documentation around it, which means it is more likely to be supported in the future and software is less likely to become deprecated over time.
+
+% Add more chapters as needed
+
+\newpage
+\printbibliography
+
+\end{document}
