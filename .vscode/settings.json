@@ -9,5 +9,8 @@
                 "command": "cd ${workspaceFolder}/src && idf.py menuconfig"  // Command to send input to the terminal
             }
         ]
+    },
+    "files.associations": {
+        "esp_idf_version.h": "c"
     }
 }
