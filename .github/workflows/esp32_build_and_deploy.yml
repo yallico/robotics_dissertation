@@ -50,3 +50,12 @@ jobs:
     - name: Upload file to S3
       run: aws s3 cp ./src/build/swarmcom.bin s3://robotics-dissertation/OTA/swarmcom.bin
       working-directory: ${{ github.workspace }}
+
+    - name: Create version JSON
+      run: |
+        VERSION=$(cat ./src/version.txt)
+        echo "{\"version\": \"$VERSION\", \"url\": \"https://robotics-dissertation.s3.eu-north-1.amazonaws.com/OTA/swarmcom.bin\"}" > ./src/build/version.json
+
+    - name: Upload JSON to S3
+      run: aws s3 cp ./src/build/version.json s3://robotics-dissertation/OTA/version.json
+      working-directory: ${{ github.workspace }}
