@@ -1,9 +1,6 @@
 [submodule "src/components/axp192"]
 	path = src/components/axp192
-	url = https://github.com/tuupola/axp192
-[submodule "components/esp_i2c_helper"]
-	path = src/components/esp_i2c_helper
-	url = git@github.com:tuupola/esp_i2c_helper.git
+	url = https://github.com/yallico/axp192
 [submodule "src/components/esp_i2c_helper"]
 	path = src/components/esp_i2c_helper
-	url = https://github.com/tuupola/esp_i2c_helper
+	url = https://github.com/yallico/esp_i2c_helper
