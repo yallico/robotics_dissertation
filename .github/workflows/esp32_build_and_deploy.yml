@@ -18,14 +18,16 @@ jobs:
       with:
         python-version: '3.8'
 
-    - name: Install ESP-IDF
+    - name: Install ESP-IDF prerequisites
       run: |
         sudo apt-get update && sudo apt-get install -y git wget flex bison gperf python3 python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util libusb-1.0-0
-        wget https://github.com/espressif/esp-idf/releases/download/v5.2/esp-idf-v5.2-linux-x86_64.tar.gz
-        tar -xzf esp-idf-v5.2-linux-x86_64.tar.gz
-        echo "ESP-IDF_PATH=${GITHUB_WORKSPACE}/esp-idf" >> $GITHUB_ENV
-        source $ESP-IDF_PATH/export.sh
 
+    - name: Clone ESP-IDF
+      run: |
+        git clone -b v5.2.2 --recursive https://github.com/espressif/esp-idf.git esp-idf-v5.2.2
+        cd esp-idf-v5.2.2
+        ./install.sh
+        source ./export.sh
 
     - name: Build project
       run: |
