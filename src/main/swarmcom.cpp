@@ -5,8 +5,10 @@
 #include "esp_system.h"
 #include "spi_flash_mmap.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
 #include "axp192.h"
 #include "i2c_helper.h" //TODO: understand what this is and how it works
+#include "env_config.h"
 
 static const char *TAG = "main";
 
@@ -46,6 +48,18 @@ void app_main() {
     //IMPORTANT: Turn vibration off
     vTaskDelay(pdMS_TO_TICKS(1000));
     axp192_ioctl(&axp, AXP192_LDO3_DISABLE);
+
+    //Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    //Initialize WIFI
+    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
+    wifi_init_sta();
 
     // Set the log level for the Swarmcom tag to INFO
     esp_log_level_set("Swarmcom", ESP_LOG_INFO);
