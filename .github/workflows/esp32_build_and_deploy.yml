@@ -43,5 +43,10 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-north-1
 
+    - name: List output files
+      run: ls -l ./src/build/
+      working-directory: ${{ github.workspace }}
+
     - name: Upload file to S3
-      run: aws s3 cp ./build/swarmcom.bin s3://robotics-dissertation/OTA/swarmcom.bin
+      run: aws s3 cp ./src/build/swarmcom.bin s3://robotics-dissertation/OTA/swarmcom.bin
+      working-directory: ${{ github.workspace }}
