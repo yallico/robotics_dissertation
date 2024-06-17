@@ -24,13 +24,13 @@ jobs:
 
     - name: Clone ESP-IDF
       run: |
-        git clone -b v5.2.2 --recursive https://github.com/espressif/esp-idf.git esp-idf-v5.2.2
-        cd esp-idf-v5.2.2
+        git clone -b v5.2.2 --recursive https://github.com/espressif/esp-idf.git $GITHUB_WORKSPACE/esp-idf
+        cd $GITHUB_WORKSPACE/esp-idf
         ./install.sh
-        source ./export.sh
 
     - name: Build project
       run: |
+        source $GITHUB_WORKSPACE/esp-idf/export.sh
         cd src
         idf.py build
 
