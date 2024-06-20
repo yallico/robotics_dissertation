@@ -1,6 +1,7 @@
 #include "sdkconfig.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "spi_flash_mmap.h"
@@ -10,6 +11,10 @@
 #include "i2c_helper.h" //TODO: understand what this is and how it works
 #include "env_config.h"
 #include "ota.h"
+
+//Handle OTA
+TaskHandle_t ota_task_handle = NULL;
+EventGroupHandle_t ota_event_group; // declare the event group
 
 static const char *TAG = "main";
 
@@ -70,8 +75,17 @@ void app_main() {
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
     //OTA
+    // Create the OTA event group
+    ota_event_group = xEventGroupCreate();
+    // Create the OTA task
+    xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
     get_sha256_of_partitions();
-    ota_init();
+    ota_check_ver();
+    if (ota_task_handle != NULL) {
+        ESP_LOGI(TAG, "No OTA available, freeing up memory of OTA Task");
+        vTaskDelete(ota_task_handle);
+        ota_task_handle = NULL; //Handle is cleared after deletion
+    }
 
     // Set the log level for the Swarmcom tag to INFO
     esp_log_level_set("Swarmcom", ESP_LOG_INFO);

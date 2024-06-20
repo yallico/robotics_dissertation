@@ -8,6 +8,7 @@
 */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -16,16 +17,15 @@
 #include "esp_https_ota.h"
 #include "string.h"
 #include "cJSON.h"
-// #ifdef CONFIG_EXAMPLE_USE_CERT_BUNDLE
-// #include "esp_crt_bundle.h"
-// #endif
 
 #include "nvs.h"
 #include "nvs_flash.h"
 #include <sys/socket.h>
-// #if CONFIG_EXAMPLE_CONNECT_WIFI
-// #include "esp_wifi.h"
-// #endif
+
+// Define event bits
+#define OTA_READY_BIT BIT0
+
+extern EventGroupHandle_t ota_event_group;
 
 #define HASH_LEN 32
 
@@ -75,7 +75,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-void simple_ota_example_task(void *pvParameter)
+void simple_ota_example_task(void)
 {
     ESP_LOGI(TAG, "Starting OTA task");
 #ifdef CONFIG_EXAMPLE_FIRMWARE_UPGRADE_BIND_IF
@@ -90,11 +90,6 @@ void simple_ota_example_task(void *pvParameter)
 #endif
     esp_http_client_config_t config = {
         .url = CONFIG_EXAMPLE_FIRMWARE_UPGRADE_URL,
-/*#ifdef CONFIG_EXAMPLE_USE_CERT_BUNDLE
-        .crt_bundle_attach = esp_crt_bundle_attach,
-#else
-        .cert_pem = (char *)server_cert_pem_start,
-#endif CONFIG_EXAMPLE_USE_CERT_BUNDLE */ 
         .cert_pem = (char *)server_cert_pem_start,
         .event_handler = _http_event_handler,
         .keep_alive_enable = true,
@@ -134,6 +129,18 @@ void simple_ota_example_task(void *pvParameter)
     }
     while (1) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+void ota_task(void *pvParameter) {
+    while (1) {
+        // Wait indefinitely for the event bit to be set
+        EventBits_t bits = xEventGroupWaitBits(ota_event_group, OTA_READY_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+        if (bits & OTA_READY_BIT) {
+            ESP_LOGI(TAG, "OTA event triggered, update available");
+            // Perform OTA update
+            simple_ota_example_task();
+        }
     }
 }
 
@@ -183,9 +190,8 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
                 const esp_app_desc_t *app_desc = esp_app_get_description();
                 if (is_new_version(app_desc->version, version->valuestring)) {
                     ESP_LOGI(TAG, "New version available: %s", url->valuestring);
-                    // Initiate OTA
-                    //TODO: parametrise the url from the JSON here
-                    //xTaskCreate(&simple_ota_example_task, "ota_task", 8192, NULL, 5, NULL);
+                    // Signal OTA task instead of creating it
+                        xEventGroupSetBits(ota_event_group, OTA_READY_BIT);
                 } else {
                     ESP_LOGI(TAG, "Current version is up to date.");
                 }
@@ -197,7 +203,7 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 }
 
 // Function to fetch and parse JSON data from S3
-void ota_init() {
+void ota_check_ver() {
     esp_http_client_config_t config = {
         .url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/OTA/version.json",
         .event_handler = http_event_handler,
