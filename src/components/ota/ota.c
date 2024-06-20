@@ -173,7 +173,9 @@ void get_sha256_of_partitions(void)
 
 // Function to compare versions from JSON file in S3
 bool is_new_version(const char* current_version, const char* new_version) {
-    return (strcmp(current_version, new_version) > 0);
+    ESP_LOGI(TAG, "Current Version: %s", current_version);
+    ESP_LOGI(TAG, "Latest Version: %s", new_version);
+    return (strcmp(current_version, new_version) < 0);
 }
 
 // HTTP event handler for JSON request and OTA
@@ -212,7 +214,7 @@ void ota_check_ver() {
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTPS Status = %d, content_length = %lli",
+        ESP_LOGI(TAG, "JSON HTTPS Status = %d, content_length = %lli",
                  esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
     } else {

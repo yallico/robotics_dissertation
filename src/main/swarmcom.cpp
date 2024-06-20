@@ -85,10 +85,10 @@ void app_main() {
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
     //HTTPS request to version
     ota_check_ver();
+
     if (ota_task_handle != NULL) {
-        ESP_LOGI(TAG, "No OTA available, freeing up memory of OTA Task");
-        vTaskDelete(ota_task_handle);
-        ota_task_handle = NULL; //Handle is cleared after deletion
+        ESP_LOGI(TAG, "OTA Task created successfully");
+        //TODO: Need to workout how to delete OTA task if there is not update required.
     }
     //Check Heap
     free_heap_size = esp_get_free_heap_size();
