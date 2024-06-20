@@ -80,12 +80,19 @@ void app_main() {
     // Create the OTA task
     xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
     get_sha256_of_partitions();
+    //Check Heap
+    free_heap_size = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+    //HTTPS request to version
     ota_check_ver();
     if (ota_task_handle != NULL) {
         ESP_LOGI(TAG, "No OTA available, freeing up memory of OTA Task");
         vTaskDelete(ota_task_handle);
         ota_task_handle = NULL; //Handle is cleared after deletion
     }
+    //Check Heap
+    free_heap_size = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
     // Set the log level for the Swarmcom tag to INFO
     esp_log_level_set("Swarmcom", ESP_LOG_INFO);
