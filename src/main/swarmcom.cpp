@@ -1,5 +1,5 @@
 #include "sdkconfig.h"
-
+#include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
@@ -9,6 +9,7 @@
 #include "axp192.h"
 #include "i2c_helper.h" //TODO: understand what this is and how it works
 #include "env_config.h"
+#include "ota.h"
 
 static const char *TAG = "main";
 
@@ -30,8 +31,11 @@ public:
 
 void app_main() {
 
-    //ESP_LOGI(TAG, "SDK version: %s", esp_get_idf_version());
-    //ESP_LOGI(TAG, "Heap when starting: %d", esp_get_free_heap_size());
+    // Set specific log levels
+    //esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
+    //esp_log_level_set("esp-tls-mbedtls", ESP_LOG_VERBOSE);
+    size_t free_heap_size = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "Heap when starting: %u", free_heap_size);
 
     static i2c_port_t i2c_port = I2C_NUM_0;
 
@@ -60,6 +64,14 @@ void app_main() {
     //Initialize WIFI
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
+
+    //Check Heap
+    free_heap_size = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+
+    //OTA
+    get_sha256_of_partitions();
+    ota_init();
 
     // Set the log level for the Swarmcom tag to INFO
     esp_log_level_set("Swarmcom", ESP_LOG_INFO);
