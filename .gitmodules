@@ -4,3 +4,6 @@
 [submodule "src/components/esp_i2c_helper"]
 	path = src/components/esp_i2c_helper
 	url = https://github.com/yallico/esp_i2c_helper
+[submodule "src/components/esp_i2c_manager"]
+	path = src/components/esp_i2c_manager
+	url = https://github.com/yallico/esp_i2c_manager
