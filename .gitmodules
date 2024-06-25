@@ -6,4 +6,7 @@
 	url = https://github.com/yallico/esp_i2c_helper
 [submodule "src/components/esp_i2c_manager"]
 	path = src/components/esp_i2c_manager
-	url = https://github.com/yallico/esp_i2c_manager
+	url = https://github.com/yallico/esp_ic2_manager
+[submodule "src/src/components/m5core2_axp192"]
+	path = src/src/components/m5core2_axp192
+	url = https://github.com/yallico/m5core2_axp192
