@@ -4,11 +4,14 @@
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "esp_system.h"
+#include "esp_chip_info.h"
 #include "spi_flash_mmap.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+
 #include "axp192.h"
-#include "i2c_helper.h" //TODO: understand what this is and how it works
+#include "i2c_manager.h"
+#include "m5core2_axp192.h"
 #include "env_config.h"
 #include "ota.h"
 
@@ -36,27 +39,30 @@ public:
 
 void app_main() {
 
-    // Set specific log levels
-    //esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
-    //esp_log_level_set("esp-tls-mbedtls", ESP_LOG_VERBOSE);
+    printf("Welcome to Swarmcom!\n");
+
+	/* Print chip information */
+	esp_chip_info_t chip_info;
+	esp_chip_info(&chip_info);
+	printf("This is %s chip with %d CPU cores, WiFi%s%s, ",
+			CONFIG_IDF_TARGET,
+			chip_info.cores,
+			(chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+			(chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+
+	printf("silicon revision %d, ", chip_info.revision);
+
+
     size_t free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Heap when starting: %u", free_heap_size);
 
-    static i2c_port_t i2c_port = I2C_NUM_0;
-
-    ESP_LOGI(TAG, "Initializing I2C");
-    i2c_init(i2c_port);
-
-    ESP_LOGI(TAG, "Initializing AXP192");
-    axp.read = &i2c_read;
-    axp.write = &i2c_write;
-    axp.handle = &i2c_port;
-
-    axp192_init(&axp);
+    
+    ESP_LOGI(TAG, "Initializing I2C & AXP192");
+    m5core2_init();
 
     //IMPORTANT: Turn vibration off
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    axp192_ioctl(&axp, AXP192_LDO3_DISABLE);
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+    // axp192_ioctl(&axp, AXP192_LDO3_DISABLE);
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
