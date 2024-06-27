@@ -50,13 +50,19 @@ void app_main() {
 			(chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
 			(chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
 
-	printf("silicon revision %d, ", chip_info.revision);
+	printf("silicon revision %d\n", chip_info.revision);
 
 
     size_t free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Heap when starting: %u", free_heap_size);
 
-    
+    #ifdef I2C_NUM_0
+        printf("I2C_NUM_0 is defined\n");
+        printf("Value of I2C_NUM_0: %d\n", I2C_NUM_0);
+    #else
+        printf("I2C_NUM_0 is not defined\n");
+    #endif
+
     ESP_LOGI(TAG, "Initializing I2C & AXP192");
     m5core2_init();
 

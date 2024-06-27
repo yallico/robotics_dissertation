@@ -5,7 +5,7 @@
 	path = src/components/i2c_manager
 	url = https://github.com/yallico/esp_ic2_manager
 [submodule "src/components/m5core2_axp192"]
-	path = src/scomponents/m5core2_axp192
+	path = src/components/m5core2_axp192
 	url = https://github.com/yallico/m5core2_axp192
 [submodule "src/components/lvgl"]
 	path = src/components/lvgl
