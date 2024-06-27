@@ -1,9 +1,12 @@
 [submodule "src/components/axp192"]
 	path = src/components/axp192
 	url = https://github.com/yallico/axp192
-[submodule "src/components/esp_i2c_manager"]
-	path = src/components/esp_i2c_manager
+[submodule "src/components/i2c_manager"]
+	path = src/components/i2c_manager
 	url = https://github.com/yallico/esp_ic2_manager
-[submodule "src/src/components/m5core2_axp192"]
-	path = src/src/components/m5core2_axp192
+[submodule "src/components/m5core2_axp192"]
+	path = src/scomponents/m5core2_axp192
 	url = https://github.com/yallico/m5core2_axp192
+[submodule "src/components/lvgl"]
+	path = src/components/lvgl
+	url = https://github.com/lvgl/lvgl
