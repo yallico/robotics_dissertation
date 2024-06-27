@@ -10,3 +10,4 @@
 [submodule "src/components/lvgl"]
 	path = src/components/lvgl
 	url = https://github.com/lvgl/lvgl
+	branch = release/v9.0
