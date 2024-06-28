@@ -10,7 +10,7 @@
 [submodule "src/components/lvgl"]
 	path = src/components/lvgl
 	url = https://github.com/lvgl/lvgl
-	branch = release/v9.0
+	branch = release/v7
 [submodule "src/components/lvgl_esp32_drivers"]
 	path = src/components/lvgl_esp32_drivers
 	url = https://github.com/yallico/lvgl_esp32_drivers

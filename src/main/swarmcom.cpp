@@ -12,6 +12,8 @@
 #include "axp192.h"
 #include "i2c_manager.h"
 #include "m5core2_axp192.h"
+#include "lvgl.h"
+#include "lvgl_helpers.h"
 #include "env_config.h"
 #include "ota.h"
 
@@ -63,12 +65,16 @@ void app_main() {
         printf("I2C_NUM_0 is not defined\n");
     #endif
 
+    //vTaskDelay(pdMS_TO_TICKS(1000));
+    //axp192_ioctl(&axp, AXP192_LDO3_DISABLE);
+
     ESP_LOGI(TAG, "Initializing I2C & AXP192");
     m5core2_init();
+    lvgl_i2c_locking(i2c_manager_locking());
 
-    //IMPORTANT: Turn vibration off
-    // vTaskDelay(pdMS_TO_TICKS(1000));
-    // axp192_ioctl(&axp, AXP192_LDO3_DISABLE);
+    ESP_LOGI(TAG, "Initializing LCD");
+    lv_init();
+	lvgl_driver_init();
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
