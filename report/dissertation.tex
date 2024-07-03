@@ -18,7 +18,7 @@
 
 % Abstract
 \begin{abstract}
-This is the abstract of your dissertation.
+LOREM IPSUM
 \end{abstract}
 
 % Table of contents
@@ -34,20 +34,22 @@ This is the abstract of your dissertation.
 \lipsum[3-4] % Replace with your content
 
 \chapter{Implementation}
+
+\section{ESP-IDF}
+Why use ESP-IDF over Arduino IDE in this project? \cite{esp-boards_esp-idf_nodate}\cite{expressif_freertos_nodate}
+
+As we are using a ESP32 microcontroller to build our swarm, which left us with two options to program it: Arduino IDE or ESP-IDF. The reasons we chose the latter are because, first, it is the official development framework for the ESP32 microcontrollers, this means that ESP-IDF is native to ESP32 whereas Arduino is an API wrap around ESP-IDF. Making ESP-IDF more stable and enabling more advanced features, specially for communication data links such as Bluetooth, Wifi and LORA. Secondly, it is more powerful and flexible than Arduino IDE, because it allows the use of FreeRTOS which allows multi core development support (our M5 Stack has two cores) and is a pre-requisite for running microROS in the ESP32 microcontroller (at the time of writing this microROS does not support Arduino), hence making it more suitable for complex projects like this one. Thirdly, it is more efficient in terms of memory and speed (as it enables parallel processing) which is important for a project that requires real-time communication between multiple devices in a swarm. Finally, it is more professional and an industry standard, it allows dependency tracking, Over the Air (OTA) updates, unit testing, enhanced debugging and comprehensive documentation around it, which means it is more likely to be supported in the future and software is less likely to become deprecated over time.
+
 \section{OTA}
 
-Integrating Over-the-Air (OTA) updates into robotic swarms significantly enhances the efficiency of deploying and managing software updates, especially since these swarms often operate in hard-to-reach environments. OTA updates provide a scalable solution for software management, allowing us to view our swarm as a remotely manageable fleet of devices. This ensures that the entire fleet consistently operates on the latest software version. Such a strategy is exceptionally valuable in hazardous scenarios, including disaster response, or in challenging locations like space exploration, where direct access to hardware is limited. %TODO: check for references.
 
-Enabling swarms for commercial use require flexibility in the services that they can provide, mirroring successful implementations seen in the automotive industry, OTA updates can be used to achieve this goal in swarm robotics. For example, Tesla has revolutionized the car market with the model known as "software-enabled feature activation" by remotely updating vehicle software to enhance or unlock features. This operating model is not only convenient but also ensures fast deployment of critical updates across a fleet and it allows manufacturers to streamline hardware production. A truly flexible swarm should be robust enough to perform different tasks, and OTA updates might be one way to achieve this. %TODO: get references.
+%TODO: include references
+Integrating Over-the-Air (OTA) updates into robotic swarms improves efficiency in deploying and managing software, especially in remote or hazardous environments like space or disaster zones. This scalable approach allows remote management of the entire fleet, ensuring all robots consistently run the latest software. For instance, in the automotive sector Tesla's software-enabled feature activation model showcases how OTA updates can enhance customer services and streamline hardware production by allowing quick, widespread deployment of critical updates.
 
-In swarm literature we come across the single source of failure paradigm with decentralization at its core. With regards to OTA, some risks include, reliance on a central server to host the OTA update, cybersecurity breaches and the failure of the update itself are some valid points of consideration. Our implementation addresses some of these points by firstly using cloud services (AWS S3) to host the OTA updates with 99.99\% availability, and by designing the ESP32 to have a data partition which can safely rollback to the previous working version of the application in case the OTA update fails (i.e. battery in robot runs out as the OTA was in-progress). Though, the proposed implementation does not attempt to address this as its main goal, in the future it would be interesting to explore the possibility for the swarm to create and design their own OTA updates that can propagate locally. This might perhaps be possible with the use of decentralised genetic algorithms or machine learning approaches. %TODO: get references.
+Using cloud services like AWS S3 for hosting OTA updates ensures high availability and safe rollback capabilities in our system, increasing robustness against failures like incomplete updates due to power loss. This setup reduces capital expenditure costs and improves swarm scalability compared to local servers that can become a single source of failure. Mirroring Apple’s use of cloud infrastructure for massive, global iOS updates—but also complies with regional data laws by using decentralized storage and managed encryption.
 
-We used a cloud service over local server for the following reasons, scalability and reduced capital expenditure costs. For example Apple’s iOS updates, showcases the effectiveness of using cloud infrastructure to distribute software updates to millions of devices globally. Such scalability we believe is key for managing large swarms of robots, ensuring consistent updates without the overhead of maintaining extensive on-premise infrastructure. This is particularly the case for swarm systems that might require multiple servers across the world due to data privacy regulations, where some data is ring-fenced to the region it was generated. %TODO: get references.
+Our project integrates Continuous Integration and Deployment (CI/CD) to maintain dynamic software development for the swarm. This ensures that features and fixes are promptly integrated and tested, maintaining software quality and allowing the swarm to consistently operate with the latest releases. This approach is crucial for testing various communication parameters within our experiments, ensuring reliable and systematic updates.
 
-Continuous Integration and Continuous Deployment (CI/CD) practices are pivotal in supporting the dynamic nature of robotic software development. These methodologies ensure that new features and fixes are regularly integrated and tested, significantly reducing the time from development to deployment. Notably, it includes unit testing and automated deployment, which are essential for maintaining the quality of the software. In the context of swarm robotics, CI/CD practices can be used to ensure that the entire swarm is always running the latest version of the software. This is particularly important in our project as we would like to test multiple communication paramenters and need to produce tested software updates. %TODO: get references. 
-
-
-%add figure architecture.png here
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.5\textwidth]{architecture.png}
@@ -55,7 +57,7 @@ Continuous Integration and Continuous Deployment (CI/CD) practices are pivotal i
     \label{fig:architecture}
 \end{figure}
 
-By adopting OTA, CI/CD, and cloud-based updates, robotic swarms gain the agility required to adapt to new challenges rapidly, reflect real-time improvements, and achieve true scalability. Figure \ref{fig:architecture} shows the implementation of our system to enable over the air updates (OTA) and continuous integration \& continuous deployment (CI/CD) framework over the swam. 
+Figure \ref{fig:architecture} shows the implementation of our system to enable over the air updates (OTA) and continuous integration \& continuous deployment (CI/CD) framework over the swarm. 
 \begin{itemize}
     \item \textbf{Local Development Environment}: ESP32 application development takes place locally using VSCode, the IDE environment uses version 5.2.2 of ESP-IDF and Python 3.11 to build and flash the code in-situ to the ESP32 module. This self contained development environment allows for testing new features and updates without affecting previous versions of the application running on the swarm.
     \item \textbf{Version Control System \& CI/CD}: The codebase is stored in a public repository on GitHub: \url{https://github.com/yallico/robotics_dissertation}, this allows for version control and automates the build and test process upon every commit. The ESP32 project is compiled and it generates the .bin binary file used for OTA. This process ensures that the codebase is always in a working state and ready for deployment.
@@ -67,11 +69,6 @@ By adopting OTA, CI/CD, and cloud-based updates, robotic swarms gain the agility
 
 \section{Experimental Setup}
 \lipsum[5-6] % Replace with your content
-
-\section{Notes}
-Why use ESP-IDF over Arduino IDE in this project? \cite{esp-boards_esp-idf_nodate}\cite{expressif_freertos_nodate}
-
-As we are using a ESP32 microcontroller to build our swarm, which left us with two options to program it: Arduino IDE or ESP-IDF. The reasons we chose the latter are because, first, it is the official development framework for the ESP32 microcontrollers, this means that ESP-IDF is native to ESP32 whereas Arduino is an API wrap around ESP-IDF. Making ESP-IDF more stable and enabling more advanced features, specially for communication data links such as Bluetooth, Wifi and LORA. Secondly, it is more powerful and flexible than Arduino IDE, because it allows the use of FreeRTOS which allows multi core development support (our M5 Stack has two cores) and is a pre-requisite for running microROS in the ESP32 microcontroller (at the time of writing this microROS does not support Arduino), hence making it more suitable for complex projects like this one. Thirdly, it is more efficient in terms of memory and speed (as it enables parallel processing) which is important for a project that requires real-time communication between multiple devices in a swarm. Finally, it is more professional and an industry standard, it allows dependency tracking, Over the Air (OTA) updates, unit testing, enhanced debugging and comprehensive documentation around it, which means it is more likely to be supported in the future and software is less likely to become deprecated over time.
 
 % Add more chapters as needed
 
