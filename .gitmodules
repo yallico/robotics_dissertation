@@ -14,3 +14,6 @@
 [submodule "src/components/lvgl_esp32_drivers"]
 	path = src/components/lvgl_esp32_drivers
 	url = https://github.com/yallico/lvgl_esp32_drivers
+[submodule "ir_board"]
+	path = ir_board
+	url = https://github.com/yallico/Swarm-B2
