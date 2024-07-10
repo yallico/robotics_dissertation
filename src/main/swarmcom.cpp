@@ -18,8 +18,12 @@
 #include "lvgl_helpers.h"
 #include "env_config.h"
 #include "ota.h"
+#include "espnow_main.h"
 
 #define LV_TICK_PERIOD_MS 1
+lv_obj_t *espnow_label = NULL;
+
+//I2C
 #define DUPLEX_I2C	(i2c_port_t)I2C_NUM_1
 #define DUPLEX_BOARD_I2C_PORT (0x08)
 
@@ -60,6 +64,7 @@ static void guiTask(void *pvParameter) {
 
     static lv_color_t bufs[2][DISP_BUF_SIZE];
 	static lv_disp_buf_t disp_buf;
+    static const esp_app_desc_t *app_desc = esp_app_get_description();
 	uint32_t size_in_px = DISP_BUF_SIZE;
 
 	// Set up the frame buffers
@@ -82,25 +87,19 @@ static void guiTask(void *pvParameter) {
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LV_TICK_PERIOD_MS * 1000));
 
     lv_obj_t *scr = lv_disp_get_scr_act(NULL); // Get the current screen
-    lv_obj_t *label = lv_label_create(scr, NULL); // Create a label on the current screen
-    lv_label_set_text(label, "Hello, Swarmcom!"); // Set the label text
-    lv_obj_align(label, NULL, LV_ALIGN_CENTER, 0, 0); // Center the label on the screen
+    lv_coord_t screen_width = lv_obj_get_width(scr); // Get the width of the screen
+    espnow_label = lv_label_create(scr, NULL); // ESPNOW Label
+    lv_obj_t *ver_label = lv_label_create(scr, NULL); // Version Label
+    lv_label_set_text(espnow_label, "Swarmcom Online!");
+    lv_label_set_text(ver_label, app_desc->version);
+    lv_obj_align(espnow_label, NULL, LV_ALIGN_CENTER, -screen_width/4+10, 0); // Center the label on the screen
+    lv_obj_align(ver_label, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -10); // Align the version label to the bottom left of the screen
 
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(10)); // Delay for a short period
         lv_task_handler(); // Handle LVGL tasks
     }
 }
-
-// class HelloWorld {
-// public:
-//     static void run(void* arg) {
-//         while(true) {
-//             ESP_LOGI("Swarmcom", "Hello, Swarmcom!");
-//             vTaskDelay(pdMS_TO_TICKS(1000)); // 1000 ms delay
-//         }
-//     }
-// };
 
 void app_main() {
 
@@ -166,42 +165,55 @@ void app_main() {
     //i2c_status_t buffer;
     i2c_sensors_t sensors;
     uint8_t sensor_mode = 17;
-    //*(i2c_port_t*)
-    for (int i = 0; i < 10; i++) {
-        i2c_manager_write(DUPLEX_I2C, DUPLEX_BOARD_I2C_PORT, I2C_NO_REG, (uint8_t*)&sensor_mode, 1);
+    // for (int i = 0; i < 10; i++) {
+    //     i2c_manager_write(DUPLEX_I2C, DUPLEX_BOARD_I2C_PORT, I2C_NO_REG, (uint8_t*)&sensor_mode, 1);
 
-        i2c_manager_read(DUPLEX_I2C, DUPLEX_BOARD_I2C_PORT, I2C_NO_REG, (uint8_t*)&sensors, 10);
-        ESP_LOGI(TAG, "IR Sensor Read: %u", sensors.ldr[0]);
-        ESP_LOGI(TAG, "IR Sensor Read: %u", sensors.ldr[1]);
-        //ESP_LOGI(TAG, "IR Sensor Read: %d", buffer.fail_count[0]);
-        //ESP_LOGI(TAG, "IR Sensor Read: %d", buffer.pass_count[0]);
-    }
+    //     i2c_manager_read(DUPLEX_I2C, DUPLEX_BOARD_I2C_PORT, I2C_NO_REG, (uint8_t*)&sensors, 10);
+    //     ESP_LOGI(TAG, "IR Sensor Read: %u", sensors.ldr[0]);
+    //     ESP_LOGI(TAG, "IR Sensor Read: %u", sensors.ldr[1]);
+    //     //ESP_LOGI(TAG, "IR Sensor Read: %d", buffer.fail_count[0]);
+    //     //ESP_LOGI(TAG, "IR Sensor Read: %d", buffer.pass_count[0]);
+    // }
 
     //Initialize WIFI
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
+    vTaskDelay(pdMS_TO_TICKS(500));
 
-    //OTA
-    // Create the OTA event group
-    ota_event_group = xEventGroupCreate();
-    // Create the OTA task
-    xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
-    get_sha256_of_partitions();
-    //Check Heap
-    free_heap_size = esp_get_free_heap_size();
-    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
-    //HTTPS request to version
-    ota_check_ver();
+    // Wait for connection to establish before starting OTA
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdFALSE,
+            pdFALSE,
+            portMAX_DELAY);
 
-    if (ota_task_handle != NULL) {
-        ESP_LOGI(TAG, "OTA Task created successfully");
-        //TODO: Need to workout how to delete OTA task if there is not update required.
+    if (bits & WIFI_CONNECTED_BIT) {
+        ESP_LOGI(TAG, "Wi-Fi Connected. Proceeding with OTA.");
+        //OTA
+        // Create the OTA event group
+        ota_event_group = xEventGroupCreate();
+        // Create the OTA task
+        xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
+        get_sha256_of_partitions();
+        //Check Heap
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+        //HTTPS request to version
+        ota_check_ver();
+
+        if (ota_task_handle != NULL) {
+            ESP_LOGI(TAG, "OTA Task created successfully");
+            //TODO: Need to workout how to delete OTA task if there is not update required.
+        }
+    } else if (bits & WIFI_FAIL_BIT) {
+        ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");
     }
+
     //Check Heap
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
-    // Set the log level for the Swarmcom tag to INFO
-    // esp_log_level_set("Swarmcom", ESP_LOG_INFO);
-    // xTaskCreate(&HelloWorld::run, "HelloWorldTask", 2048, nullptr, 5, nullptr);
+    //Initialize ESPNOW UNICAST
+    espnow_init();
+
 }
