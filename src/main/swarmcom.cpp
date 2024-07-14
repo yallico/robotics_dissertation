@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
+#include "rtc_m5.h"
 #include "axp192.h"
 #include "i2c_manager.h"
 #include "m5core2_axp192.h"
@@ -43,8 +44,6 @@ TaskHandle_t ota_task_handle = NULL;
 EventGroupHandle_t ota_event_group; // declare the event group
 
 static const char *TAG = "main";
-
-axp192_t axp;
 
 extern "C" {
     void app_main();
@@ -90,12 +89,35 @@ static void guiTask(void *pvParameter) {
     lv_coord_t screen_width = lv_obj_get_width(scr); // Get the width of the screen
     espnow_label = lv_label_create(scr, NULL); // ESPNOW Label
     lv_obj_t *ver_label = lv_label_create(scr, NULL); // Version Label
+    lv_obj_t *time_label = lv_label_create(scr, NULL); // Time Label
+
     lv_label_set_text(espnow_label, "Swarmcom Online!");
     lv_label_set_text(ver_label, app_desc->version);
+    lv_label_set_text(time_label, "00:00:00"); // Initial text for the time label
+
     lv_obj_align(espnow_label, NULL, LV_ALIGN_CENTER, -screen_width/4+10, 0); // Center the label on the screen
     lv_obj_align(ver_label, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -10); // Align the version label to the bottom left of the screen
+    lv_obj_align(time_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 10); // Align the time label to the top right of the screen
+
+    uint32_t last_update_time = 0; // Variable to store the last update time in ticks
 
     while(1) {
+
+        uint32_t current_time = xTaskGetTickCount(); // Get the current tick count
+
+        // Update the time label 1 second
+        if ((current_time - last_update_time) >= pdMS_TO_TICKS(1000)) {
+            RTC_TimeTypeDef currentTime;
+            RTC_GetTime(&currentTime);
+
+            char time_str[12]; // Buffer to hold time string in HH:MM:SS format
+            snprintf(time_str, sizeof(time_str), "%02d:%02d:%02d", currentTime.Hours, currentTime.Minutes, currentTime.Seconds);
+
+            lv_label_set_text(time_label, time_str); // Update the time label with the current time
+
+            last_update_time = current_time; // Update the last update time
+        }
+
         vTaskDelay(pdMS_TO_TICKS(10)); // Delay for a short period
         lv_task_handler(); // Handle LVGL tasks
     }
@@ -116,6 +138,14 @@ void app_main() {
 
 	printf("silicon revision %d\n", chip_info.revision);
 
+    //Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
 
     size_t free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Heap when starting: %u", free_heap_size);
@@ -134,27 +164,18 @@ void app_main() {
         printf("I2C_NUM_1 is not defined\n");
     #endif
 
-    //vTaskDelay(pdMS_TO_TICKS(1000));
-    //axp192_ioctl(&axp, AXP192_LDO3_DISABLE);
-
     ESP_LOGI(TAG, "Initializing I2C & AXP192");
     m5core2_init();
     lvgl_i2c_locking(i2c_manager_locking());
 
+            // Initialize the RTC
+    ESP_LOGI(TAG, "RTC Module Init");
+    rtc_m5_init();
+
     ESP_LOGI(TAG, "Initializing LCD");
     lv_init();
 	lvgl_driver_init();
-
-    //Initialize NVS
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
-
-    // Create and start GUI task for handling LVGL related activities
-    xTaskCreatePinnedToCore(guiTask, "guiTask", 4096*2, NULL, 0, NULL, 1);
+    xTaskCreatePinnedToCore(guiTask, "guiTask", 4096*2, NULL, 0, NULL, 1); // Create and start GUI task for handling LVGL tasks
 
     //Check Heap
     free_heap_size = esp_get_free_heap_size();
@@ -188,10 +209,14 @@ void app_main() {
             portMAX_DELAY);
 
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Wi-Fi Connected. Proceeding with OTA.");
+        ESP_LOGI(TAG, "Wi-Fi Connected. Proceeding with SNTP & OTA.");
+        // Initialize the RTC
+        ESP_LOGI(TAG, "Initializing RTC Module");
+        sync_rtc_with_ntp();
+
         //OTA
-        // Create the OTA event group
-        ota_event_group = xEventGroupCreate();
+        ESP_LOGI(TAG, "Initializing OTA Update");
+        ota_event_group = xEventGroupCreate(); // Create the OTA event group
         // Create the OTA task
         xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
         get_sha256_of_partitions();
