@@ -11,6 +11,8 @@
         ]
     },
     "files.associations": {
-        "esp_idf_version.h": "c"
+        "esp_idf_version.h": "c",
+        "esp_log.h": "c",
+        "i2c_master.h": "c"
     }
 }

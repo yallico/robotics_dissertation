@@ -26,6 +26,9 @@ __pycache__/
 *.synctex.gz
 *.fdb_latexmk
 
+#ESP-IDF
+src/managed_components/
+
 # C extensions
 *.so
 

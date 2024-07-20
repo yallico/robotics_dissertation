@@ -10,7 +10,12 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
+#include "Arduino.h"
 
+//#include "ir_board.h"
+//#include "ir_board_simple.h"
+//#include "ir_board_safe.h"
+#include "ir_board_arduino.h"
 #include "rtc_m5.h"
 #include "axp192.h"
 #include "i2c_manager.h"
@@ -23,25 +28,16 @@
 
 #define LV_TICK_PERIOD_MS 1
 lv_obj_t *espnow_label = NULL;
-
-//I2C
-#define DUPLEX_I2C	(i2c_port_t)I2C_NUM_1
-#define DUPLEX_BOARD_I2C_PORT (0x08)
-
-typedef struct i2c_sensors {
-  int16_t ldr[3];     // 6 bytes
-  int16_t prox[2];    // 4 bytes
-} i2c_sensors_t;
-
-typedef struct i2c_status { 
-  uint8_t mode;                   // 1  bytes
-  uint16_t fail_count[4];          // 8 bytes
-  uint16_t pass_count[4];         // 8 bytes 
-} i2c_status_t;
+lv_obj_t *sensor_label = NULL;
 
 //Handle OTA
 TaskHandle_t ota_task_handle = NULL;
 EventGroupHandle_t ota_event_group; // declare the event group
+
+//IRComm
+//ir_i2c_mode_t ircomm_mode;
+//i2c_status_t ircomm_status;
+//i2c_sensors_t ircomm_sensors;
 
 static const char *TAG = "main";
 
@@ -88,14 +84,17 @@ static void guiTask(void *pvParameter) {
     lv_obj_t *scr = lv_disp_get_scr_act(NULL); // Get the current screen
     lv_coord_t screen_width = lv_obj_get_width(scr); // Get the width of the screen
     espnow_label = lv_label_create(scr, NULL); // ESPNOW Label
+    sensor_label = lv_label_create(scr, NULL); // Sensor Label
     lv_obj_t *ver_label = lv_label_create(scr, NULL); // Version Label
     lv_obj_t *time_label = lv_label_create(scr, NULL); // Time Label
 
     lv_label_set_text(espnow_label, "Swarmcom Online!");
+    lv_label_set_text(sensor_label, "");
     lv_label_set_text(ver_label, app_desc->version);
     lv_label_set_text(time_label, "00:00:00"); // Initial text for the time label
 
     lv_obj_align(espnow_label, NULL, LV_ALIGN_CENTER, -screen_width/4+10, 0); // Center the label on the screen
+    lv_obj_align(sensor_label, NULL, LV_ALIGN_CENTER, -screen_width/2, 20); // Center the label on the screen
     lv_obj_align(ver_label, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -10); // Align the version label to the bottom left of the screen
     lv_obj_align(time_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 10); // Align the time label to the top right of the screen
 
@@ -146,29 +145,21 @@ void app_main() {
     }
     ESP_ERROR_CHECK(ret);
 
-
     size_t free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Heap when starting: %u", free_heap_size);
-
-    #ifdef I2C_NUM_0
-        printf("I2C_NUM_0 is defined\n");
-        printf("Value of I2C_NUM_0: %d\n", I2C_NUM_0);
-    #else
-        printf("I2C_NUM_0 is not defined\n");
-    #endif
-
-        #ifdef I2C_NUM_1
-        printf("I2C_NUM_1 is defined\n");
-        printf("Value of I2C_NUM_1: %d\n", I2C_NUM_1);
-    #else
-        printf("I2C_NUM_1 is not defined\n");
-    #endif
-
+    
     ESP_LOGI(TAG, "Initializing I2C & AXP192");
     m5core2_init();
     lvgl_i2c_locking(i2c_manager_locking());
+    //i2c_external_master_init(); //Initialize I2C for external master
 
-            // Initialize the RTC
+    //Test write to IR Board
+    //vTaskDelay(pdMS_TO_TICKS(100));
+    //i2c_get_status(&ircomm_status);
+    // vTaskDelay(pdMS_TO_TICKS(500));
+    // i2c_get_sensors(&ircomm_sensors);
+
+    // Initialize the RTC
     ESP_LOGI(TAG, "RTC Module Init");
     rtc_m5_init();
 
@@ -181,20 +172,44 @@ void app_main() {
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
-    //Init Sensor Read
-    ESP_LOGI(TAG, "Initializing IR Sensor Read");
-    //i2c_status_t buffer;
-    i2c_sensors_t sensors;
-    uint8_t sensor_mode = 17;
-    // for (int i = 0; i < 10; i++) {
-    //     i2c_manager_write(DUPLEX_I2C, DUPLEX_BOARD_I2C_PORT, I2C_NO_REG, (uint8_t*)&sensor_mode, 1);
+    ESP_LOGI(TAG, "Initializing Arduino");
+    initArduino();
 
-    //     i2c_manager_read(DUPLEX_I2C, DUPLEX_BOARD_I2C_PORT, I2C_NO_REG, (uint8_t*)&sensors, 10);
-    //     ESP_LOGI(TAG, "IR Sensor Read: %u", sensors.ldr[0]);
-    //     ESP_LOGI(TAG, "IR Sensor Read: %u", sensors.ldr[1]);
-    //     //ESP_LOGI(TAG, "IR Sensor Read: %d", buffer.fail_count[0]);
-    //     //ESP_LOGI(TAG, "IR Sensor Read: %d", buffer.pass_count[0]);
+    //Test write to IR Board
+    init_arduino_i2c_wire();
+    vTaskDelay(pdMS_TO_TICKS(100));
+    i2c_get_status();
+    vTaskDelay(pdMS_TO_TICKS(100));
+    xTaskCreate(i2c_lvgl_task, "I2C Sensor Task", 4096, NULL, 5, NULL);
+
+    // ircomm_mode.mode = MODE_REPORT_STATUS;
+    // esp_err_t ret2 = i2c_master_write_ir((uint8_t*)&ircomm_mode, 1);
+    // if (ret2 == ESP_OK) {
+    //     ESP_LOGI(TAG, "I2C write successful");
+    // } else {
+    //     ESP_LOGE(TAG, "I2C write failed: %s", esp_err_to_name(ret2));
     // }
+    // ir_get_status(&ircomm_status);
+
+    // vTaskDelay(pdMS_TO_TICKS(10));
+    // ircomm_mode.mode = MODE_REPORT_SENSORS;
+    //     esp_err_t ret3 = i2c_master_write_ir((uint8_t*)&ircomm_mode, 1);
+    // if (ret2 == ESP_OK) {
+    //     ESP_LOGI(TAG, "I2C write successful");
+    // } else {
+    //     ESP_LOGE(TAG, "I2C write failed: %s", esp_err_to_name(ret3));
+    // }
+    // ir_get_sensors(&ircomm_sensors);
+
+    // vTaskDelay(pdMS_TO_TICKS(10));
+    // ircomm_mode.mode = MODE_REPORT_STATUS;
+    // esp_err_t ret4 = i2c_master_write_ir((uint8_t*)&ircomm_mode, 1);
+    // if (ret2 == ESP_OK) {
+    //     ESP_LOGI(TAG, "I2C write successful");
+    // } else {
+    //     ESP_LOGE(TAG, "I2C write failed: %s", esp_err_to_name(ret4));
+    // }
+    // ir_get_status(&ircomm_status);
 
     //Initialize WIFI
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
@@ -238,7 +253,13 @@ void app_main() {
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
+    //TODEL: Board status again writting sensor mode
+    // ir_get_status(&status, 0x11);
+    // ir_get_status(&status, 0);
+    // ir_get_status(&status, 17);
+
     //Initialize ESPNOW UNICAST
     espnow_init();
+
 
 }

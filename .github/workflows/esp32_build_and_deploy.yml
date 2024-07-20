@@ -15,6 +15,12 @@ jobs:
       with:
         submodules: 'recursive'
 
+    - name: Checkout specific tag for arduino-esp32
+      run: |
+        cd src/components/arduino
+        git fetch --tags
+        git checkout 3.0.3
+
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
@@ -26,7 +32,7 @@ jobs:
 
     - name: Clone ESP-IDF
       run: |
-        git clone -b v5.2.2 --recursive https://github.com/espressif/esp-idf.git $GITHUB_WORKSPACE/esp-idf
+        git clone -b v5.1.4 --recursive https://github.com/espressif/esp-idf.git $GITHUB_WORKSPACE/esp-idf
         cd $GITHUB_WORKSPACE/esp-idf
         ./install.sh
 
