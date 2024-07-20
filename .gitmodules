@@ -17,3 +17,6 @@
 [submodule "ir_board"]
 	path = ir_board
 	url = https://github.com/yallico/Swarm-B2
+[submodule "src/components/arduino"]
+	path = src/components/arduino
+	url = https://github.com/espressif/arduino-esp32.git
