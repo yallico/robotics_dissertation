@@ -22,6 +22,8 @@
 #include "nvs_flash.h"
 #include <sys/socket.h>
 
+#include "ota.h"
+
 // Define event bits
 #define OTA_READY_BIT BIT0
 
@@ -39,8 +41,6 @@ static const char *bind_interface_name = EXAMPLE_NETIF_DESC_STA;
 #endif
 
 static const char *TAG = "OTA";
-extern const uint8_t server_cert_pem_start[] asm("_binary_aws_root_ca_pem_start");
-extern const uint8_t server_cert_pem_end[] asm("_binary_aws_root_ca_pem_end");
 
 #define OTA_URL_SIZE 256
 

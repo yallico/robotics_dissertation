@@ -1,5 +1,7 @@
 #include "rtc_m5.h"
 #include "esp_log.h"
+#include <time.h>
+#include <sys/time.h>
 #include "lwip/apps/sntp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -255,12 +257,16 @@ void RTC_DisableIRQ(void) {
 void initialize_sntp(void) {
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
+    sntp_setservername(0, "uk.pool.ntp.org");
     sntp_init();
 }
 
 void obtain_time(void) {
     initialize_sntp();
+
+    setenv("TZ", "GMT0BST-1,M3.5.0/1,M10.5.0", 1);
+    tzset();
+    ESP_LOGI(TAG, "Time Zone Synchronized");
 
     // Wait for time to be set
     time_t now = 0;

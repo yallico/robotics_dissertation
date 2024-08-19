@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "env_config.h"
+#include "esp_mac.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -116,7 +117,7 @@ void wifi_init_sta(void)
             .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
         },
     };
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) ); // Store WiFi credentials in RAM, from ESPNOW
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM) ); // Store WiFi credentials in RAM, from ESPNOW
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
@@ -144,6 +145,27 @@ void wifi_init_sta(void)
     }
 }
 
+char* get_mac_id() {
+    uint8_t mac[6]; // Array to hold the MAC address
+    esp_err_t ret = esp_read_mac(mac, ESP_MAC_WIFI_STA); // Read MAC address for Station interface
+    if (ret != ESP_OK) {
+        printf("Failed to read MAC address: %s\n", esp_err_to_name(ret));
+        return NULL;
+    }
+
+    // Allocate memory for the hex string (including null terminator)
+    char* result = malloc(5); // Two bytes in hex plus colon separator and null terminator
+    if (result == NULL) {
+        printf("Failed to allocate memory for MAC address string.\n");
+        return NULL;
+    }
+
+    // Format the last two bytes of the MAC address
+    sprintf(result, "%02X%02X", mac[4], mac[5]);
+
+    return result;
+}
+
 // Get the current ESP-IDF version
 uint32_t current_esp_version(void){
     return ESP_IDF_VERSION;
@@ -151,5 +173,5 @@ uint32_t current_esp_version(void){
 
 // Expected ESP-IDF version: major, minor, and patch
 uint32_t expected_esp_version(void){
-    return ESP_IDF_VERSION_VAL(5, 4, 0);
+    return ESP_IDF_VERSION_VAL(5, 1, 4);
 }
