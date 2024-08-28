@@ -25,6 +25,7 @@
 #include "ota.h"
 #include "espnow_main.h"
 #include "https.h"
+//#include "sd_card.h"
 #include "sd_card_manager.h"
 #include "data_structures.h"
 
@@ -45,6 +46,9 @@ uint32_t experiment_start_time = 0; // Tick count when experiment starts
 //Handle OTA
 TaskHandle_t ota_task_handle = NULL;
 EventGroupHandle_t ota_event_group; // declare the event group
+
+//Data Structures
+experiment_metadata_t metadata;
 
 static const char *TAG = "main";
 
@@ -203,29 +207,32 @@ void app_main() {
     m5core2_init();
     lvgl_i2c_locking(i2c_manager_locking());
 
-        // Initialize the SD card
-    esp_err_t sd_ret = init_sd_card(mount_point);
-    if (sd_ret != ESP_OK) {
-        printf("Failed to initialize SD card: %s\n", esp_err_to_name(sd_ret));
-        return;  // Optionally handle the error, such as retrying initialization
-    }
-    clean_sd_card(mount_point); //clean data stored in SD card
+    ESP_LOGI(TAG, "Initializing Arduino");
+    initArduino();
 
     // Initialize the RTC
     ESP_LOGI(TAG, "RTC Module Init");
     rtc_m5_init();
+
+    // Initialize the SD card
+    //sd_card_init();
+    //xTaskCreate(sd_card_write_task, "SD Write Task", 2048, NULL, 5, NULL);
 
     ESP_LOGI(TAG, "Initializing LCD");
     lv_init();
 	lvgl_driver_init();
     xTaskCreatePinnedToCore(guiTask, "guiTask", 4096*2, NULL, 0, NULL, 1); // Create and start GUI task for handling LVGL tasks
 
-    //Check Heap
-    free_heap_size = esp_get_free_heap_size();
-    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+    //Initialize the SD card
+    esp_err_t sd_ret = init_sd_card(mount_point);
+    if (sd_ret != ESP_OK) {
+        printf("Failed to initialize SD card: %s\n", esp_err_to_name(sd_ret));
+        return;
+    }
+    //clean_sd_card(mount_point); //clean data stored in SD card
 
-    ESP_LOGI(TAG, "Initializing Arduino");
-    initArduino();
+    free_heap_size = esp_get_free_heap_size(); //Check Heap
+    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
     //Test write to IR Board
     init_arduino_i2c_wire();
@@ -270,7 +277,6 @@ void app_main() {
         }
 
         //TODO: OTA JSON to set up experiment paramenters
-        experiment_metadata_t metadata;
         metadata.num_robots = 5; 
         for (int i = 0; i < metadata.num_robots; i++) {
             metadata.robot_ids[i] = 1001 + i; 
@@ -315,10 +321,10 @@ void app_main() {
         }
 
         //Test saving data to SD card
-        sd_ret = write_data(mount_point, json_data, "experiment");
-        if (sd_ret != ESP_OK) {
-            printf("Failed to write message data\n");
-        }
+        // sd_ret = write_data(mount_point, json_data, "experiment");
+        // if (sd_ret != ESP_OK) {
+        //     printf("Failed to write message data\n");
+        // }
 
 
         } else if (bits & WIFI_FAIL_BIT) {
@@ -329,8 +335,24 @@ void app_main() {
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
+    //TODEL
+    // const char *file_hello = "/sdcard/hello.txt";
+    // char data[64];
+    // snprintf(data, 64, "%s %s!\n", "Hello", "World");
+    // sd_ret = s_example_write_file(file_hello, data);
+    // if (sd_ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to write Hello World to SD Card.");
+    // }
+    // ret = s_example_read_file(file_hello);
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "Failed to read Hello World to SD Card.");
+    // }
+
+    //test_sd_card();
+
+    // s_unmount_card(mount_point);
+
     //Initialize ESPNOW UNICAST
     espnow_init();
-
 
 }
