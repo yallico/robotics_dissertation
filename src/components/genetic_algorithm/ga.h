@@ -54,8 +54,8 @@ extern "C" {
 #define A 10.0
 
 // Global variables
-extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_crt_start");
-extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_crt_end");
+extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_pem_start");
+extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
 
 // Interface functions
 void init_ga(void);

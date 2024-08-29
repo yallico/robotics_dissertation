@@ -13,6 +13,7 @@
 
 #define MAX_FILE_SIZE 64  // Max file size in bytes
 static const char *TAG = "SD_CARD_MANAGER";
+sdmmc_card_t* card;
 
 // Initialize SD card
 esp_err_t init_sd_card(const char* mount_point) {
@@ -49,7 +50,6 @@ esp_err_t init_sd_card(const char* mount_point) {
         .allocation_unit_size = 16 * 1024
     };
 
-    sdmmc_card_t* card;
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
 
     // Card has been initialized, print its properties
@@ -180,7 +180,7 @@ void test_sd_card() {
 
 // Function to unmount the SD card
 void unmount_sd_card(const char* mount_point) {
-    esp_err_t ret = esp_vfs_fat_sdcard_unmount(mount_point, NULL);
+    esp_err_t ret = esp_vfs_fat_sdcard_unmount(mount_point, card);
     if (ret != ESP_OK) {
         ESP_LOGE("SD_CARD", "Failed to unmount SD card: %s", esp_err_to_name(ret));
     } else {

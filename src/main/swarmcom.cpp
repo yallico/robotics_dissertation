@@ -218,7 +218,7 @@ void app_main() {
     ESP_LOGI(TAG, "Initializing LCD");
     lv_init();
 	lvgl_driver_init();
-    xTaskCreatePinnedToCore(guiTask, "guiTask", 4096*2, NULL, 0, NULL, 1); // Create and start GUI task for handling LVGL tasks
+    xTaskCreatePinnedToCore(guiTask, "guiTask", 10240, NULL, 0, NULL, 1); // Create and start GUI task for handling LVGL tasks
 
     //Initialize the SD card
     esp_err_t sd_ret = init_sd_card(mount_point);
@@ -242,6 +242,8 @@ void app_main() {
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
     vTaskDelay(pdMS_TO_TICKS(500));
+    free_heap_size = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
     // Wait for connection to establish before starting OTA
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
@@ -262,7 +264,6 @@ void app_main() {
         // Create the OTA task
         xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
         get_sha256_of_partitions();
-        //Check Heap
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
         //HTTPS request to version
@@ -335,23 +336,10 @@ void app_main() {
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
-    //TODEL
-    // const char *file_hello = "/sdcard/hello.txt";
-    // char data[64];
-    // snprintf(data, 64, "%s %s!\n", "Hello", "World");
-    // sd_ret = s_example_write_file(file_hello, data);
-    // if (sd_ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to write Hello World to SD Card.");
-    // }
-    // ret = s_example_read_file(file_hello);
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to read Hello World to SD Card.");
-    // }
-
     //Initialize ESPNOW UNICAST
     espnow_init();
 
     //De-init SD Card
-    unmount_sd_card("/");
+    unmount_sd_card(mount_point);
 
 }

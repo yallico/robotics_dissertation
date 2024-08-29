@@ -20,22 +20,27 @@ static esp_err_t http_handler_metadata(esp_http_client_event_t *evt) {
             ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
             break;
         case HTTP_EVENT_ON_DATA:
-            if (!esp_http_client_is_chunked_response(evt->client)) {
-                if (response->data == NULL) {  // First chunk of data
-                    response->data = malloc(evt->data_len + 1);  // Allocate memory for data
-                    if (response->data == NULL) {
-                        return ESP_ERR_NO_MEM;
-                    }
-                    memcpy(response->data, evt->data, evt->data_len);
-                    response->data[evt->data_len] = '\0';  // Null-terminate the string
-                    response->len = evt->data_len;
-                } else {  // Subsequent data chunks
-                    response->data = realloc(response->data, response->len + evt->data_len + 1);
-                    memcpy(response->data + response->len, evt->data, evt->data_len);
-                    response->len += evt->data_len;
-                    response->data[response->len] = '\0';  // Null-terminate the string
+            // Allocate or extend the buffer on every chunk received
+            if (response->data == NULL) {  // First chunk of data
+                response->data = malloc(evt->data_len + 1);  // Allocate memory for data
+                if (response->data == NULL) {
+                    ESP_LOGE("HTTP", "Failed to allocate memory for response data.");
+                    return ESP_ERR_NO_MEM;
                 }
+                response->len = 0; // Initialize length if first chunk
+            } else {  // Subsequent data chunks
+                char *new_data = realloc(response->data, response->len + evt->data_len + 1);
+                if (new_data == NULL) {
+                    ESP_LOGE("HTTP", "Failed to reallocate memory for response data.");
+                    free(response->data); // Free the original data to avoid memory leak
+                    response->data = NULL; // Avoid dangling pointer
+                    return ESP_ERR_NO_MEM;  // Handle realloc failure
+                }
+                response->data = new_data;
             }
+            memcpy(response->data + response->len, evt->data, evt->data_len);
+            response->len += evt->data_len;
+            response->data[response->len] = '\0';  // Null-terminate the string
             break;
         case HTTP_EVENT_ON_FINISH:
             ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
