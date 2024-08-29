@@ -18,7 +18,7 @@ void clean_sd_card(const char* mount_point);
 esp_err_t write_data(const char* base_path, const char* data, const char* suffix);
 esp_err_t s_example_write_file(const char *path, char *data);
 esp_err_t s_example_read_file(const char *path);
-// esp_err_t s_unmount_card(const char* mount_point);
+void unmount_sd_card(const char* mount_point);
 void test_sd_card();
 
 #ifdef __cplusplus

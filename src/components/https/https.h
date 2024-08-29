@@ -15,7 +15,14 @@ extern "C" {
  * @param data_len Length of the data to upload.
  * @return esp_err_t ESP_OK on success, or an error code on failure.
  */
+
+typedef struct {
+    char *data;      // Pointer to store data
+    int len;         // Length of data
+} http_response_t;
+
 esp_err_t https_put(const char *url, const char *data, size_t data_len);
+esp_err_t https_get(const char *url, http_response_t *response, const uint8_t *cert);
 
 #ifdef __cplusplus
 }

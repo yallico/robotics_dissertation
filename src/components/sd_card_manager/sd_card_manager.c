@@ -58,20 +58,32 @@ esp_err_t init_sd_card(const char* mount_point) {
     return ret;
 }
 
-// Clean SD card, might have to delete
 void clean_sd_card(const char* base_path) {
     DIR* dir = opendir(base_path);
-    if (dir != NULL) {
-        struct dirent* ent;
-        char file_path[512];
-        while ((ent = readdir(dir)) != NULL) {
-            if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-                sprintf(file_path, "%s/%s", base_path, ent->d_name);
-                unlink(file_path);  // Delete the file
+    if (dir == NULL) {
+        ESP_LOGE("SD_CARD", "Failed to open directory: %s", base_path);
+        return;
+    }
+
+    struct dirent* ent;
+    char file_path[512];
+    while ((ent = readdir(dir)) != NULL) {
+        if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
+            snprintf(file_path, sizeof(file_path), "%s/%s", base_path, ent->d_name);
+
+            // Check if it is a regular file and not a directory
+            struct stat path_stat;
+            stat(file_path, &path_stat);
+            if (S_ISREG(path_stat.st_mode)) {
+                if (unlink(file_path) == -1) {
+                    ESP_LOGE("SD_CARD", "Failed to delete file: %s", file_path);
+                } else {
+                    ESP_LOGI("SD_CARD", "Deleted file: %s", file_path);
+                }
             }
         }
-        closedir(dir);
     }
+    closedir(dir);
 }
 
 esp_err_t write_data(const char* base_path, const char* data, const char* suffix) {
@@ -145,17 +157,6 @@ esp_err_t s_example_read_file(const char *path) {
     return ESP_OK;
 }
 
-// esp_err_t s_unmount_card(const char* mount_point) {
-
-//     esp_err_t ret = esp_vfs_fat_sdcard_unmount(mount_point, &card);
-//     if(ret != ESP_OK) {
-//         ESP_LOGE(TAG, "Failed to unmount SD card: %s", esp_err_to_name(ret));
-//         return ret;
-//     }
-
-//     return ESP_OK;
-// }
-
 void test_sd_card() {
     FILE* f = fopen("/sdcard/test.txt", "w+");
     if (f == NULL) {
@@ -175,4 +176,14 @@ void test_sd_card() {
     fclose(f);
 
     ESP_LOGI("SD_CARD", "Read from file: '%s'", line);
+}
+
+// Function to unmount the SD card
+void unmount_sd_card(const char* mount_point) {
+    esp_err_t ret = esp_vfs_fat_sdcard_unmount(mount_point, NULL);
+    if (ret != ESP_OK) {
+        ESP_LOGE("SD_CARD", "Failed to unmount SD card: %s", esp_err_to_name(ret));
+    } else {
+        ESP_LOGI("SD_CARD", "SD card unmounted successfully");
+    }
 }

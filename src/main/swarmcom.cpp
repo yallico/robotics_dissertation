@@ -25,7 +25,7 @@
 #include "ota.h"
 #include "espnow_main.h"
 #include "https.h"
-//#include "sd_card.h"
+#include "ga.h"
 #include "sd_card_manager.h"
 #include "data_structures.h"
 
@@ -214,10 +214,7 @@ void app_main() {
     ESP_LOGI(TAG, "RTC Module Init");
     rtc_m5_init();
 
-    // Initialize the SD card
-    //sd_card_init();
-    //xTaskCreate(sd_card_write_task, "SD Write Task", 2048, NULL, 5, NULL);
-
+    // Initialize the LCD and SPI
     ESP_LOGI(TAG, "Initializing LCD");
     lv_init();
 	lvgl_driver_init();
@@ -229,7 +226,7 @@ void app_main() {
         printf("Failed to initialize SD card: %s\n", esp_err_to_name(sd_ret));
         return;
     }
-    //clean_sd_card(mount_point); //clean data stored in SD card
+    clean_sd_card(mount_point); //clean data stored in SD card
 
     free_heap_size = esp_get_free_heap_size(); //Check Heap
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
@@ -275,6 +272,9 @@ void app_main() {
             ESP_LOGI(TAG, "OTA Task created successfully");
             //TODO: Need to workout how to delete OTA task if there is no update required.
         }
+
+        //Initialize Genetic Algorithm
+        init_ga();
 
         //TODO: OTA JSON to set up experiment paramenters
         metadata.num_robots = 5; 
@@ -348,11 +348,10 @@ void app_main() {
     //     ESP_LOGE(TAG, "Failed to read Hello World to SD Card.");
     // }
 
-    //test_sd_card();
-
-    // s_unmount_card(mount_point);
-
     //Initialize ESPNOW UNICAST
     espnow_init();
+
+    //De-init SD Card
+    unmount_sd_card("/");
 
 }
