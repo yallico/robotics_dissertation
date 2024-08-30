@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stdint.h> 
+#include <stdbool.h>
 
 // Constants
 #define POP_SIZE        30      // How many candidate solutions to evaluate.
@@ -56,10 +57,10 @@ extern "C" {
 // Global variables
 extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_pem_start");
 extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
+extern volatile bool experiment_ended;
 
 // Interface functions
 void init_ga(void);
-void run_ga(void);
 void print_population(void);
 void print_ranking(void);
 void ga_task(void *pvParameters);  // Expose the task function for external use

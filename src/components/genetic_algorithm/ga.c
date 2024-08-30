@@ -11,6 +11,10 @@
 
 static const char *TAG = "GA";
 
+//TODO: handle error seed
+//Used to initialize the random seed
+uint16_t seed = 0; //0 error code
+
 // Used to help analyse performance, difference in time.
 unsigned long dt;
 
@@ -41,8 +45,65 @@ float true_f[ POP_SIZE ];   // Our roulette selection works as to optimise to ma
                             // original rastrigin value into this array just for 
                             // reviewing/debugging later.  
 
-void run_ga(void) {
-    // Core logic to evolve your GA
+// Utility function to generate a random floating-point number within a range
+float randFloat(float min, float max) {
+    return min + ((float)rand() / (float)RAND_MAX) * (max - min);
+}
+
+/*
+ *  From: http://www.taygeta.com/random/gaussian.html
+ *  
+ *  This routine is a little troubling because it is 
+ *  non-deterministic (we don't know when it will solve)
+ *  and computationally expensive.
+ *  However, using gaussian distribution is useful for 
+ *  GAs to create an often-small mutation with occassional
+ *  big mutation.  Uniform random numbers don't do this.
+ */
+float randGaussian(float mean, float sd) {
+    float x1, x2, w, y;
+
+    do {
+        x1 = 2.0 * randFloat(0.0,1.0) - 1.0; // Generate uniform random value between -1 and 1
+        x2 = 2.0 * randFloat(0.0,1.0) - 1.0; // Generate uniform random value between -1 and 1
+        w = (x1 * x1) + (x2 * x2);
+    } while (w >= 1.0); // Ensure that the point is inside the unit circle
+
+    w = sqrt((-2.0 * log(w)) / w); // Compute scaling factor
+    y = x1 * w; // y is normally distributed
+    return mean + y * sd; // Scale by standard deviation and adjust by mean
+}
+
+// This is a standard selection mechanism, plenty of 
+// resources to read on this.
+// https://en.wikipedia.org/wiki/Fitness_proportionate_selection
+// Note, we have preconditioned our fitness (rastrigin) to
+// convert it to a maximisation problem so this routine works.
+int rouletteSelection(void) {
+    float sum_fitness = 0.0;
+    int i;
+
+    // Calculate the sum of all fitness values
+    for (i = 0; i < POP_SIZE; i++) {
+        sum_fitness += fitness[i];
+    }
+    
+    // Generate a random stopping point along the cumulative sum of fitnesses
+    float stop = randFloat(0.0, sum_fitness);
+    
+    // Move through each fitness and end when the value is
+    // greater or equal to the stop position
+    float cumulative_sum = 0.0;
+    for (i = 0; i < POP_SIZE; i++) {
+        cumulative_sum += fitness[i];
+        if (cumulative_sum >= stop) {
+            return i;
+        }
+    }
+
+    // In the unlikely event that floating-point precision leads to not selecting
+    // simply return the last index (should technically never happen)
+    return POP_SIZE - 1;
 }
 
 // The fitness function is key to any GA.
@@ -90,6 +151,47 @@ void determineFitness() {
     }
 }
 
+// Using a simple bubble sort to determine the ranking of each
+// individual in the population. Note that it is computationally
+// expensive to reorder large arrays of numbers. Therefore, this
+// function re-orders the index values stored in the rank array.
+// That way we avoid copying around arrays.
+void createRanking(void) {
+    int i;
+
+    // We don't want to affect the actual assignment
+    // of fitness per individual, so here we create 
+    // a duplicate array.
+    float temp_f[POP_SIZE];
+
+    // Set initial ranking into unsorted index order
+    for (i = 0; i < POP_SIZE; i++) {
+        rank[i] = i;
+        temp_f[i] = fitness[i];
+    }
+    
+    int sort;
+    int genotype;
+
+    // Perform bubble sort on the temporary fitness array
+    for (sort = 0; sort < POP_SIZE; sort++) {
+        for (genotype = 0; genotype < POP_SIZE - 1; genotype++) {
+            // Compare this genotype to the next
+            if (temp_f[genotype] > temp_f[genotype + 1]) {
+                // Swap rank indices
+                int rank_hold = rank[genotype + 1];
+                rank[genotype + 1] = rank[genotype];
+                rank[genotype] = rank_hold;
+
+                // Swap fitness values in the temporary array
+                float fitn_hold = temp_f[genotype + 1];
+                temp_f[genotype + 1] = temp_f[genotype];
+                temp_f[genotype] = fitn_hold;
+            }
+        }
+    }
+}
+
 uint16_t init_random_seed(void) {
     // Utility to initialize random seed
     ESP_LOGI(TAG, "Fetching random seed from QRNG@ANU");
@@ -97,8 +199,6 @@ uint16_t init_random_seed(void) {
         .data = NULL,
         .len = 0
     };
-    //TODO: handle error seed
-    uint16_t seed = 0; //error code
 
     const char* url = "https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint16";
     esp_err_t result = https_get(url, &response, qrng_anu_ca_crt_start);
@@ -186,22 +286,114 @@ void print_ranking(void) {
     }
 }
 
+void evolve(void) {
+    // Apply Rastrigin to each candidate solution
+    // to determine their "fitness"
+    determineFitness();
+
+    // Rank outcomes - note that the array rank[]
+    // is sorted, which itself has the index of
+    // population[][]
+    createRanking();
+
+    // We need to create a new temporary population so that
+    // as we draw from the old population, we don't overwrite
+    // the information with new children.  For example, if we
+    // replace the worst population members with new children,
+    // there are instances when a worst member may be used to 
+    // generate a child.  Therefore, we don't want to 
+    // prematurely overwrite a worst member.
+    // Once we have a set of new children, we copy them back 
+    // into the main population.
+    
+    // How many children as a percentage of the population?
+    int how_many = (int)(POP_SIZE * PERCENT_CHILD);
+    // Create a new array of children
+    float children[how_many][MAX_GENES];
+
+    // Generate 'how many' children
+    for (int i = 0; i < how_many; i++) {
+        // Select a parent.
+        int parent1 = rouletteSelection();
+        // Recombination.  
+        // Here, two parents are used to generate
+        // a single child offspring.  Could be all
+        // of parent1, all of parent2, or a mix.
+        // All parent1 by default:
+        for (int gene = 0; gene < MAX_GENES; gene++) {
+            children[i][gene] = population[parent1][gene];
+        }
+        // Do recombination?
+        if ((double)rand() / RAND_MAX < XOVER_PROB) {
+            // We need a second parent
+            int parent2 = rouletteSelection();
+            // How much of parent2 to inherit?
+            // Select a point along the genotype [ 0 : MAX_GENES ]
+            int xover = rand() % MAX_GENES;
+            for (int gene = xover; gene < MAX_GENES; gene++) {
+                children[i][gene] = population[parent2][gene];
+            }
+        } // end of xover
+
+        // Mutation, evaluated per gene
+        for (int gene = 0; gene < MAX_GENES; gene++) {
+            if ((double)rand() / RAND_MAX < MUTATE_PROB) {
+                // +=, but can be +/- mutation
+                children[i][gene] += randGaussian(0.0, 0.05);
+                // Limit range.  Another way would be to wrap around.
+                if (children[i][gene] > MAX_GENE_VALUE) children[i][gene] = MAX_GENE_VALUE;
+                if (children[i][gene] < MIN_GENE_VALUE) children[i][gene] = MIN_GENE_VALUE;
+            }
+        } // end of mutate
+    } // Finished generating children
+
+    // Insert back into population by rank[0] (worst) up to 'how many'.
+    // Note, using rank[] which has sorted the index of the population
+    // into rank order, rank[0] is the index of the worst individual
+    // and rank[ pop_size -1 ] is the best individual.
+    // Therefore, this routine will copy children over the worst population
+    // members going up (improving) - keeping the current best solutions.
+    for (int i = 0; i < how_many; i++) {
+        // Per population member _i_, copy each gene across.
+        for (int gene = 0; gene < MAX_GENES; gene++) {
+            // Note, indexing population by the rank array.
+            // Note, the children generated are essentially 
+            // random so we don't care about a rank order for
+            // children.
+            population[rank[i]][gene] = children[i][gene];
+        }
+    }
+}
+
 void init_ga(void) {
-    // Initialize your GA
+    // Initialize the GA population
     init_population();
     print_population();
 }
 
-// A task function that the main application can call
-// void ga_task(void *pvParameters) {
-//     init_ga();  // Initialize GA
-//     while (1) {
-//         run_ga();  // Run GA
-//         if (/* condition to stop the GA */) {
-//             break;
-//         }
-//         vTaskDelay(100 / portTICK_PERIOD_MS);  // Delay as needed
-//     }
-//     print_population();  // Print final population
-//     vTaskDelete(NULL);  // Delete task when done
-// }
+//Task function that the main application can call
+void ga_task(void *pvParameters) {
+    float last_best_fitness = -1.0;  // Init impossible fitness value
+    float threshold = 0.001;  // Threshold for detecting significant changes in fitness
+    while (1) {
+        evolve();  // Run GA
+        if (experiment_ended) {
+            break;
+        }
+        // Prints the best true fitness of the population in this
+        // generation to 3 decimal places.
+        // Rastrigin is a minimisation problem.
+        // So we should see this descending towards 0
+        // true_f[ ] = our store of original fitness values
+        // rank[ POP_SIZE -1 ] returns the index of the best population member
+        float current_best_fitness = true_f[rank[POP_SIZE - 1]];  // Get the current best fitness
+        if (fabs(current_best_fitness - last_best_fitness) > threshold) { // Print only if there's a change
+            ESP_LOGI("GA", "Best true fitness: %.3f", current_best_fitness);
+            last_best_fitness = current_best_fitness;  // Update last known best fitness
+        }
+
+        vTaskDelay(100);
+    }
+    print_population();  // Print final population
+    vTaskDelete(NULL);  // Delete task when done
+}

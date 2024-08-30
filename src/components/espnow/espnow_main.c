@@ -29,6 +29,7 @@
 #include "esp_crc.h"
 #include "espnow_main.h"
 #include "lvgl.h"
+#include "gui_manager.h"
 
 #define ESPNOW_MAXDELAY 512
 

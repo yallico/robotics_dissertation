@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "ir_board_arduino.h"
 #include "lvgl.h"
+#include "gui_manager.h"
 
 #define I2C_ADDR  8
 
