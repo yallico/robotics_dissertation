@@ -17,6 +17,7 @@
 #include <string.h>
 #include <assert.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
 #include "esp_random.h"
@@ -28,12 +29,15 @@
 #include "esp_now.h"
 #include "esp_crc.h"
 #include "espnow_main.h"
+#include "globals.h"
 #include "lvgl.h"
 #include "gui_manager.h"
 
 #define ESPNOW_MAXDELAY 512
 
 static const char *TAG = "espnow";
+
+EventGroupHandle_t s_espnow_event_group;
 
 static QueueHandle_t s_example_espnow_queue;
 
@@ -196,7 +200,9 @@ static void example_espnow_task(void *pvParameter)
                 send_param->count--;
                 if (send_param->count == 0) {
                     ESP_LOGI(TAG, "Send done");
+                    experiment_ended = true;
                     example_espnow_deinit(send_param);
+                    xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
                     vTaskDelete(NULL);
                 }
                 //}

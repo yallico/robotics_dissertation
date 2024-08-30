@@ -15,6 +15,8 @@
 #include <stdlib.h>
 
 #include "globals.h"
+#include "data_structures.h"
+#include "data_logging.h"
 #include "ir_board_arduino.h"
 #include "rtc_m5.h"
 #include "axp192.h"
@@ -29,16 +31,16 @@
 #include "https.h"
 #include "ga.h"
 #include "sd_card_manager.h"
-#include "data_structures.h"
 
 //SD Card
 const char* mount_point = "/sdcard";
 
 //RTC
+RTC_DateTypeDef global_date;
 RTC_TimeTypeDef global_time;
 volatile bool experiment_started = false;
 volatile bool experiment_ended = false;
-uint32_t experiment_start_time = 0; // Tick count when experiment starts
+uint32_t experiment_start_ticks = 0; // Tick count when experiment starts
 
 //Handle OTA
 TaskHandle_t ota_task_handle = NULL;
@@ -54,28 +56,6 @@ static const char *TAG = "main";
 
 extern "C" {
     void app_main();
-}
-
-char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
-    cJSON *root = cJSON_CreateObject();
-    
-    cJSON_AddNumberToObject(root, "num_robots", metadata->num_robots);
-    cJSON *ids_array = cJSON_AddArrayToObject(root, "robot_ids");
-    for (int i = 0; i < metadata->num_robots; i++) {
-        cJSON_AddItemToArray(ids_array, cJSON_CreateNumber(metadata->robot_ids[i]));
-    }
-    
-    cJSON_AddStringToObject(root, "data_link", metadata->data_link);
-    cJSON_AddStringToObject(root, "routing", metadata->routing);
-    cJSON_AddNumberToObject(root, "msg_limit", metadata->msg_limit);
-    cJSON_AddStringToObject(root, "com_type", metadata->com_type);
-    cJSON_AddNumberToObject(root, "msg_size_bytes", metadata->msg_size_bytes);
-    cJSON_AddNumberToObject(root, "robot_speed", metadata->robot_speed);
-
-    char *json_data = cJSON_Print(root);
-    cJSON_Delete(root);  // Free the cJSON object
-
-    return json_data;  // Caller must free this string
 }
 
 void app_main() {
@@ -144,6 +124,7 @@ void app_main() {
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
     vTaskDelay(pdMS_TO_TICKS(500));
+
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
@@ -178,27 +159,51 @@ void app_main() {
 
         //Initialize Genetic Algorithm
         init_ga();
-
-        //TODO: OTA JSON to set up experiment paramenters
-        metadata.num_robots = 5; 
-        for (int i = 0; i < metadata.num_robots; i++) {
-            metadata.robot_ids[i] = 1001 + i; 
-        }
-        metadata.data_link = strdup("tes");
-        metadata.routing = strdup("test");
-        metadata.msg_limit = 1000;
-        metadata.com_type = strdup("test");
-        metadata.msg_size_bytes = 32;  // Example message size
-        metadata.robot_speed = 5;  // Example speed
         
         // Start the experiment
+        RTC_GetDate(&global_date); //get the current date
         RTC_GetTime(&global_time); //get the current time
         int delay_seconds = 60 - global_time.Seconds; //delay until the start of the next minute
-        experiment_start_time = xTaskGetTickCount() + pdMS_TO_TICKS(delay_seconds * 1000);
+        experiment_start_ticks = xTaskGetTickCount() + pdMS_TO_TICKS(delay_seconds * 1000);
         vTaskDelay(pdMS_TO_TICKS(delay_seconds * 1000));
+        RTC_GetTime(&global_time); //this becomes experiment start time
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment now.");
 
+        //TODO: OTA JSON to set up experiment paramenters
+        char* robot_id = get_mac_id();
+        //metadata.experiment_id = generate_experiment_id(&global_date, &global_time);
+        strncpy(metadata.experiment_id, generate_experiment_id(&global_date, &global_time), sizeof(metadata.experiment_id) - 1);
+        strncpy(metadata.robot_id, robot_id, sizeof(metadata.robot_id) - 1);
+        metadata.num_robots = 1; 
+        for (int i = 0; i < metadata.num_robots; i++) {
+            metadata.robot_ids[i] = 1001 + i; //has to be added manually?
+        }
+        metadata.data_link = strdup("ESPNOW");
+        metadata.routing = strdup("UNICAST");
+        metadata.msg_limit = 1000;
+        metadata.com_type = strdup("DIRECT");
+        metadata.msg_size_bytes = 32;  // Example message size
+        metadata.robot_speed = 5;  // Example speed
+        metadata.experiment_start = convert_to_time_t(&global_date, &global_time);
+        metadata.experiment_end = 0;  // End time is not set yet
+        metadata.seed = seed; 
+
+        //Check Heap
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+
+        //Genetic Algorithm task and pin it to core 1
+        xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+
+        //Initialize ESPNOW UNICAST
+        s_espnow_event_group = xEventGroupCreate();
+        espnow_init();
+        // Wait for the task to signal it has completed
+        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        RTC_GetTime(&global_time);
+        metadata.experiment_end = convert_to_time_t(&global_date, &global_time);
+        ESP_LOGI(TAG, "Exmperiment ended, proceeding with the rest of main.");
 
         //Test JSON & UPLOAD
         char *json_data = serialize_metadata_to_json(&metadata);
@@ -209,7 +214,6 @@ void app_main() {
         // Print JSON to console (optional, for debugging)
         printf("Serialized JSON:\n%s\n", json_data);
         // Define the URL for the HTTPS request
-        char* robot_id = get_mac_id();
         const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/test.json";
         int needed_length = snprintf(NULL, 0, base_url, robot_id) + 1; // +1 for null terminator.
         char* url = new char[needed_length];
@@ -233,24 +237,6 @@ void app_main() {
         } else if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");
         }
-
-    //Check Heap
-    free_heap_size = esp_get_free_heap_size();
-    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
-
-    //Genetic Algorithm task and pin it to core 1
-    xTaskCreatePinnedToCore(
-        ga_task,                // Task function
-        "GA Task",              // Name of task
-        4096,          // Stack size of task
-        NULL,                   // Parameter of the task
-        5,       // Priority of the task
-        &ga_task_handle,          // Task handle to keep track of created task 
-        1                       // Core to run
-    );
-
-    //Initialize ESPNOW UNICAST
-    espnow_init();
 
     //De-init SD Card
     unmount_sd_card(mount_point);

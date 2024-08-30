@@ -28,6 +28,10 @@ extern "C" {
 
 #define ESPNOW_QUEUE_SIZE           6
 
+#define ESPNOW_COMPLETED_BIT BIT2
+
+extern EventGroupHandle_t s_espnow_event_group;
+
 //#define IS_BROADCAST_ADDR(addr) (memcmp(addr, s_example_broadcast_mac, ESP_NOW_ETH_ALEN) == 0)
 
 esp_err_t espnow_init(void);

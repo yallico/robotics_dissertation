@@ -9,9 +9,10 @@ extern "C" {
 
 //RTC
 extern RTC_TimeTypeDef global_time;
+extern RTC_DateTypeDef global_date;
 extern volatile bool experiment_started;
 extern volatile bool experiment_ended;
-extern uint32_t experiment_start_time;
+extern uint32_t experiment_start_ticks;
 
 #ifdef __cplusplus
 }

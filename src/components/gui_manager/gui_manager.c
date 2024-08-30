@@ -79,13 +79,13 @@ void gui_task(void *pvParameter) {
 
     while(1) {
 
-        uint32_t current_time = xTaskGetTickCount(); // Get the current tick count
-        // if (!experiment_started && (current_time >= experiment_start_time)) {
+        uint32_t current_ticks = xTaskGetTickCount(); // Get the current tick count
+        // if (!experiment_started && (current_ticks >= experiment_start_ticks)) {
         // experiment_started = true;
         // } 
 
         // Update the time label 1 second
-        if ((current_time - last_update_time) >= pdMS_TO_TICKS(1000)) {
+        if ((current_ticks - last_update_time) >= pdMS_TO_TICKS(1000)) {
             RTC_TimeTypeDef currentTime;
             RTC_GetTime(&currentTime);
 
@@ -96,21 +96,21 @@ void gui_task(void *pvParameter) {
             // Update T-time label
             int t_seconds;
             char t_time_str[10];
-            if (!experiment_started && experiment_start_time > 0) {
-                t_seconds = (experiment_start_time - current_time) / portTICK_PERIOD_MS / 1000;
+            if (!experiment_started && experiment_start_ticks > 0) {
+                t_seconds = (experiment_start_ticks - current_ticks) / portTICK_PERIOD_MS / 1000;
                 snprintf(t_time_str, sizeof(t_time_str), "T-%02d", abs(t_seconds));
             } 
-            else if (!experiment_started && experiment_start_time == 0) {
+            else if (!experiment_started && experiment_start_ticks == 0) {
                 //DO NOTHING
             }
             else {
-                t_seconds = (current_time - experiment_start_time) / portTICK_PERIOD_MS / 1000;
+                t_seconds = (current_ticks - experiment_start_ticks) / portTICK_PERIOD_MS / 1000;
                 snprintf(t_time_str, sizeof(t_time_str), "T+%02d", t_seconds);
             }
             lv_label_set_text(t_time_label, t_time_str);
 
 
-            last_update_time = current_time; // Update the last update time
+            last_update_time = current_ticks; // Update the last update time
         }
 
         vTaskDelay(pdMS_TO_TICKS(10)); // Delay for a short period
