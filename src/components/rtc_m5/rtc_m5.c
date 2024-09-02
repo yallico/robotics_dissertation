@@ -261,6 +261,13 @@ void initialize_sntp(void) {
     sntp_init();
 }
 
+int day_of_week(int d, int m, int y) {
+    static int t[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
+    y -= m < 3;
+    return (y + y/4 - y/100 + y/400 + t[m-1] + d) % 7;
+}
+
+
 void obtain_time(void) {
     initialize_sntp();
 
@@ -321,6 +328,7 @@ void sync_rtc_with_ntp() {
     ntpDate.Date = timeinfo.tm_mday;
     ntpDate.Month = timeinfo.tm_mon + 1;
     ntpDate.Year = timeinfo.tm_year + 1900;
+    ntpDate.WeekDay = day_of_week(ntpDate.Date, ntpDate.Month, ntpDate.Year);
 
     // Compare NTP time with RTC time
     if (abs(currentTime.Seconds - ntpTime.Seconds) > 1 ||
