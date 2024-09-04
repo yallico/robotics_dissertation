@@ -32,6 +32,9 @@
 #include "ga.h"
 #include "sd_card_manager.h"
 
+//Robot ID
+char* robot_id = get_mac_id();
+
 //SD Card
 const char* mount_point = "/sdcard";
 
@@ -171,7 +174,6 @@ void app_main() {
         ESP_LOGI(TAG, "Starting experiment now.");
 
         //TODO: OTA JSON to set up experiment paramenters
-        char* robot_id = get_mac_id();
         //metadata.experiment_id = generate_experiment_id(&global_date, &global_time);
         strncpy(metadata.experiment_id, generate_experiment_id(&global_date, &global_time), sizeof(metadata.experiment_id) - 1);
         strncpy(metadata.robot_id, robot_id, sizeof(metadata.robot_id) - 1);

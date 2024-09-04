@@ -13,7 +13,7 @@ extern "C" {
                                 // More = better search, but slower to compute
                                 // Less = harder for algorithm to find solution
                                 
-#define MAX_GENES       2       // Dimensions (higher = more difficult)
+#define MAX_GENES       3       // Dimensions (higher = more difficult)
                                 // This is the number of parameters to be 
                                 // represented in the "genotype" (candidate
                                 // solution).

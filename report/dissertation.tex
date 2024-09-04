@@ -26,6 +26,11 @@ LOREM IPSUM
 
 % Chapters
 \chapter{Introduction}
+Human speech likely emerged as vital tool for coordination and the formation of social bonds among early humans [Charles Darwin's Descent of Man]. The concept, that language evolved as an adaptive trait via natural selection is widely accepted by the scientific community. 
+
+Inspired by nature's evolutionary strategies, Swarm Engineers aspire to harness the collective intelligence mechanisms evident in social insects such as ants and bees [Ref]. This dissertation examines the communication protocols of a swarm of robots, with the aim to engineer a communication framework that enables robots to efficiently share information and collaborate on tasks, mirroring the sophisticated social interactions found in natural systems.
+
+
 \section{Background}
 \lipsum[1-2] % Replace with your content
 
@@ -76,9 +81,23 @@ Figure \ref{fig:architecture} shows the implementation of our system to enable o
 
 \end{itemize}
 
+\section{Data Capture}
+We implemented local data logging on the M5Stack by integrating a 16GB SD card peripheral, using the SPI bus (shared by the LCD) set at a frequency of 20MHz and utilizing the FAT32 file system for storage. This approach was chosen to emulate a realistic swarm system capable of operating remotely without relying on a stable Wi-Fi connection to a central server. Local logging minimizes data transmission loss, supporting the swarm's objective of avoiding any single point of failure. 
+
+Upon completing the experimental tasks, the swarm members switch to a data upload mode, where the locally collected data is securely transmitted to an S3 bucket using HTTPS. This might seem counter intuitive to our original decentralized objective, but it was planned to be this way as otherwise we would have to manually read each individual SD card to collect the data, which would be time consuming and error prone. Furthermore, we expect that in a real world scenario, the swarm would be deployed in a remote location where manual data collection would be impossible.
+
+Data logs are saved in the root directory of the SD card in a \.json format. Our system is designed to automatically generate new files upon reaching a specified size limit, this enables efficient memory management and preventing heap memory overflow during log file writes.
+
 
 \section{Experimental Setup}
-\lipsum[5-6] % Replace with your content
+
+Each swarm member is tasked with solving the Rastrigin fuction [ref], a non-convex optimization problem that is commonly used to benchmark optimization algorithms due to its large number of local minima. In our implementation, we use genetic algorithms to solve the function and find the global minimum. At initialisation each robot is assigned a random starting point (seed) within the search space. The random seed is obtained via HTTPS from a server that streams quantum fluctuations in vacuum. This is to ensure that the seed is truly random and not influenced by any external factors. This initial population with its own set of random genes will thereafter undergo selection via a fitness function (the Rastrigin function) and genetic operators (mutation and crossover) to evolve the population.
+
+Once the robots execute the experiment task, the swarm being communicate their current best fitness and corresponding genes found to their peers. This is akin to the "Island Model" [ref], in which each subpopulation (islands) evolve in parallel and occasionally exchanges individuals (migration) with other islands. Thus, enabling the swarm to converge on the optimal solution. The swarm is considered to have successfully solved the problem when they either (i) finding the global minimum by at least one robot or (ii) convergence (e.g., all robots reaching similar fitness levels) to a local minimum by the whole swarm. We determine whether we reached a global minimum by comparing the fitness of the best individual in the swarm with the known global minimum of the Rastrigin function. 
+
+The termination condition for all experiments is %TODO: need to define the termintion condition.
+
+
 
 % Add more chapters as needed
 
