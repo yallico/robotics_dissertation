@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "globals.h"
+#include "data_logging.h"
 
 static const char *TAG = "GA";
 
@@ -389,7 +390,7 @@ void ga_task(void *pvParameters) {
         // rank[ POP_SIZE -1 ] returns the index of the best population member
         float current_best_fitness = true_f[rank[POP_SIZE - 1]];  // Get the current best fitness
         if (fabs(current_best_fitness - last_best_fitness) > threshold) { // Print only if there's a change
-            ESP_LOGI("GA", "Best true fitness: %.3f", current_best_fitness);
+            ESP_LOGI(TAG, "Best true fitness: %.3f", current_best_fitness);
             last_best_fitness = current_best_fitness;  // Update last known best fitness
         }
 

@@ -11,9 +11,11 @@
 #include <unistd.h>
 
 
-#define MAX_FILE_SIZE 64  // Max file size in bytes
+#define MAX_FILE_SIZE 10 * 1024  // Max file size in bytes
+
 static const char *TAG = "SD_CARD_MANAGER";
 sdmmc_card_t* card;
+static int file_index = 0;
 
 // Initialize SD card
 esp_err_t init_sd_card(const char* mount_point) {
@@ -23,22 +25,6 @@ esp_err_t init_sd_card(const char* mount_point) {
     //host.flags = SDMMC_HOST_FLAG_4BIT;  // Force 4-line mode
     //host.max_freq_khz = SDMMC_FREQ_PROBING; // 4MHz
 
-    // spi_bus_config_t bus_cfg = {
-    //     .mosi_io_num = 23,  // Master Out Slave In
-    //     .miso_io_num = 38,  // Master In Slave Out
-    //     .sclk_io_num = 18,  // Serial Clock
-    //     .quadwp_io_num = -1,
-    //     .quadhd_io_num = -1,
-    //     .max_transfer_sz = 4000,
-    // };
-
-    // Initialize the SPI bus
-    // ret = spi_bus_initialize(host.slot, &bus_cfg, 2);
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to initialize bus.");
-    //     return ret;
-    // }
-
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = 4;
     slot_config.host_id = host.slot;
@@ -46,7 +32,7 @@ esp_err_t init_sd_card(const char* mount_point) {
 
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = true,
-        .max_files = 5,
+        .max_files = 3,
         .allocation_unit_size = 16 * 1024
     };
 
@@ -87,18 +73,20 @@ void clean_sd_card(const char* base_path) {
 }
 
 esp_err_t write_data(const char* base_path, const char* data, const char* suffix) {
-    static int file_index = 0;
     static char file_name[256];
     struct stat st;
 
     while (1) {
         // Update the filename to include the suffix and file index
         sprintf(file_name, "%s/%s_%d.json", base_path, suffix, file_index);
+        ESP_LOGI(TAG, "Trying to write file name: %s", file_name);
 
         // Check if the file exists and its size
         if (stat(file_name, &st) == 0) {
+            ESP_LOGI(TAG, "File exists. Size: %ld", (long) st.st_size);
             if (st.st_size > MAX_FILE_SIZE) {
                 // If the current file is too large, move to the next file index
+                ESP_LOGI(TAG, "File is too large, incrementing file index.");
                 file_index++;
                 continue; // Skip the rest of the loop and check the next file
             }
@@ -113,6 +101,7 @@ esp_err_t write_data(const char* base_path, const char* data, const char* suffix
     // Open the file for appending
     FILE* f = fopen(file_name, "a");
     if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open file for writing");
         return ESP_FAIL;
     }
 
@@ -122,21 +111,7 @@ esp_err_t write_data(const char* base_path, const char* data, const char* suffix
     return ESP_OK;
 }
 
-esp_err_t s_example_write_file(const char *path, char *data) {
-    ESP_LOGI(TAG, "Opening file %s", path);
-    FILE *f = fopen(path, "w");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        return ESP_FAIL;
-    }
-    fprintf(f, data);
-    fclose(f);
-    ESP_LOGI(TAG, "File written");
-
-    return ESP_OK;
-}
-
-esp_err_t s_example_read_file(const char *path) {
+esp_err_t read_data(const char *path) {
     ESP_LOGI(TAG, "Reading file %s", path);
     FILE *f = fopen(path, "r");
     if (f == NULL) {

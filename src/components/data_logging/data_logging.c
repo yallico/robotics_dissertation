@@ -1,6 +1,14 @@
 #include "data_logging.h"
+#include "esp_log.h"
 #include <time.h>
 #include "rtc_m5.h"
+#include <stdarg.h>
+#include "sd_card_manager.h"
+#include "data_structures.h"
+
+static vprintf_like_t original_log_function = NULL;
+event_log_t event_log;
+static uint32_t log_counter = 0;
 
 char* generate_experiment_id(RTC_DateTypeDef *date ,RTC_TimeTypeDef *time) {
     static char id[16]; // Buffer to hold the formatted experiment ID
@@ -69,3 +77,22 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
 
     return json_data;  // Caller must free this string
 }
+
+char* serialize_log_to_json(const event_log_t *log) {
+    cJSON *root = cJSON_CreateObject();
+
+    cJSON_AddNumberToObject(root, "log_id", log->log_id);
+    cJSON_AddNumberToObject(root, "log_datetime", (long)(log->log_datetime));
+    cJSON_AddStringToObject(root, "status", log->status);
+    cJSON_AddStringToObject(root, "tag", log->tag);
+    cJSON_AddStringToObject(root, "log_level", log->log_level);
+    cJSON_AddStringToObject(root, "log_type", log->log_type);
+    cJSON_AddStringToObject(root, "from_id", log->from_id);
+
+    char *json_data = cJSON_Print(root);
+    cJSON_Delete(root);  // Free the cJSON object
+
+    return json_data;  // Caller must free this string
+}
+
+

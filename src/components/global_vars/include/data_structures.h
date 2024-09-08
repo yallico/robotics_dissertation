@@ -35,7 +35,7 @@ typedef struct {
     char *tag;
     char *log_level;
     char *log_type;
-    char *from_id[5];
+    char *from_id;
 } event_log_t;
 
 typedef struct {

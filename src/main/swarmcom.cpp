@@ -52,6 +52,9 @@ EventGroupHandle_t ota_event_group; // declare the event group
 //GA
 TaskHandle_t ga_task_handle = NULL;
 
+//GUI
+TaskHandle_t gui_task_handle = NULL;
+
 //Data Structures
 experiment_metadata_t metadata;
 
@@ -103,7 +106,7 @@ void app_main() {
     lv_init();
 	lvgl_driver_init();
     gui_manager_init();
-    xTaskCreatePinnedToCore(gui_task, "gui_task", 10240, NULL, 0, NULL, 1); // Create and start GUI task for handling LVGL tasks
+    xTaskCreatePinnedToCore(gui_task, "gui_task", 10240, NULL, 0, &gui_task_handle, 1); //pin to core 1
 
     //Initialize the SD card
     esp_err_t sd_ret = init_sd_card(mount_point);
@@ -149,9 +152,6 @@ void app_main() {
         ota_event_group = xEventGroupCreate(); // Create the OTA event group
         // Create the OTA task
         xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
-        get_sha256_of_partitions();
-        free_heap_size = esp_get_free_heap_size();
-        ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
         //HTTPS request to version
         ota_check_ver();
 
@@ -159,9 +159,25 @@ void app_main() {
             ESP_LOGI(TAG, "OTA Task created successfully");
             //TODO: Need to workout how to delete OTA task if there is no update required.
         }
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
+        ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
+
+
+        //Initialize Custom Logging
+        //init_custom_logging();
+        //ESP_LOGI(TAG, "Custom logging initialized");
+
+        // free_heap_size = esp_get_free_heap_size();
+        // ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
+        // ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
 
         //Initialize Genetic Algorithm
         init_ga();
+
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
+        ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
         
         // Start the experiment
         RTC_GetDate(&global_date); //get the current date
@@ -201,6 +217,7 @@ void app_main() {
         //Initialize ESPNOW UNICAST
         s_espnow_event_group = xEventGroupCreate();
         espnow_init();
+
         // Wait for the task to signal it has completed
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
         RTC_GetTime(&global_time);
@@ -215,26 +232,27 @@ void app_main() {
         }
         // Print JSON to console (optional, for debugging)
         printf("Serialized JSON:\n%s\n", json_data);
-        // Define the URL for the HTTPS request
-        const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/test.json";
-        int needed_length = snprintf(NULL, 0, base_url, robot_id) + 1; // +1 for null terminator.
-        char* url = new char[needed_length];
-        snprintf(url, needed_length, base_url, robot_id);
-        printf("Constructed URL: %s\n", url);
-        // Send the JSON data via HTTPS
-        esp_err_t result = https_put(url, json_data, strlen(json_data));
-        if (result == ESP_OK) {
-            ESP_LOGI("app_main", "Data posted successfully");
-        } else {
-            ESP_LOGE("app_main", "Failed to post data");
+
+        //Save data to SD card
+        sd_ret = write_data(mount_point, json_data, "experiment");
+        if (sd_ret != ESP_OK) {
+            ESP_LOGE(TAG,"Failed to write message data to SD card: %s", esp_err_to_name(sd_ret));
         }
 
-        //Test saving data to SD card
-        // sd_ret = write_data(mount_point, json_data, "experiment");
-        // if (sd_ret != ESP_OK) {
-        //     printf("Failed to write message data\n");
+        //TODO: Need a task to upload all the saved data at the end of experiment
+        // Define the URL for the HTTPS request
+        // const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/test.json";
+        // int needed_length = snprintf(NULL, 0, base_url, robot_id) + 1; // +1 for null terminator.
+        // char* url = new char[needed_length];
+        // snprintf(url, needed_length, base_url, robot_id);
+        // printf("Constructed URL: %s\n", url);
+        // // Send the JSON data via HTTPS
+        // esp_err_t result = https_put(url, json_data, strlen(json_data));
+        // if (result == ESP_OK) {
+        //     ESP_LOGI("app_main", "Data posted successfully");
+        // } else {
+        //     ESP_LOGE("app_main", "Failed to post data");
         // }
-
 
         } else if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");
