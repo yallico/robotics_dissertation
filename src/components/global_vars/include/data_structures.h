@@ -41,7 +41,6 @@ typedef struct {
 typedef struct {
     uint32_t log_id;
     time_t log_datetime;
-    char *sub_tag;
     char log_message[512];
 } event_log_message_t;
 

@@ -12,6 +12,7 @@
 extern "C" {
 #endif
 
+void write_task(void *pvParameters);
 char* serialize_metadata_to_json(const experiment_metadata_t *metadata);
 char* generate_experiment_id(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
 time_t convert_to_time_t(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);

@@ -382,20 +382,56 @@ void ga_task(void *pvParameters) {
         if (experiment_ended) {
             break;
         }
-        // Prints the best true fitness of the population in this
-        // generation to 3 decimal places.
+
+        // Prints the best true fitness of the population in this generation to 3 decimal places.
         // Rastrigin is a minimisation problem.
         // So we should see this descending towards 0
         // true_f[ ] = our store of original fitness values
         // rank[ POP_SIZE -1 ] returns the index of the best population member
-        float current_best_fitness = true_f[rank[POP_SIZE - 1]];  // Get the current best fitness
-        if (fabs(current_best_fitness - last_best_fitness) > threshold) { // Print only if there's a change
+        float current_best_fitness = true_f[rank[POP_SIZE - 1]]; 
+        float current_best_inverted_fitness = fitness[rank[POP_SIZE - 1]]; 
+
+        if (fabs(current_best_fitness - last_best_fitness) > threshold) { // save only if there's a change
             ESP_LOGI(TAG, "Best true fitness: %.3f", current_best_fitness);
             last_best_fitness = current_best_fitness;  // Update last known best fitness
-        }
+
+            event_log_t log_entry;
+            event_log_message_t log_body;
+            time_t now = time(NULL);
+            // Lock the mutex before accessing log_counter
+            if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+                log_counter++;  // Increment the global log counter
+                xSemaphoreGive(logCounterMutex);   // Release the mutex after incrementing
+            }
+
+            log_entry.log_id = log_counter;
+            log_entry.log_datetime = now;
+            log_entry.status = strdup("T"); //T for task
+            log_entry.tag = strdup("GA");
+            log_entry.log_level = strdup("I");
+            log_entry.log_type = strdup("FU");
+            log_entry.from_id = strdup("");
+
+            // Send to queue
+            xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
+
+            int offset = 0;  // track of where to write next in the buffer of msgbody
+
+            log_body.log_id = log_counter;
+            log_body.log_datetime = now;
+            offset += sprintf(log_body.log_message + offset, "%.3f|", current_best_fitness);
+            for (int gene = 0; gene < MAX_GENES; gene++) {
+                offset += sprintf(log_body.log_message + offset, "%.3f|", population[rank[POP_SIZE - 1]][gene]);
+            }
+            offset += sprintf(log_body.log_message + offset, "%.3f", current_best_inverted_fitness);
+
+            // Send to queue
+            xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 
         vTaskDelay(100);
-    }
-    print_population();  // Print final population
+        }
+
     vTaskDelete(NULL);  // Delete task when done
+
+    }
 }

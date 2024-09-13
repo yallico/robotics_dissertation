@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 
-#define MAX_FILE_SIZE 10 * 1024  // Max file size in bytes
+#define MAX_FILE_SIZE 20 * 1024  // Max file size in bytes
 
 static const char *TAG = "SD_CARD_MANAGER";
 sdmmc_card_t* card;

@@ -6,9 +6,9 @@
 #include "sd_card_manager.h"
 #include "data_structures.h"
 
-static vprintf_like_t original_log_function = NULL;
-event_log_t event_log;
-static uint32_t log_counter = 0;
+// This queue is used to send log messages, across multiple other tasks
+extern QueueHandle_t LogQueue;
+extern QueueHandle_t LogBodyQueue;
 
 char* generate_experiment_id(RTC_DateTypeDef *date ,RTC_TimeTypeDef *time) {
     static char id[16]; // Buffer to hold the formatted experiment ID
@@ -46,36 +46,26 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
 
     cJSON_AddStringToObject(root, "experiment_id", metadata->experiment_id);
     cJSON_AddStringToObject(root, "robot_id", metadata->robot_id);
-    
     cJSON_AddNumberToObject(root, "num_robots", metadata->num_robots);
     cJSON *ids_array = cJSON_AddArrayToObject(root, "robot_ids");
     for (int i = 0; i < metadata->num_robots; i++) {
         cJSON_AddItemToArray(ids_array, cJSON_CreateNumber(metadata->robot_ids[i]));
     }
-    
     cJSON_AddStringToObject(root, "data_link", metadata->data_link);
     cJSON_AddStringToObject(root, "routing", metadata->routing);
     cJSON_AddNumberToObject(root, "msg_limit", metadata->msg_limit);
     cJSON_AddStringToObject(root, "com_type", metadata->com_type);
     cJSON_AddNumberToObject(root, "msg_size_bytes", metadata->msg_size_bytes);
     cJSON_AddNumberToObject(root, "robot_speed", metadata->robot_speed);
-
-    // Handle timestamps by converting them to readable strings if needed
-    char start_time_str[30], end_time_str[30];
-    if (strftime(start_time_str, sizeof(start_time_str), "%Y-%m-%d %H:%M:%S", localtime(&metadata->experiment_start))) {
-        cJSON_AddStringToObject(root, "experiment_start", start_time_str);
-    }
-    if (metadata->experiment_end != 0 && strftime(end_time_str, sizeof(end_time_str), "%Y-%m-%d %H:%M:%S", localtime(&metadata->experiment_end))) {
-        cJSON_AddStringToObject(root, "experiment_end", end_time_str);
-    }
-
+    cJSON_AddNumberToObject(root, "experiment_start", (long)(metadata->experiment_start));
+    cJSON_AddNumberToObject(root, "experiment_end", (long)(metadata->experiment_end));
     cJSON_AddNumberToObject(root, "seed", metadata->seed);
     cJSON_AddNumberToObject(root, "app_version", metadata->app_version);
 
     char *json_data = cJSON_Print(root);
-    cJSON_Delete(root);  // Free the cJSON object
+    cJSON_Delete(root);  
 
-    return json_data;  // Caller must free this string
+    return json_data;  // caller must free this string
 }
 
 char* serialize_log_to_json(const event_log_t *log) {
@@ -90,9 +80,57 @@ char* serialize_log_to_json(const event_log_t *log) {
     cJSON_AddStringToObject(root, "from_id", log->from_id);
 
     char *json_data = cJSON_Print(root);
-    cJSON_Delete(root);  // Free the cJSON object
+    cJSON_Delete(root);
 
-    return json_data;  // Caller must free this string
+    return json_data;  // caller must free this string
 }
 
+char* serialize_log_body_to_json(const event_log_message_t *log_message) {
+    cJSON *root = cJSON_CreateObject();
 
+    cJSON_AddNumberToObject(root, "log_id", log_message->log_id);
+    cJSON_AddNumberToObject(root, "log_datetime", (long)(log_message->log_datetime));
+    cJSON_AddStringToObject(root, "log_message", log_message->log_message);
+
+    char *json_data = cJSON_Print(root);
+    cJSON_Delete(root);
+
+    return json_data;  // caller must free this string
+}
+
+// task to write data
+void write_task(void *pvParameters) {
+    event_log_t log_entry;
+    event_log_message_t log_body;
+
+    while (1) {
+
+        if (xQueueReceive(LogQueue, &log_entry, portMAX_DELAY) == pdTRUE) {
+            //serialize the log to json
+            char* json_data = serialize_log_to_json(&log_entry); 
+            // call the sd_card_manager to write the log in memory
+            write_data("/sdcard", json_data, "log");
+
+            // free dynamically allocated fields
+            free(log_entry.status);
+            free(log_entry.tag);
+            free(log_entry.log_level);
+            free(log_entry.log_type);
+            free(log_entry.from_id);
+
+            free(json_data);
+        }
+
+        // Check log body queue
+        if (xQueueReceive(LogBodyQueue, &log_body, portMAX_DELAY) == pdTRUE) {
+            //serialize the log to json
+            char* json_data = serialize_log_body_to_json(&log_body); 
+            // call the sd_card_manager to write the log in memory
+            write_data("/sdcard", json_data, "message");
+
+            free(json_data);
+        }
+
+        vTaskDelay(10); //prevent task hogging CPU
+    }
+}

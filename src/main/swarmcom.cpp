@@ -32,6 +32,12 @@
 #include "ga.h"
 #include "sd_card_manager.h"
 
+//Logging
+uint32_t log_counter = 0;  //auto generated id
+QueueHandle_t LogQueue = NULL; // Queue for logging
+QueueHandle_t LogBodyQueue = NULL; // Queue for logging
+SemaphoreHandle_t logCounterMutex = xSemaphoreCreateMutex(); // log_id the mutex
+
 //Robot ID
 char* robot_id = get_mac_id();
 
@@ -164,13 +170,15 @@ void app_main() {
         ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
 
 
-        //Initialize Custom Logging
-        //init_custom_logging();
-        //ESP_LOGI(TAG, "Custom logging initialized");
+        //Initialize Logging Queue
+        LogQueue = xQueueCreate(10, sizeof(event_log_t));
+        LogBodyQueue = xQueueCreate(10, sizeof(event_log_message_t));
+        xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
+        ESP_LOGI(TAG, "Logging Queue Initialized");
 
-        // free_heap_size = esp_get_free_heap_size();
-        // ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
-        // ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
+        ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
 
         //Initialize Genetic Algorithm
         init_ga();
