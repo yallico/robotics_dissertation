@@ -38,7 +38,8 @@ QueueHandle_t LogQueue = NULL; // Queue for logging
 QueueHandle_t LogBodyQueue = NULL; // Queue for logging
 SemaphoreHandle_t logCounterMutex = xSemaphoreCreateMutex(); // log_id the mutex
 
-//Robot ID
+//IDs
+char* experiment_id;
 char* robot_id = get_mac_id();
 
 //SD Card
@@ -196,10 +197,10 @@ void app_main() {
         RTC_GetTime(&global_time); //this becomes experiment start time
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment now.");
-
+        experiment_id = generate_experiment_id(&global_date, &global_time);
         //TODO: OTA JSON to set up experiment paramenters
         //metadata.experiment_id = generate_experiment_id(&global_date, &global_time);
-        strncpy(metadata.experiment_id, generate_experiment_id(&global_date, &global_time), sizeof(metadata.experiment_id) - 1);
+        strncpy(metadata.experiment_id, experiment_id, sizeof(metadata.experiment_id) - 1);
         strncpy(metadata.robot_id, robot_id, sizeof(metadata.robot_id) - 1);
         metadata.num_robots = 1; 
         for (int i = 0; i < metadata.num_robots; i++) {
@@ -242,15 +243,15 @@ void app_main() {
         printf("Serialized JSON:\n%s\n", json_data);
 
         //Save data to SD card
-        sd_ret = write_data(mount_point, json_data, "experiment");
+        sd_ret = write_data(mount_point, json_data, "metadata");
         if (sd_ret != ESP_OK) {
             ESP_LOGE(TAG,"Failed to write message data to SD card: %s", esp_err_to_name(sd_ret));
         }
 
         //TODO: Need a task to upload all the saved data at the end of experiment
         // Define the URL for the HTTPS request
-        // const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/test.json";
-        // int needed_length = snprintf(NULL, 0, base_url, robot_id) + 1; // +1 for null terminator.
+        // const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/%s";
+        // int needed_length = snprintf(NULL, 0, base_url, robot_id, file_name) + 1; // +1 for null terminator.
         // char* url = new char[needed_length];
         // snprintf(url, needed_length, base_url, robot_id);
         // printf("Constructed URL: %s\n", url);

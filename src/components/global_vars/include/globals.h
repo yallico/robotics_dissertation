@@ -21,6 +21,10 @@ extern QueueHandle_t LogQueue;
 extern QueueHandle_t LogBodyQueue;
 extern SemaphoreHandle_t logCounterMutex;
 
+//IDs
+extern char* experiment_id;
+
+
 #ifdef __cplusplus
 }
 #endif

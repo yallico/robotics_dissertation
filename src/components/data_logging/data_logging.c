@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include "sd_card_manager.h"
 #include "data_structures.h"
+#include "globals.h"
 
 // This queue is used to send log messages, across multiple other tasks
 extern QueueHandle_t LogQueue;

@@ -7,8 +7,8 @@
 #include "driver/sdspi_host.h"
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
-//#include "driver/sdmmc_host.h"
 #include <unistd.h>
+#include "globals.h"
 
 
 #define MAX_FILE_SIZE 20 * 1024  // Max file size in bytes
@@ -78,8 +78,7 @@ esp_err_t write_data(const char* base_path, const char* data, const char* suffix
 
     while (1) {
         // Update the filename to include the suffix and file index
-        sprintf(file_name, "%s/%s_%d.json", base_path, suffix, file_index);
-        ESP_LOGI(TAG, "Trying to write file name: %s", file_name);
+        sprintf(file_name, "%s/%s_%s_%d.json", base_path, experiment_id, suffix, file_index);
 
         // Check if the file exists and its size
         if (stat(file_name, &st) == 0) {

@@ -8,6 +8,7 @@
 #include "Arduino.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_random.h"
 #include "globals.h"
 #include "data_logging.h"
 
@@ -204,6 +205,7 @@ uint16_t init_random_seed(void) {
 
     const char* url = "https://qrng.anu.edu.au/API/jsonI.php?length=1&type=uint16";
     esp_err_t result = https_get(url, &response, qrng_anu_ca_crt_start);
+
     if (result == ESP_OK && response.data != NULL) {
         printf("Received data: %s\n", response.data);
         
@@ -220,7 +222,9 @@ uint16_t init_random_seed(void) {
             cJSON_Delete(json);
         }
     } else {
-        ESP_LOGE(TAG, "Failed to fetch seed: %s", esp_err_to_name(result));
+        ESP_LOGE(TAG, "Failed to fetch seed from QRNG@ANU: %s.\nUsing ESP hardware RNG as fallback.", esp_err_to_name(result));
+        seed = (uint16_t)esp_random(); // Generate a random number using ESP32's hardware RNG
+        ESP_LOGI(TAG, "Fallback Random Seed: %u", seed);
     }
 
     // Clean up
