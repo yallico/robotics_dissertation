@@ -73,6 +73,19 @@ extern "C" {
 
 void app_main() {
 
+    /*******************************************************************************
+
+    Section Name: Initialization
+    Description: 
+        This section initializes variables, sets up configuration values, 
+        and prepares the system for execution.
+    Inputs: 
+        Config is managed via the sdkconfig file.
+    Outputs:
+        M5 Board is initialized.
+
+    *******************************************************************************/
+
     printf("Welcome to Swarmcom!\n");
 
 	/* Print chip information */
@@ -187,6 +200,19 @@ void app_main() {
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
         ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
+
+        /*******************************************************************************
+
+        Section Name: Run Experiment
+        Description: 
+            This section syncronizes the start of the experiment and creates the genetic
+            algorithm task.
+        Inputs: 
+            Wifi connection is required to get random seed.
+        Outputs:
+            SD logging data is saved.
+
+        *******************************************************************************/
         
         // Start the experiment
         RTC_GetDate(&global_date); //get the current date
@@ -227,6 +253,18 @@ void app_main() {
         s_espnow_event_group = xEventGroupCreate();
         espnow_init();
 
+        /*******************************************************************************
+
+        Section Name: Post-Experiment
+        Description: 
+            This section handles the data upload to S3 at end of experiment.
+        Inputs: 
+            Trigger to signal that experiment has finalised.
+        Outputs:
+            S3 data upload
+
+        *******************************************************************************/
+
         // Wait for the task to signal it has completed
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
         RTC_GetTime(&global_time);
@@ -248,7 +286,7 @@ void app_main() {
             ESP_LOGE(TAG,"Failed to write message data to SD card: %s", esp_err_to_name(sd_ret));
         }
 
-        //TODO: Need a task to upload all the saved data at the end of experiment
+        //TODO: Need a task to upload all the saved data at the end of experiment, create this task in the data_logging component
         // Define the URL for the HTTPS request
         // const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/%s";
         // int needed_length = snprintf(NULL, 0, base_url, robot_id, file_name) + 1; // +1 for null terminator.
