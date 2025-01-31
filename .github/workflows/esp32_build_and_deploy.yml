@@ -40,11 +40,11 @@ jobs:
       run: |
         sed -i '28i #define I2C_NUM_MAX            (SOC_I2C_NUM)\n#define I2C_NUM_0              (0)\n#if SOC_I2C_NUM >= 2\n#define I2C_NUM_1              (1)\n#endif\n' $GITHUB_WORKSPACE/esp-idf/components/driver/i2c/include/driver/i2c.h
 
-    - name: Install Managed Components
+    - name: Configure ESP-IDF
       run: |
         source $GITHUB_WORKSPACE/esp-idf/export.sh
         cd src
-        idf.py install-managed-components
+        idf.py reconfigure
 
     - name: Build project
       run: |
