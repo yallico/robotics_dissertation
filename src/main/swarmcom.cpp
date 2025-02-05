@@ -51,6 +51,8 @@ RTC_TimeTypeDef global_time;
 volatile bool experiment_started = false;
 volatile bool experiment_ended = false;
 uint32_t experiment_start_ticks = 0; // Tick count when experiment starts
+time_t experiment_start;
+time_t experiment_end;
 
 //Handle OTA
 TaskHandle_t ota_task_handle = NULL;
@@ -224,23 +226,7 @@ void app_main() {
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment now.");
         experiment_id = generate_experiment_id(&global_date, &global_time);
-        //TODO: OTA JSON to set up experiment paramenters
-        //metadata.experiment_id = generate_experiment_id(&global_date, &global_time);
-        strncpy(metadata.experiment_id, experiment_id, sizeof(metadata.experiment_id) - 1);
-        strncpy(metadata.robot_id, robot_id, sizeof(metadata.robot_id) - 1);
-        metadata.num_robots = 1; 
-        for (int i = 0; i < metadata.num_robots; i++) {
-            metadata.robot_ids[i] = 1001 + i; //has to be added manually?
-        }
-        metadata.data_link = strdup("ESPNOW");
-        metadata.routing = strdup("UNICAST");
-        metadata.msg_limit = 1000;
-        metadata.com_type = strdup("DIRECT");
-        metadata.msg_size_bytes = 32;  // Example message size
-        metadata.robot_speed = 5;  // Example speed
-        metadata.experiment_start = convert_to_time_t(&global_date, &global_time);
-        metadata.experiment_end = 0;  // End time is not set yet
-        metadata.seed = seed; 
+        experiment_start = convert_to_time_t(&global_date, &global_time);
 
         //Check Heap
         free_heap_size = esp_get_free_heap_size();
@@ -268,10 +254,11 @@ void app_main() {
         // Wait for the task to signal it has completed
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
         RTC_GetTime(&global_time);
-        metadata.experiment_end = convert_to_time_t(&global_date, &global_time);
+        experiment_end = convert_to_time_t(&global_date, &global_time);
         ESP_LOGI(TAG, "Exmperiment ended, proceeding with the rest of main.");
 
-        //Test JSON & UPLOAD
+        //log metadata
+        log_experiment_metadata(&metadata);
         char *json_data = serialize_metadata_to_json(&metadata);
         if (json_data == NULL) {
             ESP_LOGE("app_main", "Failed to serialize JSON");
@@ -286,20 +273,9 @@ void app_main() {
             ESP_LOGE(TAG,"Failed to write message data to SD card: %s", esp_err_to_name(sd_ret));
         }
 
-        //TODO: Need a task to upload all the saved data at the end of experiment, create this task in the data_logging component
-        // Define the URL for the HTTPS request
-        // const char* base_url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/experiment_metadata/%s";
-        // int needed_length = snprintf(NULL, 0, base_url, robot_id, file_name) + 1; // +1 for null terminator.
-        // char* url = new char[needed_length];
-        // snprintf(url, needed_length, base_url, robot_id);
-        // printf("Constructed URL: %s\n", url);
-        // // Send the JSON data via HTTPS
-        // esp_err_t result = https_put(url, json_data, strlen(json_data));
-        // if (result == ESP_OK) {
-        //     ESP_LOGI("app_main", "Data posted successfully");
-        // } else {
-        //     ESP_LOGE("app_main", "Failed to post data");
-        // }
+        //Upload all SD-card files to S3
+        xTaskCreate(upload_all_sd_files_task, "upload_files_task", 16384, NULL, 5, NULL);
+
 
         } else if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");

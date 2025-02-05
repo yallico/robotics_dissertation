@@ -9,9 +9,10 @@
 #include "esp_vfs_fat.h"
 #include <unistd.h>
 #include "globals.h"
+#include "https.h"
 
 
-#define MAX_FILE_SIZE 20 * 1024  // Max file size in bytes
+#define MAX_FILE_SIZE 100 * 1024  // Max file size in bytes
 
 static const char *TAG = "SD_CARD_MANAGER";
 sdmmc_card_t* card;
@@ -38,7 +39,7 @@ esp_err_t init_sd_card(const char* mount_point) {
 
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
 
-    // Card has been initialized, print its properties
+    //print sd card properties to confirm format
     sdmmc_card_print_info(stdout, card);
 
     return ret;
@@ -57,7 +58,6 @@ void clean_sd_card(const char* base_path) {
         if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
             snprintf(file_path, sizeof(file_path), "%s/%s", base_path, ent->d_name);
 
-            // Check if it is a regular file and not a directory
             struct stat path_stat;
             stat(file_path, &path_stat);
             if (S_ISREG(path_stat.st_mode)) {
@@ -110,23 +110,24 @@ esp_err_t write_data(const char* base_path, const char* data, const char* suffix
     return ESP_OK;
 }
 
-esp_err_t read_data(const char *path) {
+esp_err_t read_data(const char *path, char *buffer, size_t buffer_size, size_t *data_size) {
     ESP_LOGI(TAG, "Reading file %s", path);
+
     FILE *f = fopen(path, "r");
     if (f == NULL) {
         ESP_LOGE(TAG, "Failed to open file for reading");
         return ESP_FAIL;
     }
-    char line[MAX_FILE_SIZE];
-    fgets(line, sizeof(line), f);
-    fclose(f);
 
-    // strip newline
-    char *pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
+    //read into the buffer
+    *data_size = fread(buffer, 1, buffer_size, f);
+    if (*data_size == 0) {
+        ESP_LOGE(TAG, "File is empty or failed to read: %s", path);
+        fclose(f);
+        return ESP_FAIL;
     }
-    ESP_LOGI(TAG, "Read from file: '%s'", line);
+    fclose(f);
+    //ESP_LOGI(TAG, "Read %zu bytes from file: %s", *data_size, path);
 
     return ESP_OK;
 }
@@ -152,7 +153,64 @@ void test_sd_card() {
     ESP_LOGI("SD_CARD", "Read from file: '%s'", line);
 }
 
-// Function to unmount the SD card
+void upload_all_sd_files_task(void *pvParameters) {
+    DIR *dir = opendir(mount_point);
+    if (dir == NULL) {
+        ESP_LOGE(TAG, "Failed to open directory: %s", mount_point);
+        vTaskDelete(NULL);
+        return;
+    }
+
+    //allocate 100KB buffer on heap instead of stack (task)
+    char *file_buffer = (char *)malloc(MAX_FILE_SIZE);
+    if (file_buffer == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for file buffer");
+        closedir(dir);
+        vTaskDelete(NULL);
+        return;
+    }
+
+    size_t file_size;
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type != DT_REG) {
+            ESP_LOGW(TAG, "Skipping non-regular file: %s", entry->d_name);
+            continue;
+        }
+
+        char filepath[512];
+        snprintf(filepath, sizeof(filepath), "%s/%s", mount_point, entry->d_name);
+        //ESP_LOGI(TAG, "Uploading file: %s", filepath);
+
+        esp_err_t read_err = read_data(filepath, file_buffer, MAX_FILE_SIZE, &file_size);
+        if (read_err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to read file: %s", filepath);
+            continue;
+        }
+
+        char presigned_url[512];
+        snprintf(presigned_url, sizeof(presigned_url),
+                 "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/%s",
+                 robot_id,
+                 entry->d_name);
+
+        esp_err_t upload_err = https_put(presigned_url, file_buffer, file_size);
+        if (upload_err == ESP_OK) {
+            ESP_LOGI(TAG, "Successfully uploaded file: %s", filepath);
+            remove(filepath);
+        } else {
+            ESP_LOGE(TAG, "Failed to upload file: %s", filepath);
+        }
+    }
+
+    free(file_buffer);
+    closedir(dir);
+    ESP_LOGI(TAG, "All files uploaded successfully.");
+    vTaskDelete(NULL);
+}
+
+
 void unmount_sd_card(const char* mount_point) {
     esp_err_t ret = esp_vfs_fat_sdcard_unmount(mount_point, card);
     if (ret != ESP_OK) {

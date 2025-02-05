@@ -57,8 +57,6 @@ extern "C" {
 // Global variables
 extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_pem_start");
 extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
-//extern volatile bool experiment_ended;
-extern uint16_t seed;
 
 // Interface functions
 void init_ga(void);

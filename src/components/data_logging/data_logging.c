@@ -3,8 +3,10 @@
 #include <time.h>
 #include "rtc_m5.h"
 #include <stdarg.h>
+#include <string.h>
 #include "sd_card_manager.h"
 #include "data_structures.h"
+#include "esp_app_desc.h"
 #include "globals.h"
 
 // This queue is used to send log messages, across multiple other tasks
@@ -42,16 +44,34 @@ time_t convert_to_time_t(RTC_DateTypeDef *date, RTC_TimeTypeDef *time) {
     return time_stamp;
 }
 
+void log_experiment_metadata(experiment_metadata_t *metadata) {
+
+    strncpy(metadata->experiment_id, experiment_id, sizeof(metadata->experiment_id) - 1);
+    strncpy(metadata->robot_id, robot_id, sizeof(metadata->robot_id) - 1);
+    metadata->seed = seed;
+    metadata->num_robots = DEFAULT_NUM_ROBOTS;
+    metadata->data_link = DEFAULT_DATA_LINK;
+    metadata->routing = DEFAULT_ROUTING;
+    metadata->msg_limit = DEFAULT_MSG_LIMIT;
+    metadata->com_type = DEFAULT_COM_TYPE;
+    metadata->msg_size_bytes = DEFAULT_MSG_SIZE_BYTES;
+    metadata->robot_speed = DEFAULT_ROBOT_SPEED;
+    metadata->experiment_start = experiment_start;
+    metadata->experiment_end = experiment_end;
+    
+    //app version
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    float app_version = atof(app_desc->version);  //convert to float
+    metadata->app_version = app_version;
+
+}
+
 char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     cJSON *root = cJSON_CreateObject();
 
     cJSON_AddStringToObject(root, "experiment_id", metadata->experiment_id);
     cJSON_AddStringToObject(root, "robot_id", metadata->robot_id);
     cJSON_AddNumberToObject(root, "num_robots", metadata->num_robots);
-    cJSON *ids_array = cJSON_AddArrayToObject(root, "robot_ids");
-    for (int i = 0; i < metadata->num_robots; i++) {
-        cJSON_AddItemToArray(ids_array, cJSON_CreateNumber(metadata->robot_ids[i]));
-    }
     cJSON_AddStringToObject(root, "data_link", metadata->data_link);
     cJSON_AddStringToObject(root, "routing", metadata->routing);
     cJSON_AddNumberToObject(root, "msg_limit", metadata->msg_limit);

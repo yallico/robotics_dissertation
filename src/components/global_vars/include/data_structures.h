@@ -9,17 +9,17 @@ extern "C" {
 #include <stdint.h>
 #include <time.h>
 
-#define MAX_ROBOTS 20  //maximum number of robots
+//#define MAX_ROBOTS 20  //maximum number of robots
 
 typedef struct {
     char experiment_id[16];
     char robot_id[5];
     int num_robots;
-    uint16_t robot_ids[MAX_ROBOTS];
+    //uint16_t robot_ids[MAX_ROBOTS]; Likely not needed
     int seed;                // Seed used in the experiment
     char *data_link;        // Nullable string
     char *routing;          // Nullable string
-    int msg_limit;  
+    int msg_limit;
     char *com_type;         // Nullable string
     int msg_size_bytes;
     int robot_speed;
