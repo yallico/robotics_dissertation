@@ -4,6 +4,7 @@
 #include "rtc_m5.h"
 #include <stdarg.h>
 #include <string.h>
+#include <math.h>
 #include "sd_card_manager.h"
 #include "data_structures.h"
 #include "esp_app_desc.h"
@@ -81,7 +82,10 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     cJSON_AddNumberToObject(root, "experiment_start", (long)(metadata->experiment_start));
     cJSON_AddNumberToObject(root, "experiment_end", (long)(metadata->experiment_end));
     cJSON_AddNumberToObject(root, "seed", metadata->seed);
-    cJSON_AddNumberToObject(root, "app_version", metadata->app_version);
+    char app_version_str[8];
+    snprintf(app_version_str, sizeof(app_version_str), "%.2f", metadata->app_version);
+    cJSON_AddStringToObject(root, "app_version", app_version_str);
+
 
     char *json_data = cJSON_Print(root);
     cJSON_Delete(root);  
