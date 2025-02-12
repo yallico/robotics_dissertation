@@ -3,10 +3,15 @@
 
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
+#include "freertos/event_groups.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define UPLOAD_COMPLETED_BIT BIT2
+extern EventGroupHandle_t upload_event_group;  
+extern SemaphoreHandle_t sd_card_mutex;
 
 // Function to initialize the SD card
 esp_err_t init_sd_card(const char* mount_point);

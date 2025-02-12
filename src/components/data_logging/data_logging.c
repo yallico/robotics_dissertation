@@ -10,6 +10,8 @@
 #include "esp_app_desc.h"
 #include "globals.h"
 
+static const char *TAG = "LOG";
+
 // This queue is used to send log messages, across multiple other tasks
 extern QueueHandle_t LogQueue;
 extern QueueHandle_t LogBodyQueue;
@@ -45,28 +47,6 @@ time_t convert_to_time_t(RTC_DateTypeDef *date, RTC_TimeTypeDef *time) {
     return time_stamp;
 }
 
-void log_experiment_metadata(experiment_metadata_t *metadata) {
-
-    strncpy(metadata->experiment_id, experiment_id, sizeof(metadata->experiment_id) - 1);
-    strncpy(metadata->robot_id, robot_id, sizeof(metadata->robot_id) - 1);
-    metadata->seed = seed;
-    metadata->num_robots = DEFAULT_NUM_ROBOTS;
-    metadata->data_link = DEFAULT_DATA_LINK;
-    metadata->routing = DEFAULT_ROUTING;
-    metadata->msg_limit = DEFAULT_MSG_LIMIT;
-    metadata->com_type = DEFAULT_COM_TYPE;
-    metadata->msg_size_bytes = DEFAULT_MSG_SIZE_BYTES;
-    metadata->robot_speed = DEFAULT_ROBOT_SPEED;
-    metadata->experiment_start = experiment_start;
-    metadata->experiment_end = experiment_end;
-    
-    //app version
-    const esp_app_desc_t *app_desc = esp_app_get_description();
-    float app_version = atof(app_desc->version);  //convert to float
-    metadata->app_version = app_version;
-
-}
-
 char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     cJSON *root = cJSON_CreateObject();
 
@@ -90,7 +70,37 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     char *json_data = cJSON_Print(root);
     cJSON_Delete(root);  
 
-    return json_data;  // caller must free this string
+    return json_data;
+}
+
+char*  log_experiment_metadata(experiment_metadata_t *metadata) {
+
+    strncpy(metadata->experiment_id, experiment_id, sizeof(metadata->experiment_id) - 1);
+    strncpy(metadata->robot_id, robot_id, sizeof(metadata->robot_id) - 1);
+    metadata->seed = seed;
+    metadata->num_robots = DEFAULT_NUM_ROBOTS;
+    metadata->data_link = DEFAULT_DATA_LINK;
+    metadata->routing = DEFAULT_ROUTING;
+    metadata->msg_limit = DEFAULT_MSG_LIMIT;
+    metadata->com_type = DEFAULT_COM_TYPE;
+    metadata->msg_size_bytes = DEFAULT_MSG_SIZE_BYTES;
+    metadata->robot_speed = DEFAULT_ROBOT_SPEED;
+    metadata->experiment_start = experiment_start;
+    metadata->experiment_end = experiment_end;
+    
+    //app version
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    float app_version = atof(app_desc->version);  //convert to float
+    metadata->app_version = app_version;
+
+    char *json_data = serialize_metadata_to_json(metadata);
+        if (json_data == NULL) {
+            ESP_LOGE(TAG, "Failed to serialize JSON");
+            return NULL;
+        }
+    
+    return json_data;
+
 }
 
 char* serialize_log_to_json(const event_log_t *log) {

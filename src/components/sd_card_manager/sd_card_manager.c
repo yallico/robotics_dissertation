@@ -12,11 +12,13 @@
 #include "https.h"
 
 
-#define MAX_FILE_SIZE 100 * 1024  // Max file size in bytes
+#define MAX_FILE_SIZE 2 * 1024  // Max file size in bytes
 
 static const char *TAG = "SD_CARD_MANAGER";
 sdmmc_card_t* card;
 static int file_index = 0;
+
+SemaphoreHandle_t sd_card_mutex = NULL;
 
 // Initialize SD card
 esp_err_t init_sd_card(const char* mount_point) {
@@ -161,7 +163,7 @@ void upload_all_sd_files_task(void *pvParameters) {
         return;
     }
 
-    //allocate 100KB buffer on heap instead of stack (task)
+    //allocate buffer on heap instead of stack (task)
     char *file_buffer = (char *)malloc(MAX_FILE_SIZE);
     if (file_buffer == NULL) {
         ESP_LOGE(TAG, "Failed to allocate memory for file buffer");
@@ -195,6 +197,7 @@ void upload_all_sd_files_task(void *pvParameters) {
                  robot_id,
                  entry->d_name);
 
+        ESP_LOGI(TAG, "Upload URL: %s", presigned_url);
         esp_err_t upload_err = https_put(presigned_url, file_buffer, file_size);
         if (upload_err == ESP_OK) {
             ESP_LOGI(TAG, "Successfully uploaded file: %s", filepath);
@@ -206,7 +209,7 @@ void upload_all_sd_files_task(void *pvParameters) {
 
     free(file_buffer);
     closedir(dir);
-    ESP_LOGI(TAG, "All files uploaded successfully.");
+    xEventGroupSetBits(upload_event_group, UPLOAD_COMPLETED_BIT);
     vTaskDelete(NULL);
 }
 

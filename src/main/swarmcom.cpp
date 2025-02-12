@@ -44,6 +44,7 @@ char* robot_id = get_mac_id();
 
 //SD Card
 const char* mount_point = "/sdcard";
+EventGroupHandle_t upload_event_group;
 
 //RTC
 RTC_DateTypeDef global_date;
@@ -253,29 +254,36 @@ void app_main() {
 
         // Wait for the task to signal it has completed
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        experiment_ended = true;
         RTC_GetTime(&global_time);
         experiment_end = convert_to_time_t(&global_date, &global_time);
-        ESP_LOGI(TAG, "Exmperiment ended, proceeding with the rest of main.");
+        ESP_LOGI(TAG, "Experiment has finished");
+        vTaskDelay(100);
 
         //log metadata
-        log_experiment_metadata(&metadata);
-        char *json_data = serialize_metadata_to_json(&metadata);
-        if (json_data == NULL) {
-            ESP_LOGE("app_main", "Failed to serialize JSON");
-            return;
+        sd_card_mutex = xSemaphoreCreateMutex();
+        char *json_data = log_experiment_metadata(&metadata);
+        if(json_data) {
+            printf("Metadata JSON:\n%s\n", json_data);
+            if (xSemaphoreTake(sd_card_mutex, portMAX_DELAY) == pdTRUE) {
+                //Save data to SD card
+                sd_ret = write_data(mount_point, json_data, "metadata");
+                xSemaphoreGive(sd_card_mutex);
+                if (sd_ret != ESP_OK) {
+                    ESP_LOGE(TAG,"Failed to write message data to SD card: %s", esp_err_to_name(sd_ret));
+                }
+            }
+            free(json_data); 
         }
-        // Print JSON to console (optional, for debugging)
-        printf("Serialized JSON:\n%s\n", json_data);
 
-        //Save data to SD card
-        sd_ret = write_data(mount_point, json_data, "metadata");
-        if (sd_ret != ESP_OK) {
-            ESP_LOGE(TAG,"Failed to write message data to SD card: %s", esp_err_to_name(sd_ret));
-        }
-
+        //Check Heap
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+        
         //Upload all SD-card files to S3
-        xTaskCreate(upload_all_sd_files_task, "upload_files_task", 16384, NULL, 5, NULL);
-
+        upload_event_group = xEventGroupCreate(); 
+        xTaskCreate(upload_all_sd_files_task, "upload_files_task", 20000, NULL, 5, NULL);
+        xEventGroupWaitBits(upload_event_group, UPLOAD_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
 
         } else if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");
