@@ -173,15 +173,17 @@ void app_main() {
         //OTA
         ESP_LOGI(TAG, "Initializing OTA Update");
         ota_event_group = xEventGroupCreate(); // Create the OTA event group
-        // Create the OTA task
-        xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
-        //HTTPS request to version
-        ota_check_ver();
-
-        if (ota_task_handle != NULL) {
-            ESP_LOGI(TAG, "OTA Task created successfully");
-            //TODO: Need to workout how to delete OTA task if there is no update required.
+        // Check for new version
+        if (ota_check_ver()) {
+            ESP_LOGI(TAG, "Update required, starting OTA task.");
+            xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
+            if (ota_task_handle != NULL) {
+                ESP_LOGI(TAG, "OTA Task created successfully");
+            }
+        } else {
+            ESP_LOGI(TAG, "No update required, skipping OTA task creation.");
         }
+
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
         ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
@@ -282,7 +284,23 @@ void app_main() {
         
         //Upload all SD-card files to S3
         upload_event_group = xEventGroupCreate(); 
-        xTaskCreate(upload_all_sd_files_task, "upload_files_task", 20000, NULL, 5, NULL);
+
+        if (!is_wifi_connected()) {
+            ESP_LOGE(TAG, "Wi-Fi disconnected, cannot upload files.");
+        }
+
+        ESP_LOGI(TAG, "Running HTTPS Unit Test...");
+        esp_err_t https_test = test_https_cert_connection();
+        ESP_LOGI(TAG, "Unit Test Completed, result: %s", esp_err_to_name(https_test));
+        if (https_test == ESP_OK) {
+            ESP_LOGI(TAG, "SSL handshake and certificate validation successful.");
+        } else {
+            ESP_LOGE(TAG, "SSL handshake failed! check certificates.");
+        }
+
+        print_task_list();
+
+        xTaskCreate(upload_all_sd_files_task, "upload_files_task", 30000, NULL, 5, NULL);
         xEventGroupWaitBits(upload_event_group, UPLOAD_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
 
         } else if (bits & WIFI_FAIL_BIT) {

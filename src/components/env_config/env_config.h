@@ -21,6 +21,8 @@ void wifi_init_sta(void);
 char* get_mac_id();
 uint32_t current_esp_version(void);
 uint32_t expected_esp_version(void);
+bool is_wifi_connected();
+void print_task_list();
 
 #ifdef __cplusplus
 }

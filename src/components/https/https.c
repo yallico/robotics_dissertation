@@ -4,6 +4,7 @@
 #include "ota.h"
 
 static const char *TAG = "HTTPS_COMPONENT";
+#define TEST_URL "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/"
 
 // HTTP event handler
 static esp_err_t http_handler_metadata(esp_http_client_event_t *evt) {
@@ -24,14 +25,14 @@ static esp_err_t http_handler_metadata(esp_http_client_event_t *evt) {
             if (response->data == NULL) {  // First chunk of data
                 response->data = malloc(evt->data_len + 1);  // Allocate memory for data
                 if (response->data == NULL) {
-                    ESP_LOGE("HTTP", "Failed to allocate memory for response data.");
+                    ESP_LOGE(TAG, "Failed to allocate memory for response data.");
                     return ESP_ERR_NO_MEM;
                 }
                 response->len = 0; // Initialize length if first chunk
             } else {  // Subsequent data chunks
                 char *new_data = realloc(response->data, response->len + evt->data_len + 1);
                 if (new_data == NULL) {
-                    ESP_LOGE("HTTP", "Failed to reallocate memory for response data.");
+                    ESP_LOGE(TAG, "Failed to reallocate memory for response data.");
                     free(response->data); // Free the original data to avoid memory leak
                     response->data = NULL; // Avoid dangling pointer
                     return ESP_ERR_NO_MEM;  // Handle realloc failure
@@ -54,10 +55,36 @@ static esp_err_t http_handler_metadata(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
+esp_err_t https_get(const char *url, http_response_t *response, const uint8_t *cert) {
+    esp_http_client_config_t config = {
+        .url = url,
+        .cert_pem = (char *)cert,
+        .event_handler = http_handler_metadata,
+        .user_data = response  // Pass the response structure to the handler
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_method(client, HTTP_METHOD_GET);
+    
+    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "HTTPS GET Status = %d, content_length = %lld",
+                 esp_http_client_get_status_code(client),
+                 esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "HTTPS GET request failed: %s", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(client);
+    return err;
+}
+
 esp_err_t https_put(const char *url, const char *data, size_t data_len) {
     esp_http_client_config_t config = {
         .url = url,
         .cert_pem = (char *)server_cert_pem_start,
+        .timeout_ms = 5000,
+        .keep_alive_enable = true,
         .event_handler = http_handler_metadata,
     };
 
@@ -80,24 +107,27 @@ esp_err_t https_put(const char *url, const char *data, size_t data_len) {
     return err;
 }
 
-esp_err_t https_get(const char *url, http_response_t *response, const uint8_t *cert) {
+esp_err_t test_https_cert_connection() {
+    ESP_LOGI(TAG, "Testing HTTPS connection to %s", TEST_URL);
+
     esp_http_client_config_t config = {
-        .url = url,
-        .cert_pem = (char *)cert,
-        .event_handler = http_handler_metadata,
-        .user_data = response  // Pass the response structure to the handler
+        .url = TEST_URL,
+        .cert_pem = (char *)server_cert_pem_start,
+        .timeout_ms = 2000,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_method(client, HTTP_METHOD_GET);
-    
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return ESP_FAIL;
+    }
+
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTPS GET Status = %d, content_length = %lld",
-                 esp_http_client_get_status_code(client),
-                 esp_http_client_get_content_length(client));
+        int status_code = esp_http_client_get_status_code(client);
+        ESP_LOGI(TAG, "HTTPS test passed, status code: %d", status_code);
     } else {
-        ESP_LOGE(TAG, "HTTPS GET request failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "HTTPS test failed, error: %s", esp_err_to_name(err));
     }
 
     esp_http_client_cleanup(client);

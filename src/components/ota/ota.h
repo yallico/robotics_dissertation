@@ -28,7 +28,7 @@ void print_sha256(const uint8_t *image_hash, const char *label);
 void get_sha256_of_partitions(void);
 bool is_new_version(const char* current_version, const char* new_version);
 esp_err_t http_event_handler(esp_http_client_event_t *evt);
-void ota_check_ver();
+bool ota_check_ver();
 
 
 #ifdef __cplusplus

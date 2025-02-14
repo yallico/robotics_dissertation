@@ -28,6 +28,7 @@
 #define OTA_READY_BIT BIT0
 
 extern EventGroupHandle_t ota_event_group;
+static bool ota_update_required = false;
 
 #define HASH_LEN 32
 
@@ -190,10 +191,12 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
                 cJSON *url = cJSON_GetObjectItem(json, "url");
                 //get current app version
                 const esp_app_desc_t *app_desc = esp_app_get_description();
-                if (is_new_version(app_desc->version, version->valuestring)) {
+
+                ota_update_required = is_new_version(app_desc->version, version->valuestring);
+
+                if (ota_update_required) {
                     ESP_LOGI(TAG, "New version available: %s", url->valuestring);
-                    // Signal OTA task instead of creating it
-                        xEventGroupSetBits(ota_event_group, OTA_READY_BIT);
+                    xEventGroupSetBits(ota_event_group, OTA_READY_BIT);
                 } else {
                     ESP_LOGI(TAG, "Current version is up to date.");
                 }
@@ -205,7 +208,10 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 }
 
 // Function to fetch and parse JSON data from S3
-void ota_check_ver() {
+bool ota_check_ver() {
+
+    ota_update_required = false;
+
     esp_http_client_config_t config = {
         .url = "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/OTA/version.json",
         .event_handler = http_event_handler,
@@ -213,6 +219,7 @@ void ota_check_ver() {
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
+
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "JSON HTTPS Status = %d, content_length = %lli",
                  esp_http_client_get_status_code(client),
@@ -221,5 +228,7 @@ void ota_check_ver() {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
     }
     esp_http_client_cleanup(client);
+
+    return ota_update_required;
 }
 

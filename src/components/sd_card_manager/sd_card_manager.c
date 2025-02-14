@@ -12,7 +12,7 @@
 #include "https.h"
 
 
-#define MAX_FILE_SIZE 2 * 1024  // Max file size in bytes
+#define MAX_FILE_SIZE 1 * 1024  // Max file size in bytes
 
 static const char *TAG = "SD_CARD_MANAGER";
 sdmmc_card_t* card;
@@ -176,6 +176,7 @@ void upload_all_sd_files_task(void *pvParameters) {
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
+        ESP_LOGI(TAG, "Processing file: %s", entry->d_name);
         if (entry->d_type != DT_REG) {
             ESP_LOGW(TAG, "Skipping non-regular file: %s", entry->d_name);
             continue;
@@ -198,6 +199,7 @@ void upload_all_sd_files_task(void *pvParameters) {
                  entry->d_name);
 
         ESP_LOGI(TAG, "Upload URL: %s", presigned_url);
+        ESP_LOGI(TAG, "Largest free block: %u", heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
         esp_err_t upload_err = https_put(presigned_url, file_buffer, file_size);
         if (upload_err == ESP_OK) {
             ESP_LOGI(TAG, "Successfully uploaded file: %s", filepath);

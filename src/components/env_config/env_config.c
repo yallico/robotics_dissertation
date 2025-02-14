@@ -175,3 +175,24 @@ uint32_t current_esp_version(void){
 uint32_t expected_esp_version(void){
     return ESP_IDF_VERSION_VAL(5, 1, 4);
 }
+
+#include "esp_wifi.h"
+
+bool is_wifi_connected() {
+    wifi_ap_record_t ap_info;
+    return (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK);
+}
+
+void print_task_list() {
+        // Allocate a buffer to hold the task list info.
+        // Adjust the size if you have many tasks.
+        const int bufferSize = 1024;
+        char *taskListBuffer = malloc(bufferSize);
+        if (taskListBuffer == NULL) {
+            ESP_LOGE(TAG, "Failed to allocate memory for task list");
+            return;
+        }
+        vTaskList(taskListBuffer);
+        ESP_LOGI(TAG, "\nTask List:\n%s", taskListBuffer);
+        free(taskListBuffer);
+    }
