@@ -12,8 +12,6 @@
 #include "https.h"
 
 
-#define MAX_FILE_SIZE 1 * 1024  // Max file size in bytes
-
 static const char *TAG = "SD_CARD_MANAGER";
 sdmmc_card_t* card;
 static int file_index = 0;
@@ -155,26 +153,26 @@ void test_sd_card() {
     ESP_LOGI("SD_CARD", "Read from file: '%s'", line);
 }
 
-void upload_all_sd_files_task(void *pvParameters) {
+void upload_all_sd_files() {
+    // Open the SD card directory.
     DIR *dir = opendir(mount_point);
     if (dir == NULL) {
         ESP_LOGE(TAG, "Failed to open directory: %s", mount_point);
-        vTaskDelete(NULL);
         return;
     }
 
-    //allocate buffer on heap instead of stack (task)
+    // Allocate a buffer on the heap.
     char *file_buffer = (char *)malloc(MAX_FILE_SIZE);
     if (file_buffer == NULL) {
         ESP_LOGE(TAG, "Failed to allocate memory for file buffer");
         closedir(dir);
-        vTaskDelete(NULL);
         return;
     }
 
     size_t file_size;
-
     struct dirent *entry;
+
+    // Loop through each file in the directory.
     while ((entry = readdir(dir)) != NULL) {
         ESP_LOGI(TAG, "Processing file: %s", entry->d_name);
         if (entry->d_type != DT_REG) {
@@ -182,37 +180,40 @@ void upload_all_sd_files_task(void *pvParameters) {
             continue;
         }
 
+        // Build the file path.
         char filepath[512];
         snprintf(filepath, sizeof(filepath), "%s/%s", mount_point, entry->d_name);
-        //ESP_LOGI(TAG, "Uploading file: %s", filepath);
+        ESP_LOGI(TAG, "Reading file: %s", filepath);
 
+        // Read file data into the buffer.
         esp_err_t read_err = read_data(filepath, file_buffer, MAX_FILE_SIZE, &file_size);
         if (read_err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to read file: %s", filepath);
             continue;
         }
 
+        // Build the upload URL.
         char presigned_url[512];
         snprintf(presigned_url, sizeof(presigned_url),
                  "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/%s",
                  robot_id,
                  entry->d_name);
-
         ESP_LOGI(TAG, "Upload URL: %s", presigned_url);
         ESP_LOGI(TAG, "Largest free block: %u", heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
+
+        // Attempt the upload via HTTPS POST/PUT.
         esp_err_t upload_err = https_put(presigned_url, file_buffer, file_size);
         if (upload_err == ESP_OK) {
             ESP_LOGI(TAG, "Successfully uploaded file: %s", filepath);
-            remove(filepath);
+            remove(filepath);  // Delete the file upon successful upload.
         } else {
             ESP_LOGE(TAG, "Failed to upload file: %s", filepath);
         }
     }
 
+    // Cleanup.
     free(file_buffer);
     closedir(dir);
-    xEventGroupSetBits(upload_event_group, UPLOAD_COMPLETED_BIT);
-    vTaskDelete(NULL);
 }
 
 

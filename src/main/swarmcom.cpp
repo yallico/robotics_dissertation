@@ -13,6 +13,7 @@
 #include "Arduino.h"
 #include "cJSON.h"
 #include <stdlib.h>
+#include "dirent.h"
 
 #include "globals.h"
 #include "data_structures.h"
@@ -44,7 +45,6 @@ char* robot_id = get_mac_id();
 
 //SD Card
 const char* mount_point = "/sdcard";
-EventGroupHandle_t upload_event_group;
 
 //RTC
 RTC_DateTypeDef global_date;
@@ -281,9 +281,8 @@ void app_main() {
         //Check Heap
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
-        
-        //Upload all SD-card files to S3
-        upload_event_group = xEventGroupCreate(); 
+
+        print_task_list();
 
         if (!is_wifi_connected()) {
             ESP_LOGE(TAG, "Wi-Fi disconnected, cannot upload files.");
@@ -298,10 +297,7 @@ void app_main() {
             ESP_LOGE(TAG, "SSL handshake failed! check certificates.");
         }
 
-        print_task_list();
-
-        xTaskCreate(upload_all_sd_files_task, "upload_files_task", 30000, NULL, 5, NULL);
-        xEventGroupWaitBits(upload_event_group, UPLOAD_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        upload_all_sd_files();
 
         } else if (bits & WIFI_FAIL_BIT) {
             ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");
