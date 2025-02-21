@@ -7,16 +7,10 @@ extern "C" {
 
 #include <stdint.h> 
 #include <stdbool.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 
 // Constants
-#define POP_SIZE        30      // How many candidate solutions to evaluate.
-                                // More = better search, but slower to compute
-                                // Less = harder for algorithm to find solution
-                                
-#define MAX_GENES       3       // Dimensions (higher = more difficult)
-                                // This is the number of parameters to be 
-                                // represented in the "genotype" (candidate
-                                // solution).
 
 #define MAX_GENE_VALUE  5.12    // To use the Rastrigin Function as a problem, 
 #define MIN_GENE_VALUE  -5.12   // we use values [-5.12 : +5.12]
@@ -57,6 +51,8 @@ extern "C" {
 // Global variables
 extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_pem_start");
 extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
+#define GA_COMPLETED_BIT BIT0
+extern EventGroupHandle_t ga_event_group;
 
 // Interface functions
 void init_ga(void);

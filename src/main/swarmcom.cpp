@@ -61,6 +61,7 @@ EventGroupHandle_t ota_event_group; // declare the event group
 
 //GA
 TaskHandle_t ga_task_handle = NULL;
+EventGroupHandle_t ga_event_group; 
 
 //GUI
 TaskHandle_t gui_task_handle = NULL;
@@ -236,11 +237,14 @@ void app_main() {
         ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
         //Genetic Algorithm task and pin it to core 1
+        ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
 
+        //TODO: Implement robot communication
         //Initialize ESPNOW UNICAST
-        s_espnow_event_group = xEventGroupCreate();
-        espnow_init();
+        //s_espnow_event_group = xEventGroupCreate();
+        //espnow_init();
 
         /*******************************************************************************
 
@@ -255,7 +259,7 @@ void app_main() {
         *******************************************************************************/
 
         // Wait for the task to signal it has completed
-        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        //xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
         experiment_ended = true;
         RTC_GetTime(&global_time);
         experiment_end = convert_to_time_t(&global_date, &global_time);

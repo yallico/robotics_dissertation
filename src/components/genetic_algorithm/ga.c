@@ -381,6 +381,8 @@ void init_ga(void) {
 void ga_task(void *pvParameters) {
     float last_best_fitness = -1.0;  // Init impossible fitness value
     float threshold = 0.001;  // Threshold for detecting significant changes in fitness
+    int no_improvement_count = 0;
+    int patience = 20; // Stop if there are consecutive no-gain generations TODO: get reference
     while (1) {
         evolve();  // Run GA
         if (experiment_ended) {
@@ -397,7 +399,8 @@ void ga_task(void *pvParameters) {
 
         if (fabs(current_best_fitness - last_best_fitness) > threshold) { // save only if there's a change
             ESP_LOGI(TAG, "Best true fitness: %.3f", current_best_fitness);
-            last_best_fitness = current_best_fitness;  // Update last known best fitness
+            last_best_fitness = current_best_fitness;  //update last known best fitness
+            no_improvement_count = 0; //reset no improvement counter
 
             event_log_t log_entry;
             event_log_message_t log_body;
@@ -433,9 +436,19 @@ void ga_task(void *pvParameters) {
             xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 
         vTaskDelay(100);
+
+        } else {
+            no_improvement_count++;
         }
 
-    vTaskDelete(NULL);  // Delete task when done
+        if (no_improvement_count >= patience) {
+            ESP_LOGI(TAG, "Stopping GA: No improvement for %d generations", patience);
+            experiment_ended = true;
+            break;
+        }
 
     }
+
+    xEventGroupSetBits(ga_event_group, GA_COMPLETED_BIT);
+    vTaskDelete(NULL);
 }

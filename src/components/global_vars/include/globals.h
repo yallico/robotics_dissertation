@@ -22,6 +22,16 @@ extern QueueHandle_t LogQueue;
 extern QueueHandle_t LogBodyQueue;
 extern SemaphoreHandle_t logCounterMutex;
 
+//Genetic Algorithm
+#define POP_SIZE        10      // How many candidate solutions to evaluate.
+                                // More = better search, but slower to compute
+                                // Less = harder for algorithm to find solution
+                                
+#define MAX_GENES       1       // Dimensions (higher = more difficult)
+                                // This is the number of parameters to be 
+                                // represented in the "genotype" (candidate
+                                // solution).
+
 //Experimental metadata
 extern char* experiment_id;
 extern char* robot_id;
