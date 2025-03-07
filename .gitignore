@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#Bespoke
+.venv/
+data_analysis/temp/
+
 # Latex intermediate files
 *.aux
 *.bbl

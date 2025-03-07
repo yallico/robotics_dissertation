@@ -192,11 +192,27 @@ void upload_all_sd_files() {
             continue;
         }
 
+
+        const char *folder = NULL;
+        if (strcasestr(entry->d_name, "log") != NULL) {
+            folder = "logs";
+        } else if (strcasestr(entry->d_name, "metadata") != NULL) {
+            folder = "metadata";
+        } else if (strcasestr(entry->d_name, "message") != NULL) {
+            folder = "messages";
+        }
+
+        if (folder == NULL) {
+            ESP_LOGW(TAG, "File name %s did not match any expected folder, skipping upload", entry->d_name);
+            continue; 
+        }
+
         // Build the upload URL.
         char presigned_url[512];
         snprintf(presigned_url, sizeof(presigned_url),
-                 "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/%s",
+                 "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/%s/%s",
                  robot_id,
+                 folder,
                  entry->d_name);
         ESP_LOGI(TAG, "Upload URL: %s", presigned_url);
         ESP_LOGI(TAG, "Largest free block: %u", heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));

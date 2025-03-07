@@ -23,6 +23,8 @@ typedef struct {
     char *com_type;         // Nullable string
     int msg_size_bytes;
     int robot_speed;
+    int pop_size;            // ga population size
+    int max_genes;           // ga max genes
     time_t experiment_start; // Timestamp for the start of the experiment
     time_t experiment_end;   // Timestamp for the end of the experiment
     float app_version;       // Application version number

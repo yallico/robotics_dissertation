@@ -291,7 +291,7 @@ void app_main() {
         if (!is_wifi_connected()) {
             ESP_LOGE(TAG, "Wi-Fi disconnected, cannot upload files.");
         }
-
+        //TODO: Document report with data processing architecture.
         ESP_LOGI(TAG, "Running HTTPS Unit Test...");
         esp_err_t https_test = test_https_cert_connection();
         ESP_LOGI(TAG, "Unit Test Completed, result: %s", esp_err_to_name(https_test));

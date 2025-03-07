@@ -58,6 +58,8 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     cJSON_AddNumberToObject(root, "msg_limit", metadata->msg_limit);
     cJSON_AddStringToObject(root, "com_type", metadata->com_type);
     cJSON_AddNumberToObject(root, "msg_size_bytes", metadata->msg_size_bytes);
+    cJSON_AddNumberToObject(root, "pop_size", metadata->pop_size);
+    cJSON_AddNumberToObject(root, "max_genes", metadata->max_genes);
     cJSON_AddNumberToObject(root, "robot_speed", metadata->robot_speed);
     cJSON_AddNumberToObject(root, "experiment_start", (long)(metadata->experiment_start));
     cJSON_AddNumberToObject(root, "experiment_end", (long)(metadata->experiment_end));
@@ -67,7 +69,7 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     cJSON_AddStringToObject(root, "app_version", app_version_str);
 
 
-    char *json_data = cJSON_Print(root);
+    char *json_data = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);  
 
     return json_data;
@@ -85,6 +87,8 @@ char*  log_experiment_metadata(experiment_metadata_t *metadata) {
     metadata->com_type = DEFAULT_COM_TYPE;
     metadata->msg_size_bytes = DEFAULT_MSG_SIZE_BYTES;
     metadata->robot_speed = DEFAULT_ROBOT_SPEED;
+    metadata->pop_size = POP_SIZE;
+    metadata->max_genes = MAX_GENES;
     metadata->experiment_start = experiment_start;
     metadata->experiment_end = experiment_end;
     
@@ -114,7 +118,7 @@ char* serialize_log_to_json(const event_log_t *log) {
     cJSON_AddStringToObject(root, "log_type", log->log_type);
     cJSON_AddStringToObject(root, "from_id", log->from_id);
 
-    char *json_data = cJSON_Print(root);
+    char *json_data = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
     return json_data;  // caller must free this string
@@ -127,7 +131,7 @@ char* serialize_log_body_to_json(const event_log_message_t *log_message) {
     cJSON_AddNumberToObject(root, "log_datetime", (long)(log_message->log_datetime));
     cJSON_AddStringToObject(root, "log_message", log_message->log_message);
 
-    char *json_data = cJSON_Print(root);
+    char *json_data = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
     return json_data;  // caller must free this string
