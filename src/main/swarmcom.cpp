@@ -242,6 +242,7 @@ void app_main() {
         xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
 
         //TODO: Implement robot communication
+        //TODO: Handle ESP_ERR_HTTP_EAGAIN (wifi connection dropping)
         //Initialize ESPNOW UNICAST
         //s_espnow_event_group = xEventGroupCreate();
         //espnow_init();

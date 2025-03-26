@@ -97,6 +97,24 @@ Once the robots execute the experiment task, the swarm being communicate their c
 
 The termination condition for all experiments is %TODO: need to define the termintion condition.
 
+\newpage
+\section{Preliminary Sensitivity Analysis}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{ga_prelim_analysis.pdf}
+    \caption{a: Number of iterations for algorithm to converge to either a global or local minimum. b: Fitness distribution by population size and genes.}
+    \label{fig:ga_prelim_analysis}
+\end{figure}
+
+Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes and gene dimensions. A total of \textbf{136 experiments} were performed, each terminating if fitness failed to improve beyond a \textbf{0.001 threshold} over \textbf{20 consecutive epochs} (patience). %TODO: Include reference for the patience parameter
+Only iterations exceeding this improvement threshold were logged. If the global optimum (fitness=0) was not reached, the run was considered converged to a local minimum. Across all runs, convergence times ranged \textbf{from 0 to 3 seconds}, reflecting the early stopping triggered by the patience setting. As shown in Figure~\ref{fig:ga_prelim_analysis}, larger populations and higher iteration counts generally yielded lower final fitness, consistent with the genetic algorithm’s search properties.\\
+
+A practical takeaway from the data is that using five genes is sufficiently challenging to extend the runtime into the range of minutes rather than seconds, even though a single robot with fewer genes can solve the function in only a couple of seconds. This configuration will ensure that experiments in a swarm environment will involve cooperation, where the exchange of best solutions between members could permit convergence for a five-dimensional Rastrigin function.
+
+
+
+
 
 
 % Add more chapters as needed
