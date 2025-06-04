@@ -7,6 +7,7 @@
 #include "gui_manager.h"
 
 #define I2C_ADDR  8
+#define I2C_ADDR_POLOLU  0x04
 
 static const char* TAG = "I2C_Arduino";
 i2c_mode_t ircomm_mode;
@@ -39,6 +40,16 @@ void i2c_get_status() {
 
     else {
         ESP_LOGE(TAG, "Error transmitting Mode 0 request");
+    }
+}
+
+void i2c_pololu_command(const char *command) {
+    Wire1.beginTransmission(I2C_ADDR_POLOLU);
+    Wire1.write((const uint8_t*)command, strlen(command));
+    if (Wire1.endTransmission() == 0) {
+        ESP_LOGI(TAG, "Successfully sent command to Pololu: %s", command);
+    } else {
+        ESP_LOGI(TAG, "Failed to reach Pololu");
     }
 }
 

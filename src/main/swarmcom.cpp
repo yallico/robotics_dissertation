@@ -149,6 +149,7 @@ void app_main() {
     i2c_get_status();
     vTaskDelay(pdMS_TO_TICKS(100));
     xTaskCreate(i2c_lvgl_task, "I2C Sensor Task", 4096, NULL, 5, NULL);
+    i2c_pololu_command("S"); // Start the Pololu
 
     //Initialize WIFI
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
@@ -311,4 +312,6 @@ void app_main() {
     //De-init SD Card
     unmount_sd_card(mount_point);
 
+    //Halt Pololu
+    i2c_pololu_command("X");
 }
