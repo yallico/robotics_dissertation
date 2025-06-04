@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "gui_manager.h"
+#include "m5core2_axp192.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_app_desc.h"
@@ -13,6 +14,7 @@ static const char *TAG = "GUI_MANAGER";
 lv_obj_t *espnow_label = NULL;
 lv_obj_t *sensor_label = NULL;
 lv_obj_t *t_time_label = NULL;
+static lv_obj_t *battery_label = NULL;
 
 const esp_app_desc_t *app_desc = NULL;
 
@@ -62,18 +64,21 @@ void gui_task(void *pvParameter) {
     lv_obj_t *ver_label = lv_label_create(scr, NULL);
     lv_obj_t *time_label = lv_label_create(scr, NULL);
     t_time_label = lv_label_create(scr, NULL);
+    battery_label = lv_label_create(scr, NULL);
 
     lv_label_set_text(espnow_label, "Swarmcom Online!");
     lv_label_set_text(sensor_label, "");
     lv_label_set_text(ver_label, app_desc->version);
     lv_label_set_text(time_label, "00:00:00");
     lv_label_set_text(t_time_label, "");
+    lv_label_set_text(battery_label, "Batt: --%");
 
     lv_obj_align(espnow_label, NULL, LV_ALIGN_CENTER, -screen_width / 4 + 10, 0);
     lv_obj_align(sensor_label, NULL, LV_ALIGN_CENTER, -screen_width / 2, 20);
     lv_obj_align(ver_label, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -10);
     lv_obj_align(time_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 10);
     lv_obj_align(t_time_label, time_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
+    lv_obj_align(battery_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -10, 10);
 
     uint32_t last_update_time = 0; // Variable to store the last update time in ticks
 
@@ -109,6 +114,13 @@ void gui_task(void *pvParameter) {
             }
             lv_label_set_text(t_time_label, t_time_str);
 
+            //update the battery percentage
+            float battery_pct;
+            if (m5core2_axp_battery_percentage(&battery_pct) == ESP_OK) {
+                char battery_str[10];
+                snprintf(battery_str, sizeof(battery_str), "Batt: %.0f%%", battery_pct);
+                lv_label_set_text(battery_label, battery_str);
+            }
 
             last_update_time = current_ticks; // Update the last update time
         }
