@@ -55,7 +55,7 @@ extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
 extern EventGroupHandle_t ga_event_group;
 
 // Interface functions
-void init_ga(void);
+void init_ga(bool wifiAvailable);
 void print_population(void);
 void print_ranking(void);
 void ga_task(void *pvParameters);  // Expose the task function for external use

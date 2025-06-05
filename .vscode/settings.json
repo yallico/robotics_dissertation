@@ -11,8 +11,10 @@
         ]
     },
     "files.associations": {
+        "*.tex": "latex",
         "esp_idf_version.h": "c",
         "esp_log.h": "c",
-        "i2c_master.h": "c"
+        "i2c_master.h": "c",
+        "esp_random.h": "c"
     }
 }

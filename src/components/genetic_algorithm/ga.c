@@ -195,7 +195,14 @@ void createRanking(void) {
     }
 }
 
-uint16_t init_random_seed(void) {
+static uint16_t init_random_seed(bool wifiAvailable) {
+    if (!wifiAvailable) {
+        ESP_LOGW(TAG, "Skipping QRNG request, using hardware RNG fallback");
+        seed = (uint16_t)esp_random();
+        ESP_LOGI(TAG, "Fallback Random Seed: %u", seed);
+        return seed;
+    }
+
     // Utility to initialize random seed
     ESP_LOGI(TAG, "Fetching random seed from QRNG@ANU");
     http_response_t response = {
@@ -235,10 +242,10 @@ uint16_t init_random_seed(void) {
     return seed;
 }
 
-static void init_population(void) {
+static void init_population(bool wifiAvailable) {
     // Utility to randomize initial population
     ESP_LOGI(TAG, "Randomizing initial population");
-    uint16_t seed = init_random_seed();
+    uint16_t seed = init_random_seed(wifiAvailable);
     if (seed == 0) {
         ESP_LOGE(TAG, "Failed to fetch random seed");
         return;
@@ -371,9 +378,9 @@ void evolve(void) {
     }
 }
 
-void init_ga(void) {
+void init_ga(bool wifiAvailable) {
     // Initialize the GA population
-    init_population();
+    init_population(wifiAvailable);
     print_population();
 }
 

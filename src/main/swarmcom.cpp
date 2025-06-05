@@ -149,7 +149,7 @@ void app_main() {
     i2c_get_status();
     vTaskDelay(pdMS_TO_TICKS(100));
     xTaskCreate(i2c_lvgl_task, "I2C Sensor Task", 4096, NULL, 5, NULL);
-    i2c_pololu_command("S"); // Start the Pololu
+    i2c_pololu_command("S"); //start the Pololu's brownian motion
 
     //Initialize WIFI
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
@@ -202,7 +202,7 @@ void app_main() {
         ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
 
         //Initialize Genetic Algorithm
-        init_ga();
+        init_ga(true);
 
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
@@ -245,8 +245,8 @@ void app_main() {
         //TODO: Implement robot communication
         //TODO: Handle ESP_ERR_HTTP_EAGAIN (wifi connection dropping)
         //Initialize ESPNOW UNICAST
-        //s_espnow_event_group = xEventGroupCreate();
-        //espnow_init();
+        s_espnow_event_group = xEventGroupCreate();
+        espnow_init();
 
         /*******************************************************************************
 
@@ -305,10 +305,46 @@ void app_main() {
 
         upload_all_sd_files();
 
-        } else if (bits & WIFI_FAIL_BIT) {
-            ESP_LOGI(TAG, "Failed to connect to Wi-Fi. OTA will not start.");
-        }
+    } else if (bits & WIFI_FAIL_BIT) {
+        ESP_LOGI(TAG, "Wi-Fi unavailable. Proceeding offline.");
 
+        // Initialize Logging Queue
+        LogQueue = xQueueCreate(10, sizeof(event_log_t));
+        LogBodyQueue = xQueueCreate(10, sizeof(event_log_message_t));
+        xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
+    
+        // Initialize Genetic Algorithm
+        init_ga(false);
+    
+        // Run experiment as before
+        RTC_GetDate(&global_date);
+        RTC_GetTime(&global_time);
+        int delay_seconds = 60 - global_time.Seconds;
+        experiment_start_ticks = xTaskGetTickCount() + pdMS_TO_TICKS(delay_seconds * 1000);
+        vTaskDelay(pdMS_TO_TICKS(delay_seconds * 1000));
+        RTC_GetTime(&global_time);
+        experiment_started = true;
+        ESP_LOGI(TAG, "Starting experiment in offline mode.");
+        experiment_id = generate_experiment_id(&global_date, &global_time);
+        experiment_start = convert_to_time_t(&global_date, &global_time);
+    
+        // Genetic Algorithm task
+        ga_event_group = xEventGroupCreate();
+        xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+    
+        // Initialize ESPNOW
+        s_espnow_event_group = xEventGroupCreate();
+        espnow_init();
+    
+        //skip upload_all_sd_files since no WiFi
+        experiment_ended = true;
+        RTC_GetTime(&global_time);
+        experiment_end = convert_to_time_t(&global_date, &global_time);
+        ESP_LOGI(TAG, "Offline experiment has finished");
+    
+        }
+        
     //De-init SD Card
     unmount_sd_card(mount_point);
 
