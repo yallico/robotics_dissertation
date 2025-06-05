@@ -152,9 +152,15 @@ void app_main() {
     i2c_pololu_command("S"); //start the Pololu's brownian motion
 
     //Initialize WIFI
-    ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
+    ESP_LOGI(TAG, "Initializing WIFI STA");
     wifi_init_sta();
     vTaskDelay(pdMS_TO_TICKS(500));
+
+    //TODO: Implement robot communication
+    //Initialize ESPNOW
+    ESP_LOGI(TAG, "Initializing ESPNOW");
+    s_espnow_event_group = xEventGroupCreate();
+    espnow_init();
 
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
@@ -242,12 +248,6 @@ void app_main() {
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
 
-        //TODO: Implement robot communication
-        //TODO: Handle ESP_ERR_HTTP_EAGAIN (wifi connection dropping)
-        //Initialize ESPNOW UNICAST
-        s_espnow_event_group = xEventGroupCreate();
-        espnow_init();
-
         /*******************************************************************************
 
         Section Name: Post-Experiment
@@ -303,6 +303,7 @@ void app_main() {
             ESP_LOGE(TAG, "SSL handshake failed! check certificates.");
         }
 
+        //TODO: Handle ESP_ERR_HTTP_EAGAIN (wifi connection dropping)
         upload_all_sd_files();
 
     } else if (bits & WIFI_FAIL_BIT) {
@@ -332,10 +333,6 @@ void app_main() {
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
-    
-        // Initialize ESPNOW
-        s_espnow_event_group = xEventGroupCreate();
-        espnow_init();
     
         //skip upload_all_sd_files since no WiFi
         experiment_ended = true;

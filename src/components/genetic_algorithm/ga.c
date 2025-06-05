@@ -11,6 +11,7 @@
 #include "esp_random.h"
 #include "globals.h"
 #include "data_logging.h"
+#include "espnow_main.h"
 
 static const char *TAG = "GA";
 
@@ -450,6 +451,23 @@ void ga_task(void *pvParameters) {
 
         if (no_improvement_count >= patience) {
             ESP_LOGI(TAG, "Stopping GA: No improvement for %d generations", patience);
+            
+            if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+                log_counter++;
+                xSemaphoreGive(logCounterMutex);
+            }
+            time_t now = time(NULL);
+
+            //send the best solution via ESP‑NOW
+            espnow_push_best_solution(
+                current_best_fitness,
+                population[rank[POP_SIZE - 1]],
+                MAX_GENES,
+                log_counter,
+                now
+            );
+            
+            
             experiment_ended = true;
             break;
         }

@@ -46,6 +46,13 @@ typedef struct {
     char log_message[512];
 } event_log_message_t;
 
+typedef struct {
+    uint32_t log_id;
+    char robot_id[5];
+    time_t created_datetime;
+    char message[64];
+} out_message_t;
+
 extern experiment_metadata_t metadata;
 extern event_log_t event_log;
 extern event_log_message_t message;
