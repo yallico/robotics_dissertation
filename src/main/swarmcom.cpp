@@ -60,7 +60,6 @@ TaskHandle_t ota_task_handle = NULL;
 EventGroupHandle_t ota_event_group; // declare the event group
 
 //GA
-TaskHandle_t ga_task_handle = NULL;
 EventGroupHandle_t ga_event_group; 
 
 //GUI
@@ -161,6 +160,7 @@ void app_main() {
     ESP_LOGI(TAG, "Initializing ESPNOW");
     s_espnow_event_group = xEventGroupCreate();
     espnow_init();
+    xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 4, NULL);
 
     free_heap_size = esp_get_free_heap_size();
     ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
@@ -236,6 +236,7 @@ void app_main() {
         RTC_GetTime(&global_time); //this becomes experiment start time
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment now.");
+        xTaskCreate(espnow_deinit_task, "espnow_deinit_task", 1024, NULL, 3, NULL); //timer to end
         experiment_id = generate_experiment_id(&global_date, &global_time);
         experiment_start = convert_to_time_t(&global_date, &global_time);
 
@@ -246,7 +247,6 @@ void app_main() {
         //Genetic Algorithm task and pin it to core 1
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
-        xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
 
         /*******************************************************************************
 
@@ -261,7 +261,7 @@ void app_main() {
         *******************************************************************************/
 
         // Wait for the task to signal it has completed
-        //xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
         experiment_ended = true;
         RTC_GetTime(&global_time);
         experiment_end = convert_to_time_t(&global_date, &global_time);
@@ -326,14 +326,14 @@ void app_main() {
         RTC_GetTime(&global_time);
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment in offline mode.");
+        xTaskCreate(espnow_deinit_task, "espnow_deinit_task", 1024, NULL, 3, NULL);
         experiment_id = generate_experiment_id(&global_date, &global_time);
         experiment_start = convert_to_time_t(&global_date, &global_time);
     
         // Genetic Algorithm task
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
-        xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
-    
+        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
         //skip upload_all_sd_files since no WiFi
         experiment_ended = true;
         RTC_GetTime(&global_time);

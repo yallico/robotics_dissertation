@@ -49,6 +49,8 @@ extern "C" {
 #define A 10.0
 
 // Global variables
+extern volatile bool ga_ended;
+extern TaskHandle_t ga_task_handle;
 extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_pem_start");
 extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
 #define GA_COMPLETED_BIT BIT0
@@ -58,6 +60,8 @@ extern EventGroupHandle_t ga_event_group;
 void init_ga(bool wifiAvailable);
 void print_population(void);
 void print_ranking(void);
+float ga_get_local_best_fitness(void);
+void ga_integrate_remote_solution(const float *remote_genes);
 void ga_task(void *pvParameters);  // Expose the task function for external use
 
 #ifdef __cplusplus

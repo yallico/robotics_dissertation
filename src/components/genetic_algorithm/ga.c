@@ -15,6 +15,9 @@
 
 static const char *TAG = "GA";
 
+volatile bool ga_ended = false;
+TaskHandle_t ga_task_handle = NULL;
+
 //TODO: handle error seed
 //Used to initialize the random seed
 uint16_t seed = 0; //0 error code
@@ -300,6 +303,29 @@ void print_ranking(void) {
     }
 }
 
+float ga_get_local_best_fitness(void) {
+    return true_f[rank[POP_SIZE - 1]];
+}
+
+void ga_integrate_remote_solution(const float *remote_genes)
+{
+    int how_many = (int)(0.1f * POP_SIZE);
+    if (how_many <= 0) {
+        how_many = 1; // ensure at least 1
+    }
+
+    //overwrite the worst k-individuals with remote genes
+    for (int i = 0; i < how_many; i++) {
+        for (int gene = 0; gene < MAX_GENES; gene++) {
+            population[ rank[i] ][gene] = remote_genes[gene];
+        }
+    }
+
+    //recalculate the population fitness and ranking
+    determineFitness();
+    createRanking();
+}
+
 void evolve(void) {
     // Apply Rastrigin to each candidate solution
     // to determine their "fitness"
@@ -393,7 +419,7 @@ void ga_task(void *pvParameters) {
     int patience = 20; // Stop if there are consecutive no-gain generations TODO: get reference
     while (1) {
         evolve();  // Run GA
-        if (experiment_ended) {
+        if (ga_ended) {
             break;
         }
 
@@ -421,10 +447,10 @@ void ga_task(void *pvParameters) {
 
             log_entry.log_id = log_counter;
             log_entry.log_datetime = now;
-            log_entry.status = strdup("T"); //T for task
-            log_entry.tag = strdup("GA");
-            log_entry.log_level = strdup("I");
-            log_entry.log_type = strdup("FU");
+            log_entry.status = strdup("T"); //T for internal task
+            log_entry.tag = strdup("G"); //G for genetic algo
+            log_entry.log_level = strdup("I"); //I for information
+            log_entry.log_type = strdup("F"); // F for fitness 
             log_entry.from_id = strdup("");
 
             // Send to queue
@@ -451,14 +477,8 @@ void ga_task(void *pvParameters) {
 
         if (no_improvement_count >= patience) {
             ESP_LOGI(TAG, "Stopping GA: No improvement for %d generations", patience);
-            
-            if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
-                log_counter++;
-                xSemaphoreGive(logCounterMutex);
-            }
-            time_t now = time(NULL);
-
             //send the best solution via ESP‑NOW
+            time_t now = time(NULL);
             espnow_push_best_solution(
                 current_best_fitness,
                 population[rank[POP_SIZE - 1]],
@@ -468,7 +488,7 @@ void ga_task(void *pvParameters) {
             );
             
             
-            experiment_ended = true;
+            ga_ended = true;
             break;
         }
 

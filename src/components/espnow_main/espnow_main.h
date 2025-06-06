@@ -35,8 +35,10 @@ extern EventGroupHandle_t s_espnow_event_group;
 //#define IS_BROADCAST_ADDR(addr) (memcmp(addr, s_example_broadcast_mac, ESP_NOW_ETH_ALEN) == 0)
 
 esp_err_t espnow_init(void);
+void espnow_task(void *pvParameter);
 void espnow_push_best_solution(float current_best_fitness, const float *best_solution,
     size_t gene_count, uint32_t log_id, time_t created_datetime);
+void espnow_deinit_task(void *pvParameter);
 
 extern lv_obj_t *espnow_label;
 
