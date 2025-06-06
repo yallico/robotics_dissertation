@@ -11,12 +11,25 @@
 #define LV_TICK_PERIOD_MS 1
 static const char *TAG = "GUI_MANAGER";
 
+extern char *robot_id;
+lv_obj_t *wifi_label = NULL;
 lv_obj_t *espnow_label = NULL;
 lv_obj_t *sensor_label = NULL;
 lv_obj_t *t_time_label = NULL;
 static lv_obj_t *battery_label = NULL;
 
 const esp_app_desc_t *app_desc = NULL;
+
+void gui_update_wifi_icon(bool connected) {
+    
+    lv_label_set_text(wifi_label, LV_SYMBOL_WIFI);
+
+    if(connected)
+    lv_obj_clear_state(wifi_label, LV_STATE_DISABLED);
+    else
+    lv_obj_add_state (wifi_label, LV_STATE_DISABLED);
+    
+}
 
 static void gui_timer_tick(void *arg) {
     // Unused
@@ -59,6 +72,8 @@ void gui_task(void *pvParameter) {
 
     lv_obj_t *scr = lv_disp_get_scr_act(NULL); // Get the current screen
     lv_coord_t screen_width = lv_obj_get_width(scr);
+
+    wifi_label = lv_label_create(scr, NULL);
     espnow_label = lv_label_create(scr, NULL);
     sensor_label = lv_label_create(scr, NULL);
     lv_obj_t *ver_label = lv_label_create(scr, NULL);
@@ -66,6 +81,7 @@ void gui_task(void *pvParameter) {
     t_time_label = lv_label_create(scr, NULL);
     battery_label = lv_label_create(scr, NULL);
 
+    lv_label_set_text(wifi_label, LV_SYMBOL_WIFI);
     lv_label_set_text(espnow_label, "Swarmcom Online!");
     lv_label_set_text(sensor_label, "");
     lv_label_set_text(ver_label, app_desc->version);
@@ -74,20 +90,18 @@ void gui_task(void *pvParameter) {
     lv_label_set_text(battery_label, "Batt: --%");
 
     lv_obj_align(espnow_label, NULL, LV_ALIGN_CENTER, -screen_width / 4 + 10, 0);
-    lv_obj_align(sensor_label, NULL, LV_ALIGN_CENTER, -screen_width / 2, 20);
+    lv_obj_align(sensor_label, espnow_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
     lv_obj_align(ver_label, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -10);
     lv_obj_align(time_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 10);
     lv_obj_align(t_time_label, time_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
     lv_obj_align(battery_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -10, 10);
+    lv_obj_align(wifi_label, battery_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
 
-    uint32_t last_update_time = 0; // Variable to store the last update time in ticks
+    uint32_t last_update_time = 0; //var to store the last update time in ticks
 
     while(1) {
 
-        uint32_t current_ticks = xTaskGetTickCount(); // Get the current tick count
-        // if (!experiment_started && (current_ticks >= experiment_start_ticks)) {
-        // experiment_started = true;
-        // } 
+        uint32_t current_ticks = xTaskGetTickCount();
 
         // Update the time label 1 second
         if ((current_ticks - last_update_time) >= pdMS_TO_TICKS(1000)) {
@@ -111,7 +125,14 @@ void gui_task(void *pvParameter) {
             else {
                 t_seconds = (current_ticks - experiment_start_ticks) / portTICK_PERIOD_MS / 1000;
                 snprintf(t_time_str, sizeof(t_time_str), "T+%02d", t_seconds);
+
+                if (robot_id != NULL) {
+                    char id_str[10];
+                    snprintf(id_str, sizeof(id_str), "ID: %s", robot_id);
+                    lv_label_set_text(espnow_label, id_str);
+                }
             }
+            
             lv_label_set_text(t_time_label, t_time_str);
 
             //update the battery percentage

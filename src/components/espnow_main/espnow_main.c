@@ -314,6 +314,7 @@ void espnow_task(void *pvParameter)
         }
         // By default the first message that arrives will be processed.
         switch (evt.id) {
+            //TODO: explain this callback and immigrank_K logic
             case EXAMPLE_ESPNOW_RECV_CB:
             {
                 example_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
