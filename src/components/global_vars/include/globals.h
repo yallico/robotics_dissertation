@@ -21,6 +21,7 @@ extern uint32_t log_counter;
 extern QueueHandle_t LogQueue;
 extern QueueHandle_t LogBodyQueue;
 extern SemaphoreHandle_t logCounterMutex;
+extern QueueHandle_t ga_buffer_queue;
 
 //Genetic Algorithm
 #define POP_SIZE        20      // How many candidate solutions to evaluate.

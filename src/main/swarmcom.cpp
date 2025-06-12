@@ -37,7 +37,9 @@
 uint32_t log_counter = 0;  //auto generated id
 QueueHandle_t LogQueue = NULL; // Queue for logging
 QueueHandle_t LogBodyQueue = NULL; // Queue for logging
+QueueHandle_t ga_buffer_queue = NULL; // Queue for incoming messages
 SemaphoreHandle_t logCounterMutex = xSemaphoreCreateMutex(); // log_id the mutex
+
 
 //IDs
 char* experiment_id;
@@ -177,6 +179,7 @@ void app_main() {
         // Initialize the RTC
         ESP_LOGI(TAG, "Initializing RTC Module");
         sync_rtc_with_ntp();
+        vTaskDelay(pdMS_TO_TICKS(1000));
 
         //OTA
         ESP_LOGI(TAG, "Initializing OTA Update");
@@ -208,7 +211,8 @@ void app_main() {
         ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
 
         //Initialize Genetic Algorithm
-        init_ga(true);
+        //TODO: running false as request is limited to 1 per minute
+        init_ga(false);
 
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
@@ -236,7 +240,6 @@ void app_main() {
         RTC_GetTime(&global_time); //this becomes experiment start time
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment now.");
-        xTaskCreate(espnow_deinit_task, "espnow_deinit_task", 1024, NULL, 3, NULL); //timer to end
         experiment_id = generate_experiment_id(&global_date, &global_time);
         experiment_start = convert_to_time_t(&global_date, &global_time);
 
@@ -247,6 +250,10 @@ void app_main() {
         //Genetic Algorithm task and pin it to core 1
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        vTaskDelay(pdMS_TO_TICKS(30000));
+        ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
+        xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
+
 
         /*******************************************************************************
 
@@ -303,6 +310,10 @@ void app_main() {
             ESP_LOGE(TAG, "SSL handshake failed! check certificates.");
         }
 
+        //Check Heap
+        free_heap_size = esp_get_free_heap_size();
+        ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+
         //TODO: Handle ESP_ERR_HTTP_EAGAIN (wifi connection dropping)
         upload_all_sd_files();
 
@@ -326,14 +337,17 @@ void app_main() {
         RTC_GetTime(&global_time);
         experiment_started = true;
         ESP_LOGI(TAG, "Starting experiment in offline mode.");
-        xTaskCreate(espnow_deinit_task, "espnow_deinit_task", 1024, NULL, 3, NULL);
         experiment_id = generate_experiment_id(&global_date, &global_time);
         experiment_start = convert_to_time_t(&global_date, &global_time);
     
         // Genetic Algorithm task
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        vTaskDelay(pdMS_TO_TICKS(30000));
+        ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
+        xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);       
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        
         //skip upload_all_sd_files since no WiFi
         experiment_ended = true;
         RTC_GetTime(&global_time);

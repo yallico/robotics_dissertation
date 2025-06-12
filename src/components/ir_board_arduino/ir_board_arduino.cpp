@@ -43,7 +43,17 @@ void i2c_get_status() {
     }
 }
 
+static bool is_pololu_connected() {
+    Wire1.beginTransmission(I2C_ADDR_POLOLU);
+    return (Wire1.endTransmission() == 0); // ACK
+}
+
 void i2c_pololu_command(const char *command) {
+    if (!is_pololu_connected()) {
+        ESP_LOGW(TAG, "Pololu not detected at I2C address 0x%02X, skipping command", I2C_ADDR_POLOLU);
+        return;
+    }
+
     Wire1.beginTransmission(I2C_ADDR_POLOLU);
     Wire1.write((const uint8_t*)command, strlen(command));
     if (Wire1.endTransmission() == 0) {

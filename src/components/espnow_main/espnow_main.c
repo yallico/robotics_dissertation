@@ -16,6 +16,7 @@
 #include <time.h>
 #include <string.h>
 #include <assert.h>
+#include <float.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/semphr.h"
@@ -192,107 +193,6 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     }
 }
 
-// static void example_espnow_task(void *pvParameter)
-// {
-//     example_espnow_event_t evt;
-//     uint8_t recv_state = 0;
-//     uint16_t recv_seq = 0;
-//     uint32_t recv_magic = 0;
-//     espnow_lvgl_message_t msg;
-//     //bool is_broadcast = false;
-//     int ret;
-
-//     vTaskDelay(pdMS_TO_TICKS(5000));
-
-//     ESP_LOGI(TAG, "Start sending data to peers...");
-//     example_espnow_send_param_t *send_param = (example_espnow_send_param_t *)pvParameter;
-//     if (esp_now_send(send_param->dest_mac, send_param->buffer, send_param->len) != ESP_OK) {
-//         ESP_LOGE(TAG, "Send error");
-//         example_espnow_deinit(send_param);
-//         vTaskDelete(NULL);
-//     }
-
-//     while (xQueueReceive(s_example_espnow_queue, &evt, portMAX_DELAY) == pdTRUE) {
-//         switch (evt.id) {
-//             case EXAMPLE_ESPNOW_SEND_CB:
-//             {
-//                 example_espnow_event_send_cb_t *send_cb = &evt.info.send_cb;
-//                 send_param->count--;
-//                 if (send_param->count == 0) {
-//                     ESP_LOGI(TAG, "Send done");
-//                     experiment_ended = true;
-//                     example_espnow_deinit(send_param);
-//                     xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
-//                     vTaskDelete(NULL);
-//                 }
-//                 //}
-
-//                 /* Delay a while before sending the next data. */
-//                 if (send_param->delay > 0) {
-//                     vTaskDelay(pdMS_TO_TICKS(send_param->delay));
-//                 }
-
-//                 memcpy(send_param->dest_mac, send_cb->mac_addr, ESP_NOW_ETH_ALEN);
-//                 example_espnow_data_prepare(send_param);
-
-//                 /* Send the next data after the previous data is sent. */
-//                 if (esp_now_send(send_param->dest_mac, send_param->buffer, send_param->len) != ESP_OK) {
-//                     ESP_LOGE(TAG, "Send error");
-//                     example_espnow_deinit(send_param);
-//                     vTaskDelete(NULL);
-//                 }
-
-//                 if(send_param->state == 0){
-//                     ESP_LOGI(TAG, "Connecting to "MACSTR"", MAC2STR(send_cb->mac_addr));
-//                     snprintf(msg.message, sizeof(msg.message), "Connecting to "MACSTR"",
-//                     MAC2STR(send_cb->mac_addr));
-//                     lv_label_set_text(espnow_label, msg.message);
-//                 } else {
-//                     ESP_LOGI(TAG, "Sending to "MACSTR"", MAC2STR(send_cb->mac_addr));
-//                     snprintf(msg.message, sizeof(msg.message), "Sending to "MACSTR"",
-//                     MAC2STR(send_cb->mac_addr));
-//                     lv_label_set_text(espnow_label, msg.message);
-//                 }
-
-//                 break;
-//             }
-//             case EXAMPLE_ESPNOW_RECV_CB:
-//             {
-//                 example_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
-
-//                 ret = example_espnow_data_parse(recv_cb->data, recv_cb->data_len, &recv_state, &recv_seq, &recv_magic);
-//                 free(recv_cb->data);
-//                 //TODO: Consider whether we need this in unicast mode instead
-//                 if (ret == EXAMPLE_ESPNOW_DATA_UNICAST) {
-//                     ESP_LOGI(TAG, "Receive %dth unicast data from: "MACSTR", len: %d", recv_seq, MAC2STR(recv_cb->mac_addr), recv_cb->data_len);
-                    
-//                     snprintf(msg.message, sizeof(msg.message), "Received from "MACSTR": Data length %d",
-//                     MAC2STR(recv_cb->mac_addr), recv_cb->data_len);
-//                     lv_label_set_text(espnow_label, msg.message);
-
-//                     /* If receive unicast ESPNOW data, change param of ACK */
-//                     if (send_param->state == 0) {
-//                          send_param->state = 1;
-//                      }
-//                     send_param->broadcast = false;
-//                     send_param->unicast = true;
-//                 }
-//                 else {
-//                     ESP_LOGI(TAG, "Receive error data from: "MACSTR"", MAC2STR(recv_cb->mac_addr));
-
-//                     snprintf(msg.message, sizeof(msg.message), "Receive error data from: "MACSTR"",
-//                     MAC2STR(recv_cb->mac_addr));
-//                     lv_label_set_text(espnow_label, msg.message);
-//                 }
-//                 break;
-//             }
-//             default:
-//                 ESP_LOGE(TAG, "Callback type error: %d", evt.id);
-//                 break;
-//         }
-//     }
-// }
-
 void espnow_task(void *pvParameter)
 {
     example_espnow_event_t evt;
@@ -318,21 +218,82 @@ void espnow_task(void *pvParameter)
             case EXAMPLE_ESPNOW_RECV_CB:
             {
                 example_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
-                //waits until local ga task ends
-                xEventGroupWaitBits(ga_event_group, GA_COMPLETED_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+                //check if GA is still running
+                if (ga_event_group && !(xEventGroupGetBits(ga_event_group) & GA_COMPLETED_BIT)) {
+                    ESP_LOGI(TAG, "GA still running; buffering received message.");
+                    // Buffer the message for later processing.
+                    if (xQueueSend(ga_buffer_queue, &evt, 0) != pdTRUE) {
+                        ESP_LOGW(TAG, "Failed to buffer message; dropping it.");
+                        free(recv_cb->data);
+                    }
+                    break;
+                } 
+                
+                example_espnow_event_t current_evt = evt;
 
-                //log recieved message internally
-                if (parse_out_message(recv_cb->data, recv_cb->data_len, &incoming_msg) == 0) {
+                //process any previously buffered messages first
+                float best_remote_fitness = FLT_MAX;
+                float best_remote_genes[MAX_GENES] = {0};
+                char best_robot_id[sizeof(incoming_msg.robot_id)] = {0};
+                bool candidate_found = false;
+                example_espnow_event_t tmp_evt;
+                
+                while (xQueueReceive(ga_buffer_queue, &tmp_evt, 0) == pdTRUE) {
+                    example_espnow_event_recv_cb_t *buffered_recv_cb = &tmp_evt.info.recv_cb;
+                    if (parse_out_message(buffered_recv_cb->data, buffered_recv_cb->data_len, &incoming_msg) == 0) {
+                        ESP_LOGI(TAG, "Processed buffered message from %s", incoming_msg.robot_id);
+                        float remote_candidate = 0.0f;
+                        float remote_candidate_genes[MAX_GENES] = {0};
+                        char msg_copy[sizeof(incoming_msg.message)];
+                        strncpy(msg_copy, incoming_msg.message, sizeof(msg_copy));
+                        msg_copy[sizeof(msg_copy) - 1] = '\0';
+                        char *token = strtok(msg_copy, "|"); 
+                        if (token) {
+                            remote_candidate = atof(token); // First token is best fitness.
+                            int gene_idx = 0;
+                            while ((token = strtok(NULL, "|")) != NULL && gene_idx < MAX_GENES) {
+                                remote_candidate_genes[gene_idx++] = atof(token);
+                            }
+                        }
+                        //check remote candidate fitness
+                        if (remote_candidate < best_remote_fitness) {
+                            best_remote_fitness = remote_candidate;
+                            memcpy(best_remote_genes, remote_candidate_genes, sizeof(best_remote_genes));
+                            strncpy(best_robot_id, incoming_msg.robot_id, sizeof(best_robot_id) - 1);
+                            candidate_found = true;
+                        }
+                    } else {
+                        ESP_LOGW(TAG, "Failed to parse buffered msg");
+                    }
+                    free(buffered_recv_cb->data);
+                }
+
+                // If a candidate was found from the buffer, compare it with the local best.
+                if (candidate_found) {
+                    float local_best_fitness = ga_get_local_best_fitness();
+                    if (best_remote_fitness < local_best_fitness) {
+                        ESP_LOGI(TAG, "Best buffered remote solution %.3f from %s is better than local %.3f, re-initializing local GA.",
+                                best_remote_fitness, best_robot_id, local_best_fitness);
+                        ga_integrate_remote_solution(best_remote_genes);
+                        ga_ended = false;
+                        xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
+                    } else {
+                        ESP_LOGW(TAG, "Best buffered remote solution %.3f from %s is not better than local %.3f, ignoring.",
+                                best_remote_fitness, best_robot_id, local_best_fitness); 
+                    }
+
+                }
+                //Process current message
+                else if (parse_out_message(current_evt.info.recv_cb.data, current_evt.info.recv_cb.data_len, &incoming_msg) == 0) {
                     ESP_LOGI(TAG, "Received message from %s" , incoming_msg.robot_id);
-
 
                     event_log_t log_entry;
                     time_t now = time(NULL);
 
-                    if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
-                        log_counter++;
-                        xSemaphoreGive(logCounterMutex);
-                    }
+                    // if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+                    //     log_counter++;
+                    //     xSemaphoreGive(logCounterMutex);
+                    // }
 
                     log_entry.log_id = log_counter;
                     log_entry.log_datetime = now;
@@ -380,7 +341,7 @@ void espnow_task(void *pvParameter)
                 }
 
                 // Cleanup
-                free(recv_cb->data);
+                free(current_evt.info.recv_cb.data);
                 break;
             }
 
@@ -414,6 +375,12 @@ esp_err_t espnow_init(void)
     s_example_espnow_queue = xQueueCreate(ESPNOW_QUEUE_SIZE, sizeof(example_espnow_event_t));
     if (s_example_espnow_queue == NULL) {
         ESP_LOGE(TAG, "Create mutex fail");
+        return ESP_FAIL;
+    }
+
+    ga_buffer_queue = xQueueCreate(10, sizeof(example_espnow_event_t));
+    if (ga_buffer_queue == NULL) {
+        ESP_LOGE(TAG, "Failed to create ga_buffer_queue");
         return ESP_FAIL;
     }
 
@@ -464,11 +431,11 @@ esp_err_t espnow_init(void)
     return ESP_OK;
 }
 
-void espnow_deinit_task(void *pvParameter)
-{
-    vTaskDelay(pdMS_TO_TICKS(60000));
-    ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
-    xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
+// void espnow_deinit_task(void *pvParameter)
+// {
+//     vTaskDelay(pdMS_TO_TICKS(60000));
+//     ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
+//     xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
 
-    vTaskDelete(NULL);
-}
+//     vTaskDelete(NULL);
+// }

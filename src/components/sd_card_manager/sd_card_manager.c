@@ -82,7 +82,6 @@ esp_err_t write_data(const char* base_path, const char* data, const char* suffix
 
         // Check if the file exists and its size
         if (stat(file_name, &st) == 0) {
-            ESP_LOGI(TAG, "File exists. Size: %ld", (long) st.st_size);
             if (st.st_size > MAX_FILE_SIZE) {
                 // If the current file is too large, move to the next file index
                 ESP_LOGI(TAG, "File is too large, incrementing file index.");
@@ -162,14 +161,17 @@ void upload_all_sd_files() {
     }
 
     // Allocate a buffer on the heap.
-    char *file_buffer = (char *)malloc(MAX_FILE_SIZE);
-    if (file_buffer == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate memory for file buffer");
-        closedir(dir);
-        return;
-    }
+    // char *file_buffer = (char *)malloc(MAX_FILE_SIZE);
+    // if (file_buffer == NULL) {
+    //     ESP_LOGE(TAG, "Failed to allocate memory for file buffer");
+    //     closedir(dir);
+    //     return;
+    // }
 
-    size_t file_size;
+    //size_t file_size;
+
+    char  *file_buffer   = NULL;   // will allocate per file
+    size_t buffer_size   = 0;      // current malloc’d size
     struct dirent *entry;
 
     // Loop through each file in the directory.
@@ -183,10 +185,29 @@ void upload_all_sd_files() {
         // Build the file path.
         char filepath[512];
         snprintf(filepath, sizeof(filepath), "%s/%s", mount_point, entry->d_name);
-        ESP_LOGI(TAG, "Reading file: %s", filepath);
+
+        struct stat st;
+        if (stat(filepath, &st) != 0) {
+            ESP_LOGE(TAG, "stat() failed on %s", filepath);
+            continue;
+        }
+        size_t file_size = st.st_size;
+
+        /* -------- ensure buffer is big enough -------- */
+        if (file_size > buffer_size) {             // need a larger block
+            char *new_buf = realloc(file_buffer, file_size);
+            if (!new_buf) {
+                ESP_LOGE(TAG, "malloc %zu B failed; skipping %s",
+                         file_size, entry->d_name);
+                continue;
+            }
+            file_buffer  = new_buf;
+            buffer_size  = file_size;
+        }
+
 
         // Read file data into the buffer.
-        esp_err_t read_err = read_data(filepath, file_buffer, MAX_FILE_SIZE, &file_size);
+        esp_err_t read_err = read_data(filepath, file_buffer, buffer_size, &file_size);
         if (read_err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to read file: %s", filepath);
             continue;

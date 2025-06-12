@@ -347,6 +347,8 @@ void sync_rtc_with_ntp() {
         ESP_LOGI(TAG, "RTC time is accurate within 1 second of NTP time");
     }
 
+    sntp_stop();
+
     // Print updated RTC time
     RTC_GetTime(&currentTime);
     RTC_GetDate(&currentDate);

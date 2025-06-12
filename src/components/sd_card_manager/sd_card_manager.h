@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #define UPLOAD_COMPLETED_BIT BIT2
-#define MAX_FILE_SIZE 4 * 1024 
+#define MAX_FILE_SIZE 2 * 1024 
 extern SemaphoreHandle_t sd_card_mutex;
 
 // Function to initialize the SD card
