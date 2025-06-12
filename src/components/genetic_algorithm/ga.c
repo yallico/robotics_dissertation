@@ -411,6 +411,12 @@ void init_ga(bool wifiAvailable) {
     print_population();
 }
 
+static void ga_complete_callback(void)
+{
+    // drain the buffered ESPNOW messages
+    drain_buffered_messages();  
+}
+
 //Task function that the main application can call
 void ga_task(void *pvParameters) {
     float last_best_fitness = -1.0;  // Init impossible fitness value
@@ -420,6 +426,7 @@ void ga_task(void *pvParameters) {
     while (1) {
         evolve();  // Run GA
         if (ga_ended) {
+            ga_complete_callback();
             break;
         }
 
@@ -489,6 +496,7 @@ void ga_task(void *pvParameters) {
             
             
             ga_ended = true;
+            ga_complete_callback();
             break;
         }
 

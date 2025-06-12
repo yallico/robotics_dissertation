@@ -193,6 +193,63 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     }
 }
 
+void drain_buffered_messages(void)
+{
+    example_espnow_event_t tmp_evt;
+    out_message_t incoming_msg;
+    float best_remote_fitness = FLT_MAX;
+    float best_remote_genes[MAX_GENES] = {0};
+    char best_robot_id[sizeof(incoming_msg.robot_id)] = {0};
+    bool candidate_found = false;
+
+    /* Drain all buffered messages in ga_buffer_queue */
+    while (xQueueReceive(ga_buffer_queue, &tmp_evt, 0) == pdTRUE) {
+        example_espnow_event_recv_cb_t *buffered_recv_cb = &tmp_evt.info.recv_cb;
+        if (parse_out_message(buffered_recv_cb->data, buffered_recv_cb->data_len, &incoming_msg) == 0) {
+            ESP_LOGI(TAG, "Processed buffered message from %s", incoming_msg.robot_id);
+
+            // Extract remote fitness and genes:
+            float remote_candidate = 0.0f;
+            float remote_candidate_genes[MAX_GENES] = {0};
+            char msg_copy[sizeof(incoming_msg.message)];
+            strncpy(msg_copy, incoming_msg.message, sizeof(msg_copy));
+            msg_copy[sizeof(msg_copy) - 1] = '\0';
+            char *token = strtok(msg_copy, "|");
+            if (token) {
+                remote_candidate = atof(token); // first token is best fitness
+                int gene_idx = 0;
+                while ((token = strtok(NULL, "|")) != NULL && gene_idx < MAX_GENES) {
+                    remote_candidate_genes[gene_idx++] = atof(token);
+                }
+            }
+            if (remote_candidate < best_remote_fitness) {
+                best_remote_fitness = remote_candidate;
+                memcpy(best_remote_genes, remote_candidate_genes, sizeof(best_remote_genes));
+                strncpy(best_robot_id, incoming_msg.robot_id, sizeof(best_robot_id) - 1);
+                candidate_found = true;
+            }
+        } else {
+            ESP_LOGW(TAG, "Failed to parse buffered msg");
+        }
+        free(buffered_recv_cb->data);
+    }
+
+    /* If a better remote candidate is found, integrate it. */
+    if (candidate_found) {
+        float local_best_fitness = ga_get_local_best_fitness();
+        if (best_remote_fitness < local_best_fitness) {
+            ESP_LOGI(TAG, "Best buffered remote solution %.3f from %s is better than local %.3f, re-initializing local GA.",
+                     best_remote_fitness, best_robot_id, local_best_fitness);
+            ga_integrate_remote_solution(best_remote_genes);
+            ga_ended = false;
+            xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
+        } else {
+            ESP_LOGW(TAG, "Best buffered remote solution %.3f from %s is not better than local %.3f, ignoring.",
+                     best_remote_fitness, best_robot_id, local_best_fitness);
+        }
+    }
+}
+
 void espnow_task(void *pvParameter)
 {
     example_espnow_event_t evt;
@@ -231,60 +288,8 @@ void espnow_task(void *pvParameter)
                 
                 example_espnow_event_t current_evt = evt;
 
-                //process any previously buffered messages first
-                float best_remote_fitness = FLT_MAX;
-                float best_remote_genes[MAX_GENES] = {0};
-                char best_robot_id[sizeof(incoming_msg.robot_id)] = {0};
-                bool candidate_found = false;
-                example_espnow_event_t tmp_evt;
-                
-                while (xQueueReceive(ga_buffer_queue, &tmp_evt, 0) == pdTRUE) {
-                    example_espnow_event_recv_cb_t *buffered_recv_cb = &tmp_evt.info.recv_cb;
-                    if (parse_out_message(buffered_recv_cb->data, buffered_recv_cb->data_len, &incoming_msg) == 0) {
-                        ESP_LOGI(TAG, "Processed buffered message from %s", incoming_msg.robot_id);
-                        float remote_candidate = 0.0f;
-                        float remote_candidate_genes[MAX_GENES] = {0};
-                        char msg_copy[sizeof(incoming_msg.message)];
-                        strncpy(msg_copy, incoming_msg.message, sizeof(msg_copy));
-                        msg_copy[sizeof(msg_copy) - 1] = '\0';
-                        char *token = strtok(msg_copy, "|"); 
-                        if (token) {
-                            remote_candidate = atof(token); // First token is best fitness.
-                            int gene_idx = 0;
-                            while ((token = strtok(NULL, "|")) != NULL && gene_idx < MAX_GENES) {
-                                remote_candidate_genes[gene_idx++] = atof(token);
-                            }
-                        }
-                        //check remote candidate fitness
-                        if (remote_candidate < best_remote_fitness) {
-                            best_remote_fitness = remote_candidate;
-                            memcpy(best_remote_genes, remote_candidate_genes, sizeof(best_remote_genes));
-                            strncpy(best_robot_id, incoming_msg.robot_id, sizeof(best_robot_id) - 1);
-                            candidate_found = true;
-                        }
-                    } else {
-                        ESP_LOGW(TAG, "Failed to parse buffered msg");
-                    }
-                    free(buffered_recv_cb->data);
-                }
-
-                // If a candidate was found from the buffer, compare it with the local best.
-                if (candidate_found) {
-                    float local_best_fitness = ga_get_local_best_fitness();
-                    if (best_remote_fitness < local_best_fitness) {
-                        ESP_LOGI(TAG, "Best buffered remote solution %.3f from %s is better than local %.3f, re-initializing local GA.",
-                                best_remote_fitness, best_robot_id, local_best_fitness);
-                        ga_integrate_remote_solution(best_remote_genes);
-                        ga_ended = false;
-                        xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
-                    } else {
-                        ESP_LOGW(TAG, "Best buffered remote solution %.3f from %s is not better than local %.3f, ignoring.",
-                                best_remote_fitness, best_robot_id, local_best_fitness); 
-                    }
-
-                }
                 //Process current message
-                else if (parse_out_message(current_evt.info.recv_cb.data, current_evt.info.recv_cb.data_len, &incoming_msg) == 0) {
+                if (parse_out_message(current_evt.info.recv_cb.data, current_evt.info.recv_cb.data_len, &incoming_msg) == 0) {
                     ESP_LOGI(TAG, "Received message from %s" , incoming_msg.robot_id);
 
                     event_log_t log_entry;
