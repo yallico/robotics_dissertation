@@ -76,6 +76,11 @@ esp_err_t write_data(const char* base_path, const char* data, const char* suffix
     static char file_name[256];
     struct stat st;
 
+    if (!base_path || !experiment_id || !suffix) {
+        ESP_LOGE(TAG, "Null string detected in write_data");
+        return ESP_FAIL;
+    }
+
     while (1) {
         // Update the filename to include the suffix and file index
         sprintf(file_name, "%s/%s_%s_%d.json", base_path, experiment_id, suffix, file_index);

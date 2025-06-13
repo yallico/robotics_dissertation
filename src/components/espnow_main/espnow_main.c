@@ -17,6 +17,7 @@
 #include <string.h>
 #include <assert.h>
 #include <float.h>
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/semphr.h"
@@ -44,7 +45,11 @@ EventGroupHandle_t s_espnow_event_group;
 
 static QueueHandle_t s_example_espnow_queue;
 
+
+//TODO: Link with experimental paramenters
 #define NUM_ROBOTS 2  // Number of robots in the swarm, max 20
+
+static uint32_t s_peer_start_times[NUM_ROBOTS] = {0};
 
 static const uint8_t mac_addresses[NUM_ROBOTS][ESP_NOW_ETH_ALEN] = {
     {0x78, 0x21, 0x84, 0x99, 0xDA, 0x8C},
@@ -70,9 +75,17 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
         return;
     }
 
+    for(int i=0; i<NUM_ROBOTS; i++){
+        if(memcmp(mac_addresses[i], mac_addr, ESP_NOW_ETH_ALEN) == 0){
+            send_cb->start_time_ms = s_peer_start_times[i];
+            break;
+        }
+    }
+
     evt.id = EXAMPLE_ESPNOW_SEND_CB;
     memcpy(send_cb->mac_addr, mac_addr, ESP_NOW_ETH_ALEN);
     send_cb->status = status;
+
     if (xQueueSend(s_example_espnow_queue, &evt, ESPNOW_MAXDELAY) != pdTRUE) {
         ESP_LOGW(TAG, "Send send queue fail");
     }
@@ -125,6 +138,7 @@ static int parse_out_message(const uint8_t *data, int len, out_message_t *msg_ou
     }
     //copy bytes directly into out_message_t
     memcpy(msg_out, data, sizeof(out_message_t));
+    msg_out->robot_id[sizeof(msg_out->robot_id) - 1] = '\0';
     return 0;
 }
 
@@ -183,6 +197,10 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         if (memcmp(mac_addresses[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
         continue; // skip sending to self
         }
+
+        uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+        s_peer_start_times[i] = current_time_ms;
+
         esp_err_t err = esp_now_send(mac_addresses[i], (uint8_t *)&out_msg, sizeof(out_msg));
         if (err != ESP_OK) {
         ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
@@ -219,6 +237,34 @@ static void log_incoming_buffer_message(const out_message_t *incoming_msg)
     // log_body.log_datetime = now;
     // snprintf(log_body.log_message, sizeof(log_body.log_message), "Incoming data: %s", incoming_msg->message);
     // xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
+}
+
+static void log_local_evaluation(float remote_best_fitness, float local_best_fitness, const char *remote_robot_id)
+{
+    event_log_t eval_log;
+    time_t now = time(NULL);
+
+    // Increment the global log counter
+    if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+        log_counter++;
+        xSemaphoreGive(logCounterMutex);
+    }
+
+    eval_log.log_id       = log_counter;
+    eval_log.log_datetime = now;
+    eval_log.status       = strdup("G");  // Genetic algo
+    eval_log.tag          = strdup("L");  // Local process
+    eval_log.log_level    = strdup("I");  // Info
+    eval_log.from_id      = strdup(remote_robot_id);
+
+    // "A" = accepted (remote is better), "R" = rejected
+    if (remote_best_fitness < local_best_fitness) {
+        eval_log.log_type = strdup("A"); // A for accept migration
+    } else {
+        eval_log.log_type = strdup("R"); // R for reject migration
+    }
+
+    xQueueSend(LogQueue, &eval_log, portMAX_DELAY);
 }
 
 void drain_buffered_messages(void)
@@ -267,8 +313,11 @@ void drain_buffered_messages(void)
     if (candidate_found) {
         float local_best_fitness = ga_get_local_best_fitness();
         if (best_remote_fitness < local_best_fitness) {
+
             ESP_LOGI(TAG, "Best buffered remote solution %.3f from %s is better than local %.3f, re-initializing local GA.",
                      best_remote_fitness, best_robot_id, local_best_fitness);
+
+            log_local_evaluation(best_remote_fitness, local_best_fitness, best_robot_id);
             ga_integrate_remote_solution(best_remote_genes);
             ga_ended = false;
             xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
@@ -324,17 +373,17 @@ void espnow_task(void *pvParameter)
                     event_log_t log_entry;
                     time_t now = time(NULL);
 
-                    // if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
-                    //     log_counter++;
-                    //     xSemaphoreGive(logCounterMutex);
-                    // }
+                    if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+                        log_counter++;
+                        xSemaphoreGive(logCounterMutex);
+                    }
 
                     log_entry.log_id = log_counter;
                     log_entry.log_datetime = now;
                     log_entry.status = strdup("E"); // E for esp-now
                     log_entry.tag = strdup("M"); // M for message
                     log_entry.log_level = strdup("I"); //I for information
-                    log_entry.log_type = strdup("F"); // F for fitness
+                    log_entry.log_type = strdup("R"); // R for recieve
                     log_entry.from_id = strdup(incoming_msg.robot_id);
                     xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
@@ -360,8 +409,11 @@ void espnow_task(void *pvParameter)
                     //get local fitness for comparison from ga.
                     float local_best_fitness = ga_get_local_best_fitness();
                     if (remote_best_fitness < local_best_fitness) {
+                        
                         ESP_LOGI(TAG, "Remote solution %.3f is better than local %.3f, re-initializing local GA.",
-                                 remote_best_fitness, local_best_fitness);
+                                remote_best_fitness, local_best_fitness);
+
+                        log_local_evaluation(remote_best_fitness, local_best_fitness, incoming_msg.robot_id);
 
                         ga_integrate_remote_solution(remote_genes);
                         //re-init ga_task
@@ -381,7 +433,53 @@ void espnow_task(void *pvParameter)
 
             case EXAMPLE_ESPNOW_SEND_CB:
             {
-                //TODO: Might need a cb for sending messages?
+                example_espnow_event_send_cb_t *send_cb = &evt.info.send_cb;
+
+                uint32_t ack_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+                uint32_t latency_ms = ack_time_ms - send_cb->start_time_ms;
+
+                char short_id[5] = {0};  // 2 bytes in hex + 2 digits + null terminator
+                sprintf(short_id, "%02X%02X", send_cb->mac_addr[4], send_cb->mac_addr[5]);
+
+
+                event_log_t log_entry;
+                event_log_message_t log_body;
+
+                time_t now = time(NULL);
+
+                if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+                    log_counter++;
+                    xSemaphoreGive(logCounterMutex);
+                }
+
+                //INTERNAL SEND LOG
+                log_entry.log_id       = log_counter;
+                log_entry.log_datetime = now;
+                log_entry.status       = strdup("E"); // E for ESPNOW
+                log_entry.tag          = strdup("M"); // M for message
+                log_entry.log_level    = strdup("I"); //I for information
+                log_entry.log_type     = strdup("S"); // S for send
+                log_entry.from_id      = strdup("");  // blank as send
+            
+                xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
+            
+                memset(&log_body, 0, sizeof(log_body));
+                log_body.log_id       = log_counter;
+                log_body.log_datetime = now;
+                
+                // Use ‘O’ for OK, ‘F’ for FAIL, and include |latency|send|robot_id
+                char status_char = (send_cb->status == ESP_NOW_SEND_SUCCESS) ? 'O' : 'F';
+                snprintf(
+                    log_body.log_message,
+                    sizeof(log_body.log_message),
+                    "%c|%u|%s",
+                    status_char,
+                    (unsigned)latency_ms,
+                    short_id
+                );
+
+                xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
+
                 break;
             }
 
