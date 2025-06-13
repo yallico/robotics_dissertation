@@ -420,10 +420,46 @@ static void ga_complete_callback(void)
 //Task function that the main application can call
 void ga_task(void *pvParameters) {
     float last_best_fitness = -1.0;  // Init impossible fitness value
-    float threshold = 0.001;  // Threshold for detecting significant changes in fitness
+    float threshold = 0.05;  // Threshold for detecting significant changes in fitness
     int no_improvement_count = 0;
     int patience = 20; // Stop if there are consecutive no-gain generations TODO: get reference
+    static bool start_logged = false;
+
     while (1) {
+        time_t now = time(NULL);
+        
+        if (!start_logged) {
+            float current_best_fitness = true_f[rank[POP_SIZE - 1]];
+
+            event_log_t log_entry;
+            event_log_message_t log_body;
+
+            if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+                log_counter++;
+                xSemaphoreGive(logCounterMutex);
+            }
+
+            log_entry.log_id = log_counter;
+            log_entry.log_datetime = now;
+            log_entry.status = strdup("T");
+            log_entry.tag = strdup("G");
+            log_entry.log_level = strdup("I");
+            log_entry.log_type = strdup("S");  // <--- S for start
+            log_entry.from_id = strdup("");
+            xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
+
+            int offset = 0;
+            log_body.log_id = log_counter;
+            log_body.log_datetime = now;
+            offset += sprintf(log_body.log_message + offset, "%.3f|", current_best_fitness);
+            for (int gene = 0; gene < MAX_GENES; gene++) {
+                offset += sprintf(log_body.log_message + offset, "%.3f|", population[rank[POP_SIZE - 1]][gene]);
+            }
+            xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
+
+            start_logged = true;
+        }        
+        
         evolve();  // Run GA
         if (ga_ended) {
             ga_complete_callback();
@@ -436,16 +472,23 @@ void ga_task(void *pvParameters) {
         // true_f[ ] = our store of original fitness values
         // rank[ POP_SIZE -1 ] returns the index of the best population member
         float current_best_fitness = true_f[rank[POP_SIZE - 1]]; 
-        float current_best_inverted_fitness = fitness[rank[POP_SIZE - 1]]; 
 
-        if (fabs(current_best_fitness - last_best_fitness) > threshold) { // save only if there's a change
+        if (fabs(current_best_fitness - last_best_fitness) > threshold) {
             ESP_LOGI(TAG, "Best true fitness: %.3f", current_best_fitness);
             last_best_fitness = current_best_fitness;  //update last known best fitness
             no_improvement_count = 0; //reset no improvement counter
+            vTaskDelay(100);
+
+        } else {
+            no_improvement_count++;
+        }
+
+        if (no_improvement_count >= patience) {
+            ESP_LOGI(TAG, "Stopping GA: No improvement for %d generations", patience);
 
             event_log_t log_entry;
             event_log_message_t log_body;
-            time_t now = time(NULL);
+
             // Lock the mutex before accessing log_counter
             if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
                 log_counter++;  // Increment the global log counter
@@ -457,35 +500,25 @@ void ga_task(void *pvParameters) {
             log_entry.status = strdup("T"); //T for internal task
             log_entry.tag = strdup("G"); //G for genetic algo
             log_entry.log_level = strdup("I"); //I for information
-            log_entry.log_type = strdup("F"); // F for fitness 
+            log_entry.log_type = strdup("F"); // F for Finish 
             log_entry.from_id = strdup("");
 
             // Send to queue
             xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
             int offset = 0;  // track of where to write next in the buffer of msgbody
-
             log_body.log_id = log_counter;
             log_body.log_datetime = now;
             offset += sprintf(log_body.log_message + offset, "%.3f|", current_best_fitness);
             for (int gene = 0; gene < MAX_GENES; gene++) {
                 offset += sprintf(log_body.log_message + offset, "%.3f|", population[rank[POP_SIZE - 1]][gene]);
             }
-            offset += sprintf(log_body.log_message + offset, "%.3f", current_best_inverted_fitness);
 
             // Send to queue
             xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 
-        vTaskDelay(100);
 
-        } else {
-            no_improvement_count++;
-        }
-
-        if (no_improvement_count >= patience) {
-            ESP_LOGI(TAG, "Stopping GA: No improvement for %d generations", patience);
             //send the best solution via ESP‑NOW
-            time_t now = time(NULL);
             espnow_push_best_solution(
                 current_best_fitness,
                 population[rank[POP_SIZE - 1]],

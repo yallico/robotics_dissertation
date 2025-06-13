@@ -193,6 +193,34 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     }
 }
 
+static void log_incoming_buffer_message(const out_message_t *incoming_msg)
+{
+    event_log_t log_entry;
+    event_log_message_t log_body;
+    time_t now = time(NULL);
+
+    if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+        log_counter++;
+        xSemaphoreGive(logCounterMutex);
+    }
+
+    log_entry.log_id = log_counter;
+    log_entry.log_datetime = now;
+    log_entry.status = strdup("M"); // "M" for message
+    log_entry.tag = strdup("R");    // "R" for recieved
+    log_entry.log_level = strdup("I"); // Info level
+    log_entry.log_type = strdup("B");  // "B" for buffer
+    log_entry.from_id = strdup(incoming_msg->robot_id);
+    xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
+
+    //TODO: Decide if we need to log the entire message body
+    // memset(&log_body, 0, sizeof(log_body));
+    // log_body.log_id = log_counter;
+    // log_body.log_datetime = now;
+    // snprintf(log_body.log_message, sizeof(log_body.log_message), "Incoming data: %s", incoming_msg->message);
+    // xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
+}
+
 void drain_buffered_messages(void)
 {
     example_espnow_event_t tmp_evt;
@@ -207,6 +235,7 @@ void drain_buffered_messages(void)
         example_espnow_event_recv_cb_t *buffered_recv_cb = &tmp_evt.info.recv_cb;
         if (parse_out_message(buffered_recv_cb->data, buffered_recv_cb->data_len, &incoming_msg) == 0) {
             ESP_LOGI(TAG, "Processed buffered message from %s", incoming_msg.robot_id);
+            log_incoming_buffer_message(&incoming_msg);
 
             // Extract remote fitness and genes:
             float remote_candidate = 0.0f;
