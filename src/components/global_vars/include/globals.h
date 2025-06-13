@@ -39,7 +39,7 @@ extern char* robot_id;
 extern time_t experiment_start;
 extern time_t experiment_end;
 extern uint16_t seed;
-#define DEFAULT_NUM_ROBOTS 1
+#define DEFAULT_NUM_ROBOTS 2
 #define DEFAULT_MSG_LIMIT 0
 #define DEFAULT_MSG_SIZE_BYTES 32
 #define DEFAULT_ROBOT_SPEED 0

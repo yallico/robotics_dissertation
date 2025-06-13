@@ -45,16 +45,23 @@ EventGroupHandle_t s_espnow_event_group;
 
 static QueueHandle_t s_example_espnow_queue;
 
+static uint32_t s_peer_start_times[DEFAULT_NUM_ROBOTS] = {0};
 
-//TODO: Link with experimental paramenters
-#define NUM_ROBOTS 2  // Number of robots in the swarm, max 20
-
-static uint32_t s_peer_start_times[NUM_ROBOTS] = {0};
-
-static const uint8_t mac_addresses[NUM_ROBOTS][ESP_NOW_ETH_ALEN] = {
+//THIS NEEDS UPDATING MANUALLY FROM M5CORE2 MAC
+static const uint8_t mac_addresses[2][ESP_NOW_ETH_ALEN] = {
     {0x78, 0x21, 0x84, 0x99, 0xDA, 0x8C},
     {0x78, 0x21, 0x84, 0x93, 0x78, 0xC0}
 };
+
+bool validate_mac_addresses_count() {
+    int addresses_count = sizeof(mac_addresses) / sizeof(mac_addresses[0]);
+    if (addresses_count > DEFAULT_NUM_ROBOTS) {
+        ESP_LOGE(TAG, "Too many MAC addresses (%d) allowed = %d",
+                 addresses_count, DEFAULT_NUM_ROBOTS);
+        return false;
+    }
+    return true;
+}
 
 //static uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static uint16_t s_example_espnow_seq[EXAMPLE_ESPNOW_DATA_MAX] = { 0, 0 };
@@ -75,7 +82,7 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
         return;
     }
 
-    for(int i=0; i<NUM_ROBOTS; i++){
+    for(int i=0; i<DEFAULT_NUM_ROBOTS; i++){
         if(memcmp(mac_addresses[i], mac_addr, ESP_NOW_ETH_ALEN) == 0){
             send_cb->start_time_ms = s_peer_start_times[i];
             break;
@@ -193,7 +200,7 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     esp_wifi_get_mac(ESP_IF_WIFI_STA, own_mac);
 
     //unicast message to each registered peer except self
-    for (int i = 0; i < NUM_ROBOTS; i++) {
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
         if (memcmp(mac_addresses[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
         continue; // skip sending to self
         }
@@ -541,7 +548,7 @@ esp_err_t espnow_init(void)
         return ESP_FAIL;
     }
 
-    for (int i = 0; i < NUM_ROBOTS; i++) {
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
         if (memcmp(mac_addresses[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
             ESP_LOGI("espnow", "Skipping adding self to ESP-NOW peers.");
             continue;  // Skip adding if the MAC address matches the device's own MAC

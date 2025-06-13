@@ -157,8 +157,13 @@ void app_main() {
     wifi_init_sta();
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    //TODO: Implement robot communication
     //Initialize ESPNOW
+    if (!validate_mac_addresses_count()) {
+        ESP_LOGE(TAG, "Exiting app_main() due to invalid MAC count.");
+        unmount_sd_card(mount_point);
+        i2c_pololu_command("X"); 
+        return;
+    }
     ESP_LOGI(TAG, "Initializing ESPNOW");
     s_espnow_event_group = xEventGroupCreate();
     espnow_init();
