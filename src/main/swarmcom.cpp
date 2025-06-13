@@ -194,7 +194,12 @@ void app_main() {
             ESP_LOGI(TAG, "Update required, starting OTA task.");
             xTaskCreate(ota_task, "OTA Task", 8192, NULL, 5, &ota_task_handle);
             if (ota_task_handle != NULL) {
-                ESP_LOGI(TAG, "OTA Task created successfully");
+                xEventGroupWaitBits(ota_event_group,
+                                    OTA_COMPLETED_BIT,
+                                    pdTRUE,
+                                    pdFALSE,
+                                    portMAX_DELAY);
+                ESP_LOGI(TAG, "OTA finished, resuming...");
             }
         } else {
             ESP_LOGI(TAG, "No update required, skipping OTA task creation.");

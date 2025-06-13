@@ -26,6 +26,7 @@
 
 // Define event bits
 #define OTA_READY_BIT BIT0
+#define OTA_COMPLETED_BIT BIT1
 
 extern EventGroupHandle_t ota_event_group;
 static bool ota_update_required = false;
@@ -92,6 +93,7 @@ void simple_ota_example_task(void)
     esp_http_client_config_t config = {
         .url = CONFIG_EXAMPLE_FIRMWARE_UPGRADE_URL,
         .cert_pem = (char *)server_cert_pem_start,
+        .timeout_ms = 9000,
         .event_handler = _http_event_handler,
         .keep_alive_enable = true,
 #ifdef CONFIG_EXAMPLE_FIRMWARE_UPGRADE_BIND_IF
@@ -127,22 +129,16 @@ void simple_ota_example_task(void)
         esp_restart();
     } else {
         ESP_LOGE(TAG, "Firmware upgrade failed");
+        xEventGroupSetBits(ota_event_group, OTA_COMPLETED_BIT);
     }
-    while (1) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+    vTaskDelete(NULL);
 }
 
 void ota_task(void *pvParameter) {
-    while (1) {
-        // Wait indefinitely for the event bit to be set
-        EventBits_t bits = xEventGroupWaitBits(ota_event_group, OTA_READY_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
-        if (bits & OTA_READY_BIT) {
-            ESP_LOGI(TAG, "OTA event triggered, update available");
-            // Perform OTA update
-            simple_ota_example_task();
-        }
-    }
+    xEventGroupWaitBits(ota_event_group, OTA_READY_BIT, pdTRUE, pdFALSE, portMAX_DELAY);
+    ESP_LOGI(TAG, "OTA event triggered, update available");
+    simple_ota_example_task();
+    vTaskDelete(NULL);
 }
 
 void print_sha256(const uint8_t *image_hash, const char *label)
