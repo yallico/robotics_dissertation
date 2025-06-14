@@ -24,7 +24,7 @@ extern SemaphoreHandle_t logCounterMutex;
 extern QueueHandle_t ga_buffer_queue;
 
 //Genetic Algorithm
-#define POP_SIZE        20      // How many candidate solutions to evaluate.
+#define POP_SIZE        30      // How many candidate solutions to evaluate.
                                 // More = better search, but slower to compute
                                 // Less = harder for algorithm to find solution
                                 

@@ -408,7 +408,7 @@ void evolve(void) {
 void init_ga(bool wifiAvailable) {
     // Initialize the GA population
     init_population(wifiAvailable);
-    print_population();
+    //print_population();
 }
 
 static void ga_complete_callback(void)

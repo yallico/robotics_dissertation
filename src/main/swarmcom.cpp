@@ -211,7 +211,7 @@ void app_main() {
 
 
         //Initialize Logging Queue
-        LogQueue = xQueueCreate(10, sizeof(event_log_t));
+        LogQueue = xQueueCreate(15, sizeof(event_log_t));
         LogBodyQueue = xQueueCreate(10, sizeof(event_log_message_t));
         xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
         ESP_LOGI(TAG, "Logging Queue Initialized");

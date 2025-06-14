@@ -47,6 +47,12 @@ static QueueHandle_t s_example_espnow_queue;
 
 static uint32_t s_peer_start_times[DEFAULT_NUM_ROBOTS] = {0};
 
+/* Throughput counting variables */
+static uint32_t s_send_bytes = 0;
+static uint32_t s_recv_bytes = 0;
+static esp_timer_handle_t s_throughput_timer = NULL;
+
+
 //THIS NEEDS UPDATING MANUALLY FROM M5CORE2 MAC
 static const uint8_t mac_addresses[2][ESP_NOW_ETH_ALEN] = {
     {0x78, 0x21, 0x84, 0x99, 0xDA, 0x8C},
@@ -61,6 +67,44 @@ bool validate_mac_addresses_count() {
         return false;
     }
     return true;
+}
+
+/* Callback for 1-second throughput timer */
+static void throughput_timer_cb(void *arg)
+{
+    // Calculate throughput in Kbps (bits/sec ÷ 1000)
+    float kbps_in  = ((float)s_recv_bytes * 8.0f) / 1000.0f;
+    float kbps_out = ((float)s_send_bytes * 8.0f) / 1000.0f;
+
+    // Log only if there’s any incoming/outgoing data
+    if (s_send_bytes != 0 || s_recv_bytes != 0) {
+        ESP_LOGI(TAG, "Throughput: In=%.2f Kbps, Out=%.2f Kbps", kbps_in, kbps_out);
+        // Example: "T|12.34|56.78" T for throughput
+        char log_type_buf[32];
+        snprintf(log_type_buf, sizeof(log_type_buf), "T|%.2f|%.2f", kbps_in, kbps_out);
+
+        event_log_t log_entry;
+        time_t now = time(NULL);
+
+        if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+            log_counter++;
+            xSemaphoreGive(logCounterMutex);
+        }
+
+        log_entry.log_id       = log_counter;
+        log_entry.log_datetime = now;
+        log_entry.status       = strdup("E"); //"E" for espnow
+        log_entry.tag          = strdup("L"); //"L" for local procres
+        log_entry.log_level    = strdup("I"); //"I" for info
+        log_entry.log_type     = strdup(log_type_buf);
+        log_entry.from_id      = strdup("");
+
+        xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
+    }
+
+    // Reset counters
+    s_send_bytes = 0;
+    s_recv_bytes = 0;
 }
 
 //static uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -96,6 +140,11 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
     if (xQueueSend(s_example_espnow_queue, &evt, ESPNOW_MAXDELAY) != pdTRUE) {
         ESP_LOGW(TAG, "Send send queue fail");
     }
+
+    if (status == ESP_NOW_SEND_SUCCESS) {
+        s_send_bytes += sizeof(out_message_t); //For throughput calc
+    }
+
 }
 
 static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len)
@@ -129,6 +178,7 @@ static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const u
     }
     memcpy(recv_cb->data, data, len);
     recv_cb->data_len = len;
+    s_recv_bytes += len; //For throughput calc
     if (xQueueSend(s_example_espnow_queue, &evt, ESPNOW_MAXDELAY) != pdTRUE) {
         ESP_LOGW(TAG, "Send receive queue fail");
         free(recv_cb->data);
@@ -213,7 +263,7 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
         MAC2STR(mac_addresses[i]), esp_err_to_name(err));
         } else {
-        ESP_LOGI(TAG, "Sent best solution to " MACSTR, MAC2STR(mac_addresses[i]));
+        ESP_LOGI(TAG, "Sending best solution to " MACSTR, MAC2STR(mac_addresses[i]));
         }
     }
 }
@@ -236,6 +286,7 @@ static void log_incoming_buffer_message(const out_message_t *incoming_msg)
     log_entry.log_level = strdup("I"); // Info level
     log_entry.log_type = strdup("B");  // "B" for buffer
     log_entry.from_id = strdup(incoming_msg->robot_id);
+    
     xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
     //TODO: Decide if we need to log the entire message body
@@ -459,33 +510,25 @@ void espnow_task(void *pvParameter)
                     xSemaphoreGive(logCounterMutex);
                 }
 
+                //LATENCY & PACKET LOSS
+                // Use ‘O’ for OK, ‘F’ for FAIL, and include |latency|send|robot_id
+                char status_char = (send_cb->status == ESP_NOW_SEND_SUCCESS) ? 'O' : 'F';
+                char temp_log_type[64];
+                snprintf(temp_log_type, sizeof(temp_log_type), "%c|%u|%s",
+                        status_char,
+                        (unsigned)latency_ms,
+                        short_id);
+
                 //INTERNAL SEND LOG
                 log_entry.log_id       = log_counter;
                 log_entry.log_datetime = now;
                 log_entry.status       = strdup("E"); // E for ESPNOW
                 log_entry.tag          = strdup("M"); // M for message
                 log_entry.log_level    = strdup("I"); //I for information
-                log_entry.log_type     = strdup("S"); // S for send
+                log_entry.log_type     = strdup(temp_log_type);
                 log_entry.from_id      = strdup("");  // blank as send
             
                 xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
-            
-                memset(&log_body, 0, sizeof(log_body));
-                log_body.log_id       = log_counter;
-                log_body.log_datetime = now;
-                
-                // Use ‘O’ for OK, ‘F’ for FAIL, and include |latency|send|robot_id
-                char status_char = (send_cb->status == ESP_NOW_SEND_SUCCESS) ? 'O' : 'F';
-                snprintf(
-                    log_body.log_message,
-                    sizeof(log_body.log_message),
-                    "%c|%u|%s",
-                    status_char,
-                    (unsigned)latency_ms,
-                    short_id
-                );
-
-                xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 
                 break;
             }
@@ -566,15 +609,15 @@ esp_err_t espnow_init(void)
         }
     }
     free(peer);
+
+    //Throughput timer
+    const esp_timer_create_args_t throughput_timer_args = {
+        .callback = &throughput_timer_cb,
+        .name = "throughput_timer"
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&throughput_timer_args, &s_throughput_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_throughput_timer, 1000000UL));
+
     ESP_LOGI(TAG, "ESPNOW base initialization complete.");
     return ESP_OK;
 }
-
-// void espnow_deinit_task(void *pvParameter)
-// {
-//     vTaskDelay(pdMS_TO_TICKS(60000));
-//     ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
-//     xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
-
-//     vTaskDelete(NULL);
-// }

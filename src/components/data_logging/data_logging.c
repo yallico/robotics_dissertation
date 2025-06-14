@@ -158,10 +158,11 @@ void write_task(void *pvParameters) {
             free(log_entry.from_id);
 
             free(json_data);
+       
         }
 
         // Check log body queue
-        if (xQueueReceive(LogBodyQueue, &log_body, portMAX_DELAY) == pdTRUE) {
+        while (xQueueReceive(LogBodyQueue, &log_body, portMAX_DELAY) == pdTRUE) {
             //serialize the log to json
             char* json_data = serialize_log_body_to_json(&log_body); 
             // call the sd_card_manager to write the log in memory
