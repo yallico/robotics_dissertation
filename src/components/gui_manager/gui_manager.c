@@ -7,6 +7,7 @@
 #include "lvgl_helpers.h"
 #include "lvgl.h"
 #include "rtc_m5.h"
+#include "ga.h"
 
 #define LV_TICK_PERIOD_MS 1
 static const char *TAG = "GUI_MANAGER";
@@ -82,11 +83,13 @@ void gui_task(void *pvParameter) {
     sensor_label = lv_label_create(scr, NULL);
     lv_obj_t *ver_label = lv_label_create(scr, NULL);
     lv_obj_t *time_label = lv_label_create(scr, NULL);
+    lv_obj_t *ga_label = lv_label_create(scr, NULL);
     t_time_label = lv_label_create(scr, NULL);
     battery_label = lv_label_create(scr, NULL);
 
     //lv_label_set_text(wifi_label, LV_SYMBOL_WIFI);
     lv_label_set_text(espnow_label, "Swarmcom Online!");
+    lv_label_set_text(ga_label, "");
     lv_label_set_text(sensor_label, "");
     lv_label_set_text(ver_label, app_desc->version);
     lv_label_set_text(time_label, "00:00:00");
@@ -94,7 +97,8 @@ void gui_task(void *pvParameter) {
     lv_label_set_text(battery_label, "Batt: --%");
 
     lv_obj_align(espnow_label, NULL, LV_ALIGN_CENTER, -screen_width / 4 + 10, 0);
-    lv_obj_align(sensor_label, espnow_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
+    lv_obj_align(ga_label, espnow_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
+    lv_obj_align(sensor_label, ga_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
     lv_obj_align(ver_label, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -10);
     lv_obj_align(time_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 10);
     lv_obj_align(t_time_label, time_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
@@ -145,6 +149,16 @@ void gui_task(void *pvParameter) {
                 char battery_str[10];
                 snprintf(battery_str, sizeof(battery_str), "Batt: %.0f%%", battery_pct);
                 lv_label_set_text(battery_label, battery_str);
+            }
+
+            //update ga label
+            float best_fitness = ga_get_local_best_fitness();
+            if (best_fitness >= 0.0f) {
+                char bf_str[32];
+                snprintf(bf_str, sizeof(bf_str), "Fitness Score: %.2f", best_fitness);
+                lv_label_set_text(ga_label, bf_str);
+            } else {
+                lv_label_set_text(ga_label, "");
             }
 
             last_update_time = current_ticks; // Update the last update time
