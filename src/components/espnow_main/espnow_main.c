@@ -76,6 +76,12 @@ static void throughput_timer_cb(void *arg)
     float kbps_in  = ((float)s_recv_bytes * 8.0f) / 1000.0f;
     float kbps_out = ((float)s_send_bytes * 8.0f) / 1000.0f;
 
+    //debug heap
+    // ESP_LOGI("HEAP", "free: %u, min-ever: %u",
+    //     (unsigned int) esp_get_free_heap_size(),
+    //     (unsigned int) esp_get_minimum_free_heap_size());
+
+
     // Log only if there’s any incoming/outgoing data
     if (s_send_bytes != 0 || s_recv_bytes != 0) {
         ESP_LOGI(TAG, "Throughput: In=%.2f Kbps, Out=%.2f Kbps", kbps_in, kbps_out);
@@ -93,11 +99,11 @@ static void throughput_timer_cb(void *arg)
 
         log_entry.log_id       = log_counter;
         log_entry.log_datetime = now;
-        log_entry.status       = strdup("E"); //"E" for espnow
-        log_entry.tag          = strdup("L"); //"L" for local procres
-        log_entry.log_level    = strdup("I"); //"I" for info
-        log_entry.log_type     = strdup(log_type_buf);
-        log_entry.from_id      = strdup("");
+        strcpy(log_entry.status, "E"); //"E" for espnow
+        strcpy(log_entry.tag, "L"); //"L" for local procres
+        strcpy(log_entry.log_level, "I"); //"I" for info
+        strlcpy(log_entry.log_type, log_type_buf, sizeof(log_entry.log_type));
+        strcpy(log_entry.from_id, "");
 
         xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
     }
@@ -281,20 +287,14 @@ static void log_incoming_buffer_message(const out_message_t *incoming_msg)
 
     log_entry.log_id = log_counter;
     log_entry.log_datetime = now;
-    log_entry.status = strdup("M"); // "M" for message
-    log_entry.tag = strdup("R");    // "R" for recieved
-    log_entry.log_level = strdup("I"); // Info level
-    log_entry.log_type = strdup("B");  // "B" for buffer
-    log_entry.from_id = strdup(incoming_msg->robot_id);
-    
+    strcpy(log_entry.status, "M");// "M" for message
+    strcpy(log_entry.tag, "R");   // "R" for recieved
+    strcpy(log_entry.log_level, "I"); // Info level
+    strcpy(log_entry.log_type, "B");  // "B" for buffer
+    strlcpy(log_entry.from_id, incoming_msg->robot_id, sizeof(log_entry.from_id));
+
     xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
-    //TODO: Decide if we need to log the entire message body
-    // memset(&log_body, 0, sizeof(log_body));
-    // log_body.log_id = log_counter;
-    // log_body.log_datetime = now;
-    // snprintf(log_body.log_message, sizeof(log_body.log_message), "Incoming data: %s", incoming_msg->message);
-    // xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 }
 
 static void log_local_evaluation(float remote_best_fitness, float local_best_fitness, const char *remote_robot_id)
@@ -310,16 +310,16 @@ static void log_local_evaluation(float remote_best_fitness, float local_best_fit
 
     eval_log.log_id       = log_counter;
     eval_log.log_datetime = now;
-    eval_log.status       = strdup("G");  // Genetic algo
-    eval_log.tag          = strdup("L");  // Local process
-    eval_log.log_level    = strdup("I");  // Info
-    eval_log.from_id      = strdup(remote_robot_id);
+    strcpy(eval_log.status, "G");  // Genetic algo
+    strcpy(eval_log.tag,    "L");  // Local process
+    strcpy(eval_log.log_level, "I");  // Info
+    strlcpy(eval_log.from_id, remote_robot_id, sizeof(eval_log.from_id));
 
     // "A" = accepted (remote is better), "R" = rejected
     if (remote_best_fitness < local_best_fitness) {
-        eval_log.log_type = strdup("A"); // A for accept migration
+        strcpy(eval_log.log_type, "A"); // A for accept migration
     } else {
-        eval_log.log_type = strdup("R"); // R for reject migration
+        strcpy(eval_log.log_type, "R"); // R for reject migration
     }
 
     xQueueSend(LogQueue, &eval_log, portMAX_DELAY);
@@ -438,11 +438,11 @@ void espnow_task(void *pvParameter)
 
                     log_entry.log_id = log_counter;
                     log_entry.log_datetime = now;
-                    log_entry.status = strdup("E"); // E for esp-now
-                    log_entry.tag = strdup("M"); // M for message
-                    log_entry.log_level = strdup("I"); //I for information
-                    log_entry.log_type = strdup("R"); // R for recieve
-                    log_entry.from_id = strdup(incoming_msg.robot_id);
+                    strcpy(log_entry.status, "E"); // E for esp-now
+                    strcpy(log_entry.tag, "M"); // M for message
+                    strcpy(log_entry.log_level, "I"); //I for information
+                    strcpy(log_entry.log_type, "R"); // R for recieve
+                    strlcpy(log_entry.from_id, incoming_msg.robot_id, sizeof(incoming_msg.robot_id));
                     xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
                     //parse the | delimited message to extract remote_best_fitness and remote genes
@@ -513,7 +513,7 @@ void espnow_task(void *pvParameter)
                 //LATENCY & PACKET LOSS
                 // Use ‘O’ for OK, ‘F’ for FAIL, and include |latency|send|robot_id
                 char status_char = (send_cb->status == ESP_NOW_SEND_SUCCESS) ? 'O' : 'F';
-                char temp_log_type[64];
+                char temp_log_type[32];
                 snprintf(temp_log_type, sizeof(temp_log_type), "%c|%u|%s",
                         status_char,
                         (unsigned)latency_ms,
@@ -522,11 +522,11 @@ void espnow_task(void *pvParameter)
                 //INTERNAL SEND LOG
                 log_entry.log_id       = log_counter;
                 log_entry.log_datetime = now;
-                log_entry.status       = strdup("E"); // E for ESPNOW
-                log_entry.tag          = strdup("M"); // M for message
-                log_entry.log_level    = strdup("I"); //I for information
-                log_entry.log_type     = strdup(temp_log_type);
-                log_entry.from_id      = strdup("");  // blank as send
+                strcpy(log_entry.status, "E"); // E for ESPNOW
+                strcpy(log_entry.tag, "M"); // M for message
+                strcpy(log_entry.log_level, "I"); //I for information
+                strlcpy(log_entry.log_type, temp_log_type, sizeof(log_entry.log_type));
+                strcpy(log_entry.from_id, ""); // blank as send
             
                 xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 

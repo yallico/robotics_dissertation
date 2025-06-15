@@ -12,6 +12,11 @@
 extern "C" {
 #endif
 
+#define LOG_Q_LEN       20
+#define LOG_BODY_Q_LEN  20
+
+extern QueueSetHandle_t logSet;
+
 void write_task(void *pvParameters);
 char* generate_experiment_id(RTC_DateTypeDef *date, RTC_TimeTypeDef *time);
 char* log_experiment_metadata(experiment_metadata_t *metadata);

@@ -33,11 +33,11 @@ typedef struct {
 typedef struct {
     uint32_t log_id;
     time_t log_datetime;
-    char *status;
-    char *tag;
-    char *log_level;
-    char *log_type;
-    char *from_id;
+    char status[2];
+    char tag[2];
+    char log_level[2];
+    char log_type[32];
+    char from_id[18];
 } event_log_t;
 
 typedef struct {

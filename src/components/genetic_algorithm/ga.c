@@ -441,11 +441,11 @@ void ga_task(void *pvParameters) {
 
             log_entry.log_id = log_counter;
             log_entry.log_datetime = now;
-            log_entry.status = strdup("T");
-            log_entry.tag = strdup("G");
-            log_entry.log_level = strdup("I");
-            log_entry.log_type = strdup("S");  // <--- S for start
-            log_entry.from_id = strdup("");
+            strcpy(log_entry.status, "T"); 
+            strcpy(log_entry.tag, "G"); 
+            strcpy(log_entry.log_level, "I");
+            strcpy(log_entry.log_type, "S"); // <--- S for start
+            strcpy(log_entry.from_id, "");
             xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
             int offset = 0;
@@ -497,11 +497,11 @@ void ga_task(void *pvParameters) {
 
             log_entry.log_id = log_counter;
             log_entry.log_datetime = now;
-            log_entry.status = strdup("T"); //T for internal task
-            log_entry.tag = strdup("G"); //G for genetic algo
-            log_entry.log_level = strdup("I"); //I for information
-            log_entry.log_type = strdup("F"); // F for Finish 
-            log_entry.from_id = strdup("");
+            strcpy(log_entry.status, "T"); //T for internal task
+            strcpy(log_entry.tag, "G"); //G for genetic algo
+            strcpy(log_entry.log_level, "I"); //I for information
+            strcpy(log_entry.log_type, "F"); // F for Finish 
+            strcpy(log_entry.from_id, "");
 
             // Send to queue
             xQueueSend(LogQueue, &log_entry, portMAX_DELAY);

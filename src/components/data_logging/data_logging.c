@@ -15,6 +15,7 @@ static const char *TAG = "LOG";
 // This queue is used to send log messages, across multiple other tasks
 extern QueueHandle_t LogQueue;
 extern QueueHandle_t LogBodyQueue;
+QueueSetHandle_t logSet = NULL;
 
 char* generate_experiment_id(RTC_DateTypeDef *date ,RTC_TimeTypeDef *time) {
     static char id[16]; // Buffer to hold the formatted experiment ID
@@ -139,38 +140,33 @@ char* serialize_log_body_to_json(const event_log_message_t *log_message) {
 
 // task to write data
 void write_task(void *pvParameters) {
+
     event_log_t log_entry;
     event_log_message_t log_body;
 
-    while (1) {
+    for (;;) {
+        /* Block here until SOMETHING arrives on EITHER queue */
+        QueueSetMemberHandle_t h = xQueueSelectFromSet(logSet, portMAX_DELAY);
 
-        if (xQueueReceive(LogQueue, &log_entry, portMAX_DELAY) == pdTRUE) {
+        if (h == LogQueue) {
+            xQueueReceive(LogQueue, &log_entry, 0);   // 0-tick, we know it’s ready
             //serialize the log to json
             char* json_data = serialize_log_to_json(&log_entry); 
             // call the sd_card_manager to write the log in memory
             write_data("/sdcard", json_data, "log");
 
-            // free dynamically allocated fields
-            free(log_entry.status);
-            free(log_entry.tag);
-            free(log_entry.log_level);
-            free(log_entry.log_type);
-            free(log_entry.from_id);
-
             free(json_data);
-       
-        }
 
-        // Check log body queue
-        while (xQueueReceive(LogBodyQueue, &log_body, portMAX_DELAY) == pdTRUE) {
+        } else if (h == LogBodyQueue) {
+            xQueueReceive(LogBodyQueue, &log_body, 0);
             //serialize the log to json
             char* json_data = serialize_log_body_to_json(&log_body); 
             // call the sd_card_manager to write the log in memory
             write_data("/sdcard", json_data, "message");
 
             free(json_data);
+            
         }
-
-        vTaskDelay(10); //prevent task hogging CPU
     }
+
 }
