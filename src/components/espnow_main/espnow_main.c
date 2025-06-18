@@ -52,7 +52,6 @@ static uint32_t s_send_bytes = 0;
 static uint32_t s_recv_bytes = 0;
 static esp_timer_handle_t s_throughput_timer = NULL;
 
-
 //THIS NEEDS UPDATING MANUALLY FROM M5CORE2 MAC
 static const uint8_t mac_addresses[2][ESP_NOW_ETH_ALEN] = {
     {0x78, 0x21, 0x84, 0x99, 0xDA, 0x8C},
@@ -69,9 +68,34 @@ bool validate_mac_addresses_count() {
     return true;
 }
 
+// Check if hyper-mutation conditions are met
+static void check_hyper_mutation(void)
+{
+    // 1) GA has run at least once
+    // 2) GA not running (ga_ended == true)
+    // 3) ga_buffer_queue is empty
+    // 4) Only activate once every 3 seconds since ga finishes
+    if (ga_has_run_before && ga_ended) {
+        if (uxQueueMessagesWaiting(ga_buffer_queue) == 0) {
+            uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+            if ((now_ms - s_last_ga_time) > 3000) {
+                ESP_LOGI(TAG, "Time gap: %lu ms", now_ms - s_last_ga_time);
+                // Restart GA with hyper-mutation
+                activate_hyper_mutation();
+                ga_ended = false;
+                xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
+            }
+        }
+    }
+}
+
 /* Callback for 1-second throughput timer */
 static void throughput_timer_cb(void *arg)
 {
+
+    //check if ga has gone stagnant
+    check_hyper_mutation();
+
     // Calculate throughput in Kbps (bits/sec ÷ 1000)
     float kbps_in  = ((float)s_recv_bytes * 8.0f) / 1000.0f;
     float kbps_out = ((float)s_send_bytes * 8.0f) / 1000.0f;
@@ -112,12 +136,6 @@ static void throughput_timer_cb(void *arg)
     s_send_bytes = 0;
     s_recv_bytes = 0;
 }
-
-//static uint8_t s_example_broadcast_mac[ESP_NOW_ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-static uint16_t s_example_espnow_seq[EXAMPLE_ESPNOW_DATA_MAX] = { 0, 0 };
-
-static void example_espnow_deinit(example_espnow_send_param_t *send_param);
-
 
 /* ESPNOW sending or receiving callback function is called in WiFi task.
  * Users should not do lengthy operations from this task. Instead, post
@@ -394,6 +412,7 @@ void espnow_task(void *pvParameter)
     vTaskDelay(pdMS_TO_TICKS(100));
 
     for (;;) {
+
         //ESPNOW_COMPLETED_BIT signals time to stop
         EventBits_t bits = xEventGroupGetBits(s_espnow_event_group);
         if (bits & ESPNOW_COMPLETED_BIT) {
@@ -620,4 +639,31 @@ esp_err_t espnow_init(void)
 
     ESP_LOGI(TAG, "ESPNOW base initialization complete.");
     return ESP_OK;
+}
+
+void espnow_deinit_all(void)
+{
+    ESP_LOGI(TAG, "De-initializing ESPNOW and stopping throughput timer");
+
+    // Stop and delete the throughput timer if it exists
+    if (s_throughput_timer) {
+        esp_timer_stop(s_throughput_timer);
+        esp_timer_delete(s_throughput_timer);
+        s_throughput_timer = NULL;
+    }
+
+    // Deinitialize ESPNOW
+    esp_now_deinit();
+
+    // Delete the ESPNOW queue if exists
+    if (s_example_espnow_queue) {
+        vQueueDelete(s_example_espnow_queue);
+        s_example_espnow_queue = NULL;
+    }
+
+    // Delete the event group if exists
+    if (s_espnow_event_group) {
+        vEventGroupDelete(s_espnow_event_group);
+        s_espnow_event_group = NULL;
+    }
 }

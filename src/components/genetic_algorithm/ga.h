@@ -21,7 +21,8 @@ extern "C" {
 // local area.
 // Generally speaking, we want to do this small, local search
 // more often.
-#define MUTATE_PROB     0.6     // range [0:1], how often do we apply mutation?
+//MUTATE PROB commented out because it becomes a runtime variable
+//#define MUTATE_PROB     0.6     // range [0:1], how often do we apply mutation?
 #define MUTATE_WIDTH    0.05    // gaussian standard dev
 #define MUTATE_MEAN     0.0     // gaussian center
 
@@ -49,12 +50,15 @@ extern "C" {
 #define A 10.0
 
 // Global variables
+extern float g_mutate_prob;
 extern volatile bool ga_ended;
 extern TaskHandle_t ga_task_handle;
 extern const uint8_t qrng_anu_ca_crt_start[] asm("_binary_qrng_anu_ca_pem_start");
 extern const uint8_t qrng_anu_ca_crt_end[] asm("_binary_qrng_anu_ca_pem_end");
 #define GA_COMPLETED_BIT BIT0
 extern EventGroupHandle_t ga_event_group;
+extern bool ga_has_run_before;
+extern uint32_t s_last_ga_time;
 
 // Interface functions
 void init_ga(bool wifiAvailable);
@@ -63,6 +67,7 @@ void print_ranking(void);
 float ga_get_local_best_fitness(void);
 void ga_integrate_remote_solution(const float *remote_genes);
 void ga_task(void *pvParameters);  // Expose the task function for external use
+void activate_hyper_mutation(void);
 
 #ifdef __cplusplus
 }

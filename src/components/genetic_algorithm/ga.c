@@ -24,6 +24,12 @@ uint16_t seed = 0; //0 error code
 
 // Used to help analyse performance, difference in time.
 unsigned long dt;
+//track hyper-mutation
+bool ga_has_run_before = false;
+static int s_hyper_mutation_generations = 0;
+bool s_hyper_mutation_active = false;
+static float s_base_mutation_prob;
+uint32_t s_last_ga_time = 0;
 
 // This 2D array is all our candidate GA solutions.
 // 1st element: number of candidate solutions (pop_size)
@@ -52,9 +58,20 @@ float true_f[ POP_SIZE ];   // Our roulette selection works as to optimise to ma
                             // original rastrigin value into this array just for 
                             // reviewing/debugging later.  
 
+float g_mutate_prob = 0.6f; // Base mutation probability, can be changed at runtime.
+
+
 // Utility function to generate a random floating-point number within a range
 float randFloat(float min, float max) {
     return min + ((float)rand() / (float)RAND_MAX) * (max - min);
+}
+
+void activate_hyper_mutation(void)
+{
+    s_hyper_mutation_active = true;
+    s_hyper_mutation_generations = 10;
+    g_mutate_prob = 1.0f; //100% mutation
+    ESP_LOGI(TAG, "Hyper-mutation activated");
 }
 
 /*
@@ -336,6 +353,16 @@ void evolve(void) {
     // population[][]
     createRanking();
 
+    // If hyper-mutation is active, decrement counter
+    if (s_hyper_mutation_active) {
+        s_hyper_mutation_generations--;
+        if (s_hyper_mutation_generations <= 0) {
+            s_hyper_mutation_active = false;
+            g_mutate_prob = s_base_mutation_prob;
+            //ESP_LOGI(TAG, "Hyper-mutation ended, revert to base mutation");
+        }
+    }
+
     // We need to create a new temporary population so that
     // as we draw from the old population, we don't overwrite
     // the information with new children.  For example, if we
@@ -377,7 +404,7 @@ void evolve(void) {
 
         // Mutation, evaluated per gene
         for (int gene = 0; gene < MAX_GENES; gene++) {
-            if ((double)rand() / RAND_MAX < MUTATE_PROB) {
+            if ((double)rand() / RAND_MAX <= g_mutate_prob) {
                 // +=, but can be +/- mutation
                 children[i][gene] += randGaussian(0.0, 0.05);
                 // Limit range.  Another way would be to wrap around.
@@ -408,6 +435,7 @@ void evolve(void) {
 void init_ga(bool wifiAvailable) {
     // Initialize the GA population
     init_population(wifiAvailable);
+    s_base_mutation_prob = g_mutate_prob;
     //print_population();
 }
 
@@ -415,6 +443,8 @@ static void ga_complete_callback(void)
 {
     // drain the buffered ESPNOW messages
     drain_buffered_messages();  
+    ga_has_run_before = true;
+    s_last_ga_time = (uint32_t)(esp_timer_get_time() / 1000ULL);
 }
 
 //Task function that the main application can call

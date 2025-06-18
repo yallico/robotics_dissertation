@@ -169,8 +169,17 @@ void app_main() {
     espnow_init();
     xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 4, NULL);
 
+    //Initialize Logging Queue
     free_heap_size = esp_get_free_heap_size();
-    ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
+    ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
+    ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
+    LogQueue = xQueueCreate(LOG_Q_LEN, sizeof(event_log_t));
+    LogBodyQueue = xQueueCreate(LOG_BODY_Q_LEN, sizeof(event_log_message_t));
+    logSet = xQueueCreateSet(LOG_Q_LEN + LOG_BODY_Q_LEN);
+    xQueueAddToSet(LogQueue,     logSet);
+    xQueueAddToSet(LogBodyQueue, logSet);
+    xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
+    ESP_LOGI(TAG, "Logging Queue Initialized");
 
     // Wait for connection to establish before starting OTA
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
@@ -206,30 +215,16 @@ void app_main() {
         }
 
         free_heap_size = esp_get_free_heap_size();
-        ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
-        ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
-
-
-        //Initialize Logging Queue
-        LogQueue = xQueueCreate(LOG_Q_LEN, sizeof(event_log_t));
-        LogBodyQueue = xQueueCreate(LOG_BODY_Q_LEN, sizeof(event_log_message_t));
-        logSet = xQueueCreateSet(LOG_Q_LEN + LOG_BODY_Q_LEN);
-        xQueueAddToSet(LogQueue,     logSet);
-        xQueueAddToSet(LogBodyQueue, logSet);
-        xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
-        ESP_LOGI(TAG, "Logging Queue Initialized");
-
-        free_heap_size = esp_get_free_heap_size();
-        ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
-        ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI("Check", "Free heap after init_custom_logging: %u", free_heap_size);
+        ESP_LOGI("Check", "Free stack after init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
 
         //Initialize Genetic Algorithm
         //TODO: running false as request is limited to 1 per minute
         init_ga(false);
 
         free_heap_size = esp_get_free_heap_size();
-        ESP_LOGI("Check", "Free heap before init_custom_logging: %u", free_heap_size);
-        ESP_LOGI("Check", "Free stack before init_custom_logging: %u", uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI("Check", "Free heap after init_ga: %u", free_heap_size);
+        ESP_LOGI("Check", "Free stack after init_ga: %u", uxTaskGetStackHighWaterMark(NULL));
 
         /*******************************************************************************
 
@@ -266,22 +261,9 @@ void app_main() {
         vTaskDelay(pdMS_TO_TICKS(30000));
         ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
-
-
-        /*******************************************************************************
-
-        Section Name: Post-Experiment
-        Description: 
-            This section handles the data upload to S3 at end of experiment.
-        Inputs: 
-            Trigger to signal that experiment has finalised.
-        Outputs:
-            S3 data upload
-
-        *******************************************************************************/
-
-        // Wait for the task to signal it has completed
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        espnow_deinit_all();
+
         experiment_ended = true;
         RTC_GetTime(&global_time);
         experiment_end = convert_to_time_t(&global_date, &global_time);
@@ -332,11 +314,6 @@ void app_main() {
 
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Wi-Fi unavailable. Proceeding offline.");
-
-        // Initialize Logging Queue
-        LogQueue = xQueueCreate(10, sizeof(event_log_t));
-        LogBodyQueue = xQueueCreate(10, sizeof(event_log_message_t));
-        xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
     
         // Initialize Genetic Algorithm
         init_ga(false);
@@ -360,6 +337,7 @@ void app_main() {
         ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);       
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        espnow_deinit_all();
         
         //skip upload_all_sd_files since no WiFi
         experiment_ended = true;

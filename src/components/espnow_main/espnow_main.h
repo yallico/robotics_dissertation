@@ -40,7 +40,7 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     size_t gene_count, uint32_t log_id, time_t created_datetime);
 void drain_buffered_messages(void);
 bool validate_mac_addresses_count(void);
-//void espnow_deinit_task(void *pvParameter);
+void espnow_deinit_all(void);
 
 extern lv_obj_t *espnow_label;
 
