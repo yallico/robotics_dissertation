@@ -258,10 +258,13 @@ void app_main() {
         //Genetic Algorithm task and pin it to core 1
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        
         vTaskDelay(pdMS_TO_TICKS(30000));
         ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
-        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+        vTaskDelete(ga_task_handle);
+        ga_task_handle = NULL;
         espnow_deinit_all();
 
         experiment_ended = true;
@@ -333,10 +336,13 @@ void app_main() {
         // Genetic Algorithm task
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        
         vTaskDelay(pdMS_TO_TICKS(30000));
         ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);       
-        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdTRUE, pdTRUE, portMAX_DELAY);
+        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+        vTaskDelete(ga_task_handle);
+        ga_task_handle = NULL;
         espnow_deinit_all();
         
         //skip upload_all_sd_files since no WiFi

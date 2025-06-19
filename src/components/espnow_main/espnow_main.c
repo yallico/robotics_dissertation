@@ -79,7 +79,7 @@ static void check_hyper_mutation(void)
         if (uxQueueMessagesWaiting(ga_buffer_queue) == 0) {
             uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
             if ((now_ms - s_last_ga_time) > 3000) {
-                ESP_LOGI(TAG, "Time gap: %lu ms", now_ms - s_last_ga_time);
+                //ESP_LOGI(TAG, "Time gap: %lu ms", now_ms - s_last_ga_time);
                 // Restart GA with hyper-mutation
                 activate_hyper_mutation();
                 ga_ended = false;
@@ -564,7 +564,9 @@ void espnow_task(void *pvParameter)
         s_example_espnow_queue = NULL;
     }
 
-    esp_now_deinit();
+    //end co-current ga task
+    ga_ended = true;
+
     vTaskDelete(NULL);
 }
 

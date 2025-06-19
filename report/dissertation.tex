@@ -5,6 +5,8 @@
 \usepackage{lipsum} % For dummy text, you can remove this
 \usepackage[style=numeric, backend=biber]{biblatex} % Import the package for reading .bib files
 \addbibresource{Communication.bib} % Add the .bib file
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
 % Title page
 \title{Dissertation Title}
@@ -40,10 +42,50 @@ Inspired by nature's evolutionary strategies, Swarm Engineers aspire to harness 
 
 \chapter{Implementation}
 
-\section{ESP-IDF}
+\section{System Architecture}
+
+Each swarm member boots into a FreeRTOS‐based runtime by calling \texttt{app\_main()}, which performs staged initialization of hardware and software subsystems: non‐volatile storage (NVS), I2C peripherals (IR board, LVGL display), Arduino core, RTC, SD‐card manager, Wi-Fi station mode, and ESPNOW. During init, the main task spawns several FreeRTOS tasks—\texttt{gui\_task}, \texttt{i2c\_lvgl\_task}, \texttt{espnow\_task}, \texttt{ga\_task}, \texttt{write\_task} (logging), and an optional \texttt{ota\_task}. Inter‐task coordination is managed by event groups (\texttt{s\_wifi\_event\_group}, \texttt{s\_espnow\_event\_group}, \texttt{ota\_event\_group}, \texttt{ga\_event\_group}) and queues (\texttt{s\_example\_espnow\_queue}, \texttt{ga\_buffer\_queue}, \texttt{LogQueue}).
+
+Once initialized, each robot enters the experiment loop shown in Algorithm \ref{alg:swarm-loop}. The GA task evolves a local population until \texttt{ga\_ended} is set by the completion callback, at which point the best solution is packaged and sent via ESPNOW unicast (\texttt{espnow\_push\_best\_solution}). ESPNOW send/receive callbacks measure per‐packet latency (via ACKs), enqueue incoming frames to \texttt{ga\_buffer\_queue}, and count bytes for a throughput timer. The ESPNOW task then dequeues and parses all events, updating statistics and passing remote genomes to \texttt{ga\_integrate\_remote\_solution}. 
+
+\begin{algorithm}[h]
+\caption{Swarm Member Experiment Loop\label{alg:swarm-loop}}
+\begin{algorithmic}[1]
+  \State \textbf{Init} peripherals, Wi-Fi, ESPNOW, tasks, event groups, queues
+  \State Fetch quantum seed via HTTPS; \Call{init\_ga}{seed}
+  \Loop
+    \State \textbf{Run GA:} \Call{evolve}{}
+    \State Wait until \texttt{ga\_ended} \Comment{set in \texttt{ga\_complete\_callback}}
+    \State \Call{espnow\_push\_best\_solution}{local\_best}
+    \State $ga\_has\_run\_before \gets \mathrm{true}$; $s\_last\_ga\_time \gets \mathrm{now}$
+    \State \Call{drain\_buffered\_messages}{} \Comment{Dequeue all ESPNOW frames}
+    \ForAll{msg in \texttt{ga\_buffer\_queue}}
+      \State \Call{ga\_integrate\_remote\_solution}{msg.genes}
+    \EndFor
+    \State \Call{check\_hyper\_mutation}{} \Comment{Adjust mutation if stagnated}
+    \State Reset \texttt{ga\_ended}
+  \EndLoop
+\end{algorithmic}
+\end{algorithm}
+
+Each swarm member is tasked with solving the Rastrigin function [ref], a non‐convex optimization problem that is commonly used to benchmark optimization algorithms due to its large number of local minima. In our implementation, we use genetic algorithms to solve the function and find the global minimum. At initialisation each robot is assigned a random starting point (seed) within the search space. The random seed is obtained via HTTPS from a server that streams quantum fluctuations in vacuum. This is to ensure that the seed is truly random and not influenced by any external factors. This initial population with its own set of random genes will thereafter undergo selection via a fitness function (the Rastrigin function) and genetic operators (mutation and crossover) to evolve the population.
+
+Once the robots execute the experiment task, the swarm begins to communicate their current best fitness and corresponding genes found to their peers. This is akin to the "Island Model" [ref], in which each subpopulation (islands) evolve in parallel and occasionally exchange individuals (migration) with other islands, thus enabling the swarm to converge on the optimal solution. In our implementation we employ an immigrant-K strategy: after each GA epoch the top K solutions dequeued from \texttt{ga\_buffer\_queue} are integrated into the local population by replacing the worst-performing K individuals, thus preserving high-quality diversity. To counteract stagnation, a hyper-mutation mechanism tracks consecutive non-improving generations—once a threshold is reached, the mutation probability is temporarily increased to escape local optima and promote renewed exploration across the swarm.  
+
+The swarm is considered to have successfully solved the problem when they either (i) find the global minimum by at least one robot or (ii) converge (e.g., all robots reaching similar fitness levels) to a local minimum as a group.
+
+\subsection{Termination Conditions}
+An experiment is terminated when one of the following criteria is met:
+\begin{enumerate}
+  \item \textbf{Global Solution Achieved}: Any robot attains the exact global minimum of the Rastrigin function (fitness\,=\,0).
+  \item \textbf{Time Limit Exceeded}: A configurable maximum duration (e.g., 10 minutes) elapses without global convergence.
+\end{enumerate}
+Upon termination, all ESPNOW tasks drain pending message queues, final fitness and communication metrics are written to the SD card, and log files are uploaded to an Amazon S3 bucket over HTTPS. Finally, the system de‐initializes peripherals (Wi‐Fi stopped, SD card unmounted, IR board halted) to ensure a clean shutdown.
+
+\section{Reasons for choices}
 Why use ESP-IDF over Arduino IDE in this project? \cite{esp-boards_esp-idf_nodate}\cite{expressif_freertos_nodate}
 
-As we are using a ESP32 microcontroller to build our swarm, which left us with two options to program it: Arduino IDE or ESP-IDF. The reasons we chose the latter are because, first, it is the official development framework for the ESP32 microcontrollers, this means that ESP-IDF is native to ESP32 whereas Arduino is an API wrap around ESP-IDF. Making ESP-IDF more stable and enabling more advanced features, specially for communication data links such as Bluetooth, Wifi and LORA. Secondly, it is more powerful and flexible than Arduino IDE, because it allows the use of FreeRTOS which allows multi core development support (our M5 Stack has two cores) and is a pre-requisite for running microROS in the ESP32 microcontroller (at the time of writing this microROS does not support Arduino), hence making it more suitable for complex projects like this one. Thirdly, it is more efficient in terms of memory and speed (as it enables parallel processing) which is important for a project that requires real-time communication between multiple devices in a swarm. Finally, it is more professional and an industry standard, it allows dependency tracking, Over the Air (OTA) updates, unit testing, enhanced debugging and comprehensive documentation around it, which means it is more likely to be supported in the future and software is less likely to become deprecated over time.
+As we are using a ESP32 microcontroller to build our swarm, which left us with two options to program it: Arduino IDE or ESP-IDF. The reasons we chose the latter are because, first, it is the official development framework for the ESP32 microcontrollers, this means that ESP-IDF is native to ESP32 whereas Arduino is an API wrap around ESP-IDF. Making ESP-IDF more stable and enabling more advanced features, specially for communication data links such as Bluetooth and Wifi. Secondly, it is more powerful and flexible than Arduino IDE, because it allows the use of FreeRTOS which allows multi core development support (our M5 Stack has two cores) and is a pre-requisite for running microROS in the ESP32 microcontroller (at the time of writing this microROS does not support Arduino), hence making it more suitable for complex projects like this one. Thirdly, it is more efficient in terms of memory and speed (as it enables parallel processing) which is important for a project that requires real-time communication between multiple devices in a swarm. Finally, it is more professional and an industry standard, it allows dependency tracking, Over the Air (OTA) updates, unit testing, enhanced debugging and comprehensive documentation around it, which means it is more likely to be supported in the future and software is less likely to become deprecated over time.
 
 How was the WIFI implementation done?
 
@@ -54,6 +96,11 @@ For expanding a swarm dynamically, cryptographic keys might be needed to securel
 How was the IR implementation achieved?
 
 Using the IR board, described previously. We connected the M5Stack via the external I2C port, furthermore we had to use the Arduino library as a component of the ESP-IDF implementation for the this to work, this was due to compatibility issues between ESP-IDF and Arduino libraries. The board itself is running with an Arduino Nano to process the IR signals into messages and then sending this data accross via the SDA/SCL pins. One major implication for this, was the need to change the FreeRTOS clock speed from 100Hz to 1000Hz which improves responsiveness but at the cost of higher CPU load and power consumption. Some key parameters also include the frequency if the I2C itself which was set at 100kHtz and the master/slave configuration (M5 being the master device), this is initialized from the M5 once powered on after the 5V bus is switched on (to power the board). For more details regarding the IR board implementation please see X. 
+
+How was the ESPNOW implementation achieved?
+
+We used ESPNOW by pre-registering each swarm member’s MAC address, enabling unicast communication once the local GA finishes. Incoming data is placed on a queue for processing, and latency is measured via ACK callbacks. A periodic timer tracks overall throughput, logging key events as data arrives. This setup ensures efficient message handling without interfering with ongoing local genetic algorithm as it run co-curretly.
+
 
 \section{OTA}
 
@@ -88,14 +135,6 @@ Upon completing the experimental tasks, the swarm members switch to a data uploa
 
 Data logs are saved in the root directory of the SD card in a \.json format. Our system is designed to automatically generate new files upon reaching a specified size limit, this enables efficient memory management and preventing heap memory overflow during log file writes.
 
-
-\section{Experimental Setup}
-
-Each swarm member is tasked with solving the Rastrigin fuction [ref], a non-convex optimization problem that is commonly used to benchmark optimization algorithms due to its large number of local minima. In our implementation, we use genetic algorithms to solve the function and find the global minimum. At initialisation each robot is assigned a random starting point (seed) within the search space. The random seed is obtained via HTTPS from a server that streams quantum fluctuations in vacuum. This is to ensure that the seed is truly random and not influenced by any external factors. This initial population with its own set of random genes will thereafter undergo selection via a fitness function (the Rastrigin function) and genetic operators (mutation and crossover) to evolve the population.
-
-Once the robots execute the experiment task, the swarm being communicate their current best fitness and corresponding genes found to their peers. This is akin to the "Island Model" [ref], in which each subpopulation (islands) evolve in parallel and occasionally exchanges individuals (migration) with other islands. Thus, enabling the swarm to converge on the optimal solution. The swarm is considered to have successfully solved the problem when they either (i) finding the global minimum by at least one robot or (ii) convergence (e.g., all robots reaching similar fitness levels) to a local minimum by the whole swarm. We determine whether we reached a global minimum by comparing the fitness of the best individual in the swarm with the known global minimum of the Rastrigin function. 
-
-The termination condition for all experiments is %TODO: need to define the termintion condition.
 
 \newpage
 \section{Preliminary Sensitivity Analysis}

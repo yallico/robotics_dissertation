@@ -66,12 +66,24 @@ float randFloat(float min, float max) {
     return min + ((float)rand() / (float)RAND_MAX) * (max - min);
 }
 
-void activate_hyper_mutation(void)
-{
+void activate_hyper_mutation(void) {
+    
     s_hyper_mutation_active = true;
     s_hyper_mutation_generations = 10;
-    g_mutate_prob = 1.0f; //100% mutation
-    ESP_LOGI(TAG, "Hyper-mutation activated");
+    g_mutate_prob = 1.0f; //100% mutation rate
+    //ESP_LOGI(TAG, "Hyper-mutation activated");
+
+    //mass extinction: reinitialize half of the worst-performing population
+    int half_pop = POP_SIZE / 2;
+    float range = MAX_GENE_VALUE - MIN_GENE_VALUE;
+    for (int i = 0; i < half_pop; i++) {
+        int worst_index = rank[i];
+        for (int gene = 0; gene < MAX_GENES; gene++) {
+            float randomVal = (float)esp_random() / (float)UINT32_MAX; 
+            float scaledVal = MIN_GENE_VALUE + randomVal * range;
+            population[worst_index][gene] = scaledVal;
+        }
+    }
 }
 
 /*
@@ -450,9 +462,9 @@ static void ga_complete_callback(void)
 //Task function that the main application can call
 void ga_task(void *pvParameters) {
     float last_best_fitness = -1.0;  // Init impossible fitness value
-    float threshold = 0.05;  // Threshold for detecting significant changes in fitness
+    float threshold = 0.01;  // Threshold for detecting significant changes in fitness
     int no_improvement_count = 0;
-    int patience = 20; // Stop if there are consecutive no-gain generations TODO: get reference
+    int patience = 30; // Stop if there are consecutive no-gain generations TODO: get reference
     static bool start_logged = false;
 
     while (1) {
@@ -530,7 +542,7 @@ void ga_task(void *pvParameters) {
             strcpy(log_entry.status, "T"); //T for internal task
             strcpy(log_entry.tag, "G"); //G for genetic algo
             strcpy(log_entry.log_level, "I"); //I for information
-            strcpy(log_entry.log_type, "F"); // F for Finish 
+            strcpy(log_entry.log_type, "U"); // U for update 
             strcpy(log_entry.from_id, "");
 
             // Send to queue
