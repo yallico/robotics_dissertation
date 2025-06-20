@@ -42,11 +42,30 @@ Inspired by nature's evolutionary strategies, Swarm Engineers aspire to harness 
 
 \chapter{Implementation}
 
+Each swarm member is tasked with solving the Rastrigin function, a non-convex optimisation problem used to benchmark optimization algorithms due to its large number of local minima [REF]. THis implementation uses genetic algorithms (GA) to find the global minimum for this task. As the local population in each agent evolves, the swarm begins to communicate their current best fitness and corresponding genes to their peers. This is based on the Island model [ref], where different subpopulations (islands) evolve in parallel and occasionally exchange individuals (migration) with other islands, thus enabling the swarm to converge to a solution. Figure X, depicts the event driven one-way communication once the GA stagnates where the agent pushes its best solution to other swarm members via ESPNOW and/or via the IR board. This communication protocol was designed to avoid having to handle pull type protocols which would involve having to handle requests and responses in a sequential manner.\\  
+
+The implementation employs an elitist immigrant-K strategy, where the best remote genes from another swarm member are integrated into the local population by replacing the worst performing K local individuals, thus preserving high-quality diversity [REF]. To counteract swarm stagnation on a local-minimum, a mass extinction event together with a hyper-mutation mechanism tracks consecutive non-improving generations. Once a set of conditions is reached (Figure X), the mutation probability is temporarily increased to escape local optima and lowest performing half of the population is re-initialised. This is done to promote exploration across the swarm and prevent premature convergence [REFS]. The swarm is considered to have completed the task, when either (i) the global minimum of 0.00 is found by at least one peer or (ii) a time limit for the task is reached.
+
+
 \section{System Architecture}
 
-Each swarm member boots into a FreeRTOS‐based runtime by calling \texttt{app\_main()}, which performs staged initialization of hardware and software subsystems: non‐volatile storage (NVS), I2C peripherals (IR board, LVGL display), Arduino core, RTC, SD‐card manager, Wi-Fi station mode, and ESPNOW. During init, the main task spawns several FreeRTOS tasks—\texttt{gui\_task}, \texttt{i2c\_lvgl\_task}, \texttt{espnow\_task}, \texttt{ga\_task}, \texttt{write\_task} (logging), and an optional \texttt{ota\_task}. Inter‐task coordination is managed by event groups (\texttt{s\_wifi\_event\_group}, \texttt{s\_espnow\_event\_group}, \texttt{ota\_event\_group}, \texttt{ga\_event\_group}) and queues (\texttt{s\_example\_espnow\_queue}, \texttt{ga\_buffer\_queue}, \texttt{LogQueue}).
+Each swarm member boots into a FreeRTOS runtime by calling \texttt{app\_main()}, which performs the initialisation of the following components: non-volatile storage (NVS), I2C peripherals (APC, IR board, LVGL display, Pololu 3pi+), Real Time Clock (RTC), SD-Card, and ESPNOW. Figure X illustrates the sequence of these and their relation to the tasks that are spawned during run time. Some of these tasks include:
+\begin{itemize}
+  \item \texttt{gui\_task}: Manages the graphical user interface (GUI) on the M5Stack display, use for real-time feedback and debugging.
+  \item \texttt{i2c\_task}: Handles communication with the I2C peripherals, including the AXP192 power supply, the IR half-duplex board, the display and the Pololu 3pi+.
+  \item \texttt{ota\_task} (conditional): Manages Over-the-Air (OTA) updates if a new version is available in S3, allowing for remote software updates. Section \ref{sec:ota} has more details on this.
+  \item \texttt{espnow\_task}: Manages ESPNOW communication between swarm members, handles message sending and receiving.
+  \item \texttt{ga\_task}: Runs the local Genetic Algorithm (GA) for solving the Rastrigin function, coordinating with other tasks to log and transmit data.
+  \item \texttt{write\_task}: Handles SD card operations, including logging data and managing file storage.
+\end{itemize} 
 
-Once initialized, each robot enters the experiment loop shown in Algorithm \ref{alg:swarm-loop}. The GA task evolves a local population until \texttt{ga\_ended} is set by the completion callback, at which point the best solution is packaged and sent via ESPNOW unicast (\texttt{espnow\_push\_best\_solution}). ESPNOW send/receive callbacks measure per‐packet latency (via ACKs), enqueue incoming frames to \texttt{ga\_buffer\_queue}, and count bytes for a throughput timer. The ESPNOW task then dequeues and parses all events, updating statistics and passing remote genomes to \texttt{ga\_integrate\_remote\_solution}. 
+Inter-task coordination is managed by event groups and queues, which facilitate coordinating between tasks and ensure that data is processed sequentially. The event groups are used to signal task completion and synchronise downstream operations, whereas queues are used to pass data between tasks that are operating in parallel. This enables multitasking and real-time processing of events, which differs from traditional SENSE, PLAN, ACT architectures that operate sequentially.\\
+
+Following initialization and the conditional OTA update, each robot enters the experiment phase shown in Algorithm \ref{alg:swarm-loop}. 
+
+Each robot is assigned a random starting point (seed) within the Rastrigin search space. The random seed is obtained via HTTPS from a server that streams quantum fluctuations in vacuum. This is to ensure that the seed is truly random and not influenced by any external factors. This initial population with its own set of random genes will thereafter undergo selection via a fitness function and genetic operators (mutation and crossover) to evolve the population.
+
+The \texttt{ga\_task} evolves a local population until 30 generations are reached without achieving a 0.01 improvement in population fitness [REF]. At which point the best solution fitness score and genes are sent via ESPNOW to all swarm agents in a random order [NEED TO EXPLAIN WHY THIS WAS DONE]. ESPNOW send/receive callbacks measure per-packet latency (via ACKs), enqueue incoming frames to \texttt{ga\_buffer\_queue}, and count bytes for a throughput timer. The \texttt{espnow\_task} then dequeues and parses all events, updating statistics and evaluating remote genomes to \texttt{ga\_integrate\_remote\_solution}. 
 
 \begin{algorithm}[h]
 \caption{Swarm Member Experiment Loop\label{alg:swarm-loop}}
@@ -68,13 +87,6 @@ Once initialized, each robot enters the experiment loop shown in Algorithm \ref{
 \end{algorithmic}
 \end{algorithm}
 
-Each swarm member is tasked with solving the Rastrigin function [ref], a non‐convex optimization problem that is commonly used to benchmark optimization algorithms due to its large number of local minima. In our implementation, we use genetic algorithms to solve the function and find the global minimum. At initialisation each robot is assigned a random starting point (seed) within the search space. The random seed is obtained via HTTPS from a server that streams quantum fluctuations in vacuum. This is to ensure that the seed is truly random and not influenced by any external factors. This initial population with its own set of random genes will thereafter undergo selection via a fitness function (the Rastrigin function) and genetic operators (mutation and crossover) to evolve the population.
-
-Once the robots execute the experiment task, the swarm begins to communicate their current best fitness and corresponding genes found to their peers. This is akin to the "Island Model" [ref], in which each subpopulation (islands) evolve in parallel and occasionally exchange individuals (migration) with other islands, thus enabling the swarm to converge on the optimal solution. In our implementation we employ an immigrant-K strategy: after each GA epoch the top K solutions dequeued from \texttt{ga\_buffer\_queue} are integrated into the local population by replacing the worst-performing K individuals, thus preserving high-quality diversity. To counteract stagnation, a hyper-mutation mechanism tracks consecutive non-improving generations—once a threshold is reached, the mutation probability is temporarily increased to escape local optima and promote renewed exploration across the swarm.  
-
-The swarm is considered to have successfully solved the problem when they either (i) find the global minimum by at least one robot or (ii) converge (e.g., all robots reaching similar fitness levels) to a local minimum as a group.
-
-\subsection{Termination Conditions}
 An experiment is terminated when one of the following criteria is met:
 \begin{enumerate}
   \item \textbf{Global Solution Achieved}: Any robot attains the exact global minimum of the Rastrigin function (fitness\,=\,0).
@@ -102,7 +114,7 @@ How was the ESPNOW implementation achieved?
 We used ESPNOW by pre-registering each swarm member’s MAC address, enabling unicast communication once the local GA finishes. Incoming data is placed on a queue for processing, and latency is measured via ACK callbacks. A periodic timer tracks overall throughput, logging key events as data arrives. This setup ensures efficient message handling without interfering with ongoing local genetic algorithm as it run co-curretly.
 
 
-\section{OTA}
+\section{OTA}\label{sec:ota}
 
 
 % TODO: include references

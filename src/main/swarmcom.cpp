@@ -82,10 +82,10 @@ void app_main() {
 
     Section Name: Initialization
     Description: 
-        This section initializes variables, sets up configuration values, 
-        and prepares the system for execution.
+        This section initializes variables, sets up configuration values.
+        In includes peripherals like the I2C, PS, M5-Display, ESP-NOW, SD Card, RTC.
     Inputs: 
-        Config is managed via the sdkconfig file.
+        Config is managed via the sdkconfig file in ESP-IDF
     Outputs:
         M5 Board is initialized.
 
@@ -226,19 +226,6 @@ void app_main() {
         ESP_LOGI("Check", "Free heap after init_ga: %u", free_heap_size);
         ESP_LOGI("Check", "Free stack after init_ga: %u", uxTaskGetStackHighWaterMark(NULL));
 
-        /*******************************************************************************
-
-        Section Name: Run Experiment
-        Description: 
-            This section syncronizes the start of the experiment and creates the genetic
-            algorithm task.
-        Inputs: 
-            Wifi connection is required to get random seed.
-        Outputs:
-            SD logging data is saved.
-
-        *******************************************************************************/
-        
         // Start the experiment
         RTC_GetDate(&global_date); //get the current date
         RTC_GetTime(&global_time); //get the current time
