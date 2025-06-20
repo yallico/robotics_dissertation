@@ -42,10 +42,12 @@
 static const char *TAG = "espnow";
 
 EventGroupHandle_t s_espnow_event_group;
-
-static QueueHandle_t s_example_espnow_queue;
+TaskHandle_t s_espnow_task_handle;
+QueueHandle_t s_example_espnow_queue;
 
 static uint32_t s_peer_start_times[DEFAULT_NUM_ROBOTS] = {0};
+static int8_t s_last_rssi[DEFAULT_NUM_ROBOTS] = {0}; // Track per-robot RSSI
+
 
 /* Throughput counting variables */
 static uint32_t s_send_bytes = 0;
@@ -105,13 +107,12 @@ static void throughput_timer_cb(void *arg)
     //     (unsigned int) esp_get_free_heap_size(),
     //     (unsigned int) esp_get_minimum_free_heap_size());
 
-
     // Log only if there’s any incoming/outgoing data
     if (s_send_bytes != 0 || s_recv_bytes != 0) {
         ESP_LOGI(TAG, "Throughput: In=%.2f Kbps, Out=%.2f Kbps", kbps_in, kbps_out);
         // Example: "T|12.34|56.78" T for throughput
         char log_type_buf[32];
-        snprintf(log_type_buf, sizeof(log_type_buf), "T|%.2f|%.2f", kbps_in, kbps_out);
+        snprintf(log_type_buf, sizeof(log_type_buf), "%.2f|%.2f", kbps_in, kbps_out);
 
         event_log_t log_entry;
         time_t now = time(NULL);
@@ -125,11 +126,42 @@ static void throughput_timer_cb(void *arg)
         log_entry.log_datetime = now;
         strcpy(log_entry.status, "E"); //"E" for espnow
         strcpy(log_entry.tag, "L"); //"L" for local procres
-        strcpy(log_entry.log_level, "I"); //"I" for info
+        strcpy(log_entry.log_level, "T"); //"T" for throughput
         strlcpy(log_entry.log_type, log_type_buf, sizeof(log_entry.log_type));
         strcpy(log_entry.from_id, "");
 
         xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
+
+        if (s_recv_bytes != 0) {
+
+            event_log_t rssi_entry;
+
+            rssi_entry.log_id       = log_counter;
+            rssi_entry.log_datetime = now; // same timestamp
+            strcpy(rssi_entry.status, "E"); // E for espnow
+            strcpy(rssi_entry.tag,    "L"); // L for local
+            strcpy(rssi_entry.log_level, "C"); // C for connectivity
+            // Example: "RSSI|<robot0>|<robot1>|<robot2>..."
+            char rssi_buf[128] = "";
+            char *ptr = rssi_buf;
+            uint8_t own_mac[ESP_NOW_ETH_ALEN]; 
+            esp_wifi_get_mac(ESP_IF_WIFI_STA, own_mac);
+            for(int i = 0; i < DEFAULT_NUM_ROBOTS; i++){
+                if (memcmp(mac_addresses[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
+                    // Leave blank own RSSI
+                    ptr += snprintf(ptr, rssi_buf + sizeof(rssi_buf) - ptr, "|");
+                } else {
+                    // Log RSSI
+                    ptr += snprintf(ptr, rssi_buf + sizeof(rssi_buf) - ptr, "%d|", s_last_rssi[i]);
+                }
+            }
+            strlcpy(rssi_entry.log_type, rssi_buf, sizeof(rssi_entry.log_type));
+            strcpy(rssi_entry.from_id, "");
+
+            xQueueSend(LogQueue, &rssi_entry, portMAX_DELAY);
+
+        }
+
     }
 
     // Reset counters
@@ -176,6 +208,7 @@ static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const u
     example_espnow_event_t evt;
     example_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
     uint8_t * mac_addr = recv_info->src_addr;
+    int8_t rssi = recv_info->rx_ctrl->rssi; //get RSSI
     //uint8_t * des_addr = recv_info->des_addr;
 
     if (mac_addr == NULL || data == NULL || len <= 0) {
@@ -197,9 +230,18 @@ static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const u
     memcpy(recv_cb->mac_addr, mac_addr, ESP_NOW_ETH_ALEN);
     recv_cb->data = malloc(len);
     if (recv_cb->data == NULL) {
+        //TODO: Log ERROR RATE?
         ESP_LOGE(TAG, "Malloc receive data fail");
         return;
     }
+
+    for(int i=0; i<DEFAULT_NUM_ROBOTS; i++){
+        if(memcmp(mac_addresses[i], mac_addr, ESP_NOW_ETH_ALEN) == 0){
+            s_last_rssi[i] = rssi;
+            break;
+        }
+    }
+
     memcpy(recv_cb->data, data, len);
     recv_cb->data_len = len;
     s_recv_bytes += len; //For throughput calc
@@ -426,7 +468,10 @@ void espnow_task(void *pvParameter)
         }
         // By default the first message that arrives will be processed.
         switch (evt.id) {
-            //TODO: explain this callback and immigrank_K logic
+            case EXAMPLE_ESPNOW_STOP:
+            {
+                break;
+            }
             case EXAMPLE_ESPNOW_RECV_CB:
             {
                 example_espnow_event_recv_cb_t *recv_cb = &evt.info.recv_cb;
@@ -566,7 +611,7 @@ void espnow_task(void *pvParameter)
 
     //end co-current ga task
     ga_ended = true;
-
+    s_espnow_task_handle = NULL; 
     vTaskDelete(NULL);
 }
 
@@ -631,7 +676,7 @@ esp_err_t espnow_init(void)
     }
     free(peer);
 
-    //Throughput timer
+    //kpi timer
     const esp_timer_create_args_t throughput_timer_args = {
         .callback = &throughput_timer_cb,
         .name = "throughput_timer"

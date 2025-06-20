@@ -167,7 +167,7 @@ void app_main() {
     ESP_LOGI(TAG, "Initializing ESPNOW");
     s_espnow_event_group = xEventGroupCreate();
     espnow_init();
-    xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 4, NULL);
+    xTaskCreate(espnow_task, "espnow_task", 4096, NULL, 4, &s_espnow_task_handle);
 
     //Initialize Logging Queue
     free_heap_size = esp_get_free_heap_size();
@@ -247,11 +247,14 @@ void app_main() {
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
         vTaskDelay(pdMS_TO_TICKS(30000));
-        ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-        vTaskDelete(ga_task_handle);
-        ga_task_handle = NULL;
+        example_espnow_event_t stop_evt = {};
+        stop_evt.id = EXAMPLE_ESPNOW_STOP;
+        xQueueSend(s_example_espnow_queue, &stop_evt, portMAX_DELAY);
+        while(!(xEventGroupGetBits(ga_event_group) & GA_COMPLETED_BIT)){
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
         espnow_deinit_all();
 
         experiment_ended = true;
@@ -325,11 +328,14 @@ void app_main() {
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
         vTaskDelay(pdMS_TO_TICKS(30000));
-        ESP_LOGI(TAG, "Signaling ESPNOW_COMPLETED_BIT to end experiment...");
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);       
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-        vTaskDelete(ga_task_handle);
-        ga_task_handle = NULL;
+        example_espnow_event_t stop_evt = {};
+        stop_evt.id = EXAMPLE_ESPNOW_STOP;
+        xQueueSend(s_example_espnow_queue, &stop_evt, portMAX_DELAY);
+        while(!(xEventGroupGetBits(ga_event_group) & GA_COMPLETED_BIT)){
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
         espnow_deinit_all();
         
         //skip upload_all_sd_files since no WiFi

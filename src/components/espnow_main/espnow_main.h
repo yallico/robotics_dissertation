@@ -27,10 +27,11 @@ extern "C" {
 #endif
 
 #define ESPNOW_QUEUE_SIZE           6
-
 #define ESPNOW_COMPLETED_BIT BIT2
 
 extern EventGroupHandle_t s_espnow_event_group;
+extern TaskHandle_t s_espnow_task_handle;
+extern QueueHandle_t s_example_espnow_queue;
 
 //#define IS_BROADCAST_ADDR(addr) (memcmp(addr, s_example_broadcast_mac, ESP_NOW_ETH_ALEN) == 0)
 
@@ -51,6 +52,7 @@ typedef struct {
 typedef enum {
     EXAMPLE_ESPNOW_SEND_CB,
     EXAMPLE_ESPNOW_RECV_CB,
+    EXAMPLE_ESPNOW_STOP = 99,
 } example_espnow_event_id_t;
 
 typedef struct {

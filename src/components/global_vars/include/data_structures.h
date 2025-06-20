@@ -36,7 +36,7 @@ typedef struct {
     char status[2];
     char tag[2];
     char log_level[2];
-    char log_type[32];
+    char log_type[128];
     char from_id[18];
 } event_log_t;
 
