@@ -29,6 +29,10 @@ extern "C" {
 #define ESPNOW_QUEUE_SIZE           6
 #define ESPNOW_COMPLETED_BIT BIT2
 
+#define MAX_TASKS      16        /* > number of tasks in your app   */
+#define SAMPLE_US 1000000UL      /* you fire the timer every 1 s    */
+#define WRAP 0x100000000ULL      /* 2^32 for wrap correction        */
+
 extern EventGroupHandle_t s_espnow_event_group;
 extern TaskHandle_t s_espnow_task_handle;
 extern QueueHandle_t s_example_espnow_queue;

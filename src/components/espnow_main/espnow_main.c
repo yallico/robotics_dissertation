@@ -13,12 +13,14 @@
    ESPNOW data.
 */
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <string.h>
 #include <assert.h>
 #include <float.h>
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
@@ -53,6 +55,10 @@ static int8_t s_last_rssi[DEFAULT_NUM_ROBOTS] = {0}; // Track per-robot RSSI
 static uint32_t s_send_bytes = 0;
 static uint32_t s_recv_bytes = 0;
 static esp_timer_handle_t s_throughput_timer = NULL;
+
+//CPU loggin params
+static TaskStatus_t t[MAX_TASKS];
+static uint32_t prev_idle0 = 0, prev_idle1 = 0;
 
 //THIS NEEDS UPDATING MANUALLY FROM M5CORE2 MAC
 static const uint8_t mac_addresses[2][ESP_NOW_ETH_ALEN] = {
@@ -89,6 +95,35 @@ static void check_hyper_mutation(void)
             }
         }
     }
+}
+
+static void cpu_percent_to_string(char out[16])
+{
+    /* ----- 1 . Grab fresh kernel counters ------------------------ */
+    UBaseType_t n = uxTaskGetSystemState(t, MAX_TASKS, NULL);         
+    uint32_t idle0 = 0, idle1 = 0;
+    for (UBaseType_t i = 0; i < n; ++i) {
+        /* Idle tasks exist on both cores; their run-time == ‘slack time’ */
+        if (!strcmp(t[i].pcTaskName, "IDLE0")) idle0 = t[i].ulRunTimeCounter;
+        else if (!strcmp(t[i].pcTaskName, "IDLE1")) idle1 = t[i].ulRunTimeCounter;
+    }
+
+    /* ----- 2 . Convert “slack” into “CPU-used” for this 1-second slice -- */
+    uint32_t d_idle0 = (idle0 - prev_idle0) & 0xFFFFFFFF;   // cheap wrap handling
+    uint32_t d_idle1 = (idle1 - prev_idle1) & 0xFFFFFFFF;
+    prev_idle0 = idle0;
+    prev_idle1 = idle1;
+
+    /* 100 % − idle%  = active%  (each SAMPLE_US == 100 %) */
+    uint32_t pct0 = 100 - (d_idle0 * 100 / SAMPLE_US);
+    uint32_t pct1 = 100 - (d_idle1 * 100 / SAMPLE_US);
+
+    /* clamp in case the timer wasn’t exactly 1 s */
+    if (pct0 > 100) pct0 = 100;
+    if (pct1 > 100) pct1 = 100;
+
+    /* ----- 3 . Emit “<Core0%>|<Core1%>” --------------------------- */
+    snprintf(out, 16, "%u|%u", (unsigned)pct0, (unsigned)pct1);
 }
 
 /* Callback for 1-second throughput timer */
@@ -161,6 +196,32 @@ static void throughput_timer_cb(void *arg)
             xQueueSend(LogQueue, &rssi_entry, portMAX_DELAY);
 
         }
+
+    }
+
+    if(experiment_started){
+
+        //Log CPU Usage
+        event_log_t cpu_entry;
+        time_t now = time(NULL);
+
+        if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
+            log_counter++;
+            xSemaphoreGive(logCounterMutex);
+        }
+
+        cpu_entry.log_id       = log_counter;
+        cpu_entry.log_datetime = now;
+        strcpy(cpu_entry.status, "S"); // S for system
+        strcpy(cpu_entry.tag,    "L"); // L for local
+        strcpy(cpu_entry.log_level, "U"); // U for utilisation
+        char cpu_buf[16];
+        cpu_percent_to_string(cpu_buf);
+        // Example: "<Core0%>|<Core1%>"
+        strlcpy(cpu_entry.log_type, cpu_buf, sizeof(cpu_entry.log_type));
+        strcpy(cpu_entry.from_id, "");
+
+        xQueueSend(LogQueue, &cpu_entry, portMAX_DELAY);
 
     }
 
