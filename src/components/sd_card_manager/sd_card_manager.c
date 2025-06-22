@@ -165,16 +165,6 @@ void upload_all_sd_files() {
         return;
     }
 
-    // Allocate a buffer on the heap.
-    // char *file_buffer = (char *)malloc(MAX_FILE_SIZE);
-    // if (file_buffer == NULL) {
-    //     ESP_LOGE(TAG, "Failed to allocate memory for file buffer");
-    //     closedir(dir);
-    //     return;
-    // }
-
-    //size_t file_size;
-
     char  *file_buffer   = NULL;   // will allocate per file
     size_t buffer_size   = 0;      // current malloc’d size
     struct dirent *entry;

@@ -246,7 +246,7 @@ void app_main() {
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
-        vTaskDelay(pdMS_TO_TICKS(30000));
+        vTaskDelay(pdMS_TO_TICKS(120000));
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
         example_espnow_event_t stop_evt = {};
@@ -327,7 +327,7 @@ void app_main() {
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
-        vTaskDelay(pdMS_TO_TICKS(30000));
+        vTaskDelay(pdMS_TO_TICKS(120000));
         xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);       
         xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
         example_espnow_event_t stop_evt = {};
@@ -351,4 +351,9 @@ void app_main() {
 
     //Halt Pololu
     i2c_pololu_command("X");
+
+    ESP_LOGI(TAG, "Experiment cycle complete. Restarting device...");
+    vTaskDelay(pdMS_TO_TICKS(1000)); 
+    esp_restart();
+
 }
