@@ -165,8 +165,8 @@ void upload_all_sd_files() {
         return;
     }
 
-    char  *file_buffer   = NULL;   // will allocate per file
-    size_t buffer_size   = 0;      // current malloc’d size
+    // char  *file_buffer   = NULL;   // will allocate per file
+    // size_t buffer_size   = 0;      // current malloc’d size
     struct dirent *entry;
 
     // Loop through each file in the directory.
@@ -188,25 +188,25 @@ void upload_all_sd_files() {
         }
         size_t file_size = st.st_size;
 
-        /* -------- ensure buffer is big enough -------- */
-        if (file_size > buffer_size) {             // need a larger block
-            char *new_buf = realloc(file_buffer, file_size);
-            if (!new_buf) {
-                ESP_LOGE(TAG, "malloc %zu B failed; skipping %s",
-                         file_size, entry->d_name);
-                continue;
-            }
-            file_buffer  = new_buf;
-            buffer_size  = file_size;
-        }
+        // /* -------- ensure buffer is big enough -------- */
+        // if (file_size > buffer_size) {             // need a larger block
+        //     char *new_buf = realloc(file_buffer, file_size);
+        //     if (!new_buf) {
+        //         ESP_LOGE(TAG, "malloc %zu B failed; skipping %s",
+        //                  file_size, entry->d_name);
+        //         continue;
+        //     }
+        //     file_buffer  = new_buf;
+        //     buffer_size  = file_size;
+        // }
 
 
-        // Read file data into the buffer.
-        esp_err_t read_err = read_data(filepath, file_buffer, buffer_size, &file_size);
-        if (read_err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to read file: %s", filepath);
-            continue;
-        }
+        // // Read file data into the buffer.
+        // esp_err_t read_err = read_data(filepath, file_buffer, buffer_size, &file_size);
+        // if (read_err != ESP_OK) {
+        //     ESP_LOGE(TAG, "Failed to read file: %s", filepath);
+        //     continue;
+        // }
 
 
         const char *folder = NULL;
@@ -223,18 +223,20 @@ void upload_all_sd_files() {
             continue; 
         }
 
-        // Build the upload URL.
+        /* ------- presigned URL -------------------- */
         char presigned_url[512];
         snprintf(presigned_url, sizeof(presigned_url),
                  "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/%s/%s/%s",
                  robot_id,
                  folder,
                  entry->d_name);
-        ESP_LOGI(TAG, "Upload URL: %s", presigned_url);
+
         ESP_LOGI(TAG, "Largest free block: %u", heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
 
-        // Attempt the upload via HTTPS POST/PUT.
-        esp_err_t upload_err = https_put(presigned_url, file_buffer, file_size);
+        // Attempt the upload via HTTPS PUT.
+        esp_err_t upload_err = https_put_stream(presigned_url, filepath, file_size);
+        //esp_err_t upload_err = https_put(presigned_url, file_buffer, file_size);
+
         if (upload_err == ESP_OK) {
             ESP_LOGI(TAG, "Successfully uploaded file: %s", filepath);
             remove(filepath);  // Delete the file upon successful upload.
@@ -244,7 +246,7 @@ void upload_all_sd_files() {
     }
 
     // Cleanup.
-    free(file_buffer);
+    //free(file_buffer);
     closedir(dir);
 }
 

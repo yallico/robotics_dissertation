@@ -21,7 +21,8 @@ typedef struct {
     int len;         // Length of data
 } http_response_t;
 
-esp_err_t https_put(const char *url, const char *data, size_t data_len);
+// esp_err_t https_put(const char *url, const char *data, size_t data_len);
+esp_err_t https_put_stream(const char *url, const char *path, size_t fsize);
 esp_err_t https_get(const char *url, http_response_t *response, const uint8_t *cert);
 esp_err_t test_https_cert_connection();
 

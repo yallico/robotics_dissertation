@@ -35,6 +35,7 @@
 
 //Logging
 uint32_t log_counter = 0;  //auto generated id
+TaskHandle_t write_task_handle = NULL; // Task handle for writing logs
 QueueHandle_t LogQueue = NULL; // Queue for logging
 QueueHandle_t LogBodyQueue = NULL; // Queue for logging
 QueueHandle_t ga_buffer_queue = NULL; // Queue for incoming messages
@@ -65,6 +66,7 @@ EventGroupHandle_t ota_event_group; // declare the event group
 EventGroupHandle_t ga_event_group; 
 
 //GUI
+TaskHandle_t i2c_lvgl_task_handle = NULL; 
 TaskHandle_t gui_task_handle = NULL;
 
 //Data Structures
@@ -131,7 +133,7 @@ void app_main() {
     lv_init();
 	lvgl_driver_init();
     gui_manager_init();
-    xTaskCreatePinnedToCore(gui_task, "gui_task", 10240, NULL, 0, &gui_task_handle, 1); //pin to core 1
+    xTaskCreatePinnedToCore(gui_task, "gui_task", 9216, NULL, 0, &gui_task_handle, 1); //pin to core 1
 
     //Initialize the SD card
     esp_err_t sd_ret = init_sd_card(mount_point);
@@ -149,7 +151,7 @@ void app_main() {
     vTaskDelay(pdMS_TO_TICKS(100));
     i2c_get_status();
     vTaskDelay(pdMS_TO_TICKS(100));
-    xTaskCreate(i2c_lvgl_task, "I2C Sensor Task", 4096, NULL, 5, NULL);
+    xTaskCreate(i2c_lvgl_task, "I2C Sensor Task", 4096, NULL, 5, &i2c_lvgl_task_handle);
     i2c_pololu_command("S"); //start the Pololu's brownian motion
 
     //Initialize WIFI
@@ -178,7 +180,7 @@ void app_main() {
     logSet = xQueueCreateSet(LOG_Q_LEN + LOG_BODY_Q_LEN);
     xQueueAddToSet(LogQueue,     logSet);
     xQueueAddToSet(LogBodyQueue, logSet);
-    xTaskCreate(write_task, "Write Task", 4096, NULL, 1, NULL);
+    xTaskCreate(write_task, "Write Task", 4096, NULL, 1, &write_task_handle);
     ESP_LOGI(TAG, "Logging Queue Initialized");
 
     // Wait for connection to establish before starting OTA
@@ -283,19 +285,33 @@ void app_main() {
         free_heap_size = esp_get_free_heap_size();
         ESP_LOGI(TAG, "Current free heap size: %u bytes", free_heap_size);
 
+        // Delete the tasks and clean up
+        if (write_task_handle != NULL) {
+            vTaskDelete(write_task_handle);
+            write_task_handle = NULL;
+        }
+        if (i2c_lvgl_task_handle != NULL) {
+            vTaskDelete(i2c_lvgl_task_handle);
+            i2c_lvgl_task_handle = NULL;
+        }
+        // Clean up the logging queues and set
+        if (LogQueue != NULL) {
+            vQueueDelete(LogQueue);
+            LogQueue = NULL;
+        }
+        if (LogBodyQueue != NULL) {
+            vQueueDelete(LogBodyQueue);
+            LogBodyQueue = NULL;
+        }
+        if (logSet != NULL) {
+            vQueueDelete(logSet);
+            logSet = NULL;
+        }
+
         print_task_list();
 
         if (!is_wifi_connected()) {
             ESP_LOGE(TAG, "Wi-Fi disconnected, cannot upload files.");
-        }
-        //TODO: Document report with data processing architecture.
-        ESP_LOGI(TAG, "Running HTTPS Unit Test...");
-        esp_err_t https_test = test_https_cert_connection();
-        ESP_LOGI(TAG, "Unit Test Completed, result: %s", esp_err_to_name(https_test));
-        if (https_test == ESP_OK) {
-            ESP_LOGI(TAG, "SSL handshake and certificate validation successful.");
-        } else {
-            ESP_LOGE(TAG, "SSL handshake failed! check certificates.");
         }
 
         //Check Heap

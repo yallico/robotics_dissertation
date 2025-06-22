@@ -5,6 +5,7 @@
 
 static const char *TAG = "HTTPS_COMPONENT";
 #define TEST_URL "https://robotics-dissertation.s3.eu-north-1.amazonaws.com/"
+#define CHUNK  4096
 
 // HTTP event handler
 static esp_err_t http_handler_metadata(esp_http_client_event_t *evt) {
@@ -79,55 +80,123 @@ esp_err_t https_get(const char *url, http_response_t *response, const uint8_t *c
     return err;
 }
 
-esp_err_t https_put(const char *url, const char *data, size_t data_len) {
-    esp_http_client_config_t config = {
-        .url = url,
-        .cert_pem = (char *)server_cert_pem_start,
-        .timeout_ms = 9000,
-        .event_handler = http_handler_metadata,
+// esp_err_t https_put(const char *url, const char *data, size_t data_len) {
+//     esp_http_client_config_t config = {
+//         .url = url,
+//         .cert_pem = (char *)server_cert_pem_start,
+//         .timeout_ms = 9000,
+//         .event_handler = http_handler_metadata,
+//     };
+
+//     //ESP_LOGI(TAG, "Using cert_pem at address: %p", server_cert_pem_start);
+//     ESP_LOGI(TAG, "Uploading %d bytes", (int)data_len);
+
+//     esp_http_client_handle_t client = esp_http_client_init(&config);
+//     esp_http_client_set_url(client, url);
+//     esp_http_client_set_method(client, HTTP_METHOD_PUT);
+//     esp_http_client_set_header(client, "Content-Type", "application/json");
+
+//     if (esp_http_client_open(client, data_len) != ESP_OK) {
+//         ESP_LOGE(TAG, "open() failed");
+//         esp_http_client_cleanup(client);
+//         vTaskDelay(20 / portTICK_PERIOD_MS);
+//         return ESP_FAIL;
+//     }
+
+//     // Write data in a loop to handle partial writes
+//     size_t total_written = 0;
+//     int written = 0; 
+
+//     while (total_written < data_len) {
+//         written = esp_http_client_write(client, data + total_written, data_len - total_written);
+//         if (written < 0) {
+//             ESP_LOGE(TAG, "HTTP write failed: %d", written);
+//             break;
+//         }
+//         total_written += written;
+//     }
+
+//     esp_err_t err = esp_http_client_perform(client);
+//     if (err == ESP_OK) {
+//         ESP_LOGI(TAG, "HTTPS PUT Status = %d, content_length = %lld",
+//                  esp_http_client_get_status_code(client),
+//                  esp_http_client_get_content_length(client));
+//     } else {
+//         ESP_LOGE(TAG, "HTTPS PUT request failed: %s", esp_err_to_name(err));
+//     }
+
+//     esp_http_client_cleanup(client);
+//     vTaskDelay(20 / portTICK_PERIOD_MS);
+//     return err;
+// }
+
+esp_err_t https_put_stream(const char *url, const char *path, size_t fsize)
+{
+    esp_http_client_config_t cfg = {
+        .url          = url,
+        .method       = HTTP_METHOD_PUT,
+        .cert_pem     = (char *)server_cert_pem_start,
+        .timeout_ms   = 20000,
     };
+    esp_http_client_handle_t cli = esp_http_client_init(&cfg);
+    if (!cli) return ESP_FAIL;
 
-    //ESP_LOGI(TAG, "Using cert_pem at address: %p", server_cert_pem_start);
-    ESP_LOGI(TAG, "Uploading %d bytes", (int)data_len);
+    ESP_ERROR_CHECK( esp_http_client_set_header(cli,
+                          "Content-Type", "application/json") );
 
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_url(client, url);
-    esp_http_client_set_method(client, HTTP_METHOD_PUT);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-
-    if (esp_http_client_open(client, data_len) != ESP_OK) {
-        ESP_LOGE(TAG, "open() failed");
-        esp_http_client_cleanup(client);
-        vTaskDelay(20 / portTICK_PERIOD_MS);
-        return ESP_FAIL;
+    /* Open the connection and tell S3 how many bytes will follow */
+    esp_err_t open_err = esp_http_client_open(cli, fsize);
+    if (open_err != ESP_OK) {
+        ESP_LOGE(TAG, "PUT stream failed: %s", esp_err_to_name(open_err));
+        esp_http_client_cleanup(cli);
+        return open_err;
     }
 
-    // Write data in a loop to handle partial writes
-    size_t total_written = 0;
-    int written = 0; 
+    FILE *fp = fopen(path, "rb");
+    if (!fp) { esp_http_client_cleanup(cli); return ESP_FAIL; }
 
-    while (total_written < data_len) {
-        written = esp_http_client_write(client, data + total_written, data_len - total_written);
-        if (written < 0) {
-            ESP_LOGE(TAG, "HTTP write failed: %d", written);
-            break;
+    static uint8_t buf[CHUNK];
+    size_t nread;
+
+    while ((nread = fread(buf, 1, CHUNK, fp)) > 0) {
+
+        size_t sent = 0;
+        while (sent < nread) {          // ← keep writing until this chunk is gone
+            int wr = esp_http_client_write(cli,
+                                           (char *)buf + sent,
+                                           nread - sent);
+            if (wr < 0) {               // fatal TLS error
+                ESP_LOGE(TAG, "TLS write failed (%d)", wr);
+                fclose(fp);
+                esp_http_client_cleanup(cli);
+                return ESP_FAIL;
+            }
+            if (wr == 0) {              // nothing accepted ⇒ timeout
+                ESP_LOGE(TAG, "TLS write timeout");
+                fclose(fp);
+                esp_http_client_cleanup(cli);
+                return ESP_FAIL;
+            }
+            sent += wr;                 // advance pointer
+            
+            // ESP_LOGD(TAG, "wrote %d / %d B", wr, nread);
         }
-        total_written += written;
     }
 
-    esp_err_t err = esp_http_client_perform(client);
+    fclose(fp);
+
+    /* Complete the request and fetch the response */
+    esp_err_t err = esp_http_client_perform(cli);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "HTTPS PUT Status = %d, content_length = %lld",
-                 esp_http_client_get_status_code(client),
-                 esp_http_client_get_content_length(client));
+        ESP_LOGI(TAG, "PUT %s → %d",
+                 url, esp_http_client_get_status_code(cli));
     } else {
-        ESP_LOGE(TAG, "HTTPS PUT request failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "HTTPS PUT failed: %s", esp_err_to_name(err));
     }
-
-    esp_http_client_cleanup(client);
-    vTaskDelay(20 / portTICK_PERIOD_MS);
+    esp_http_client_cleanup(cli);
     return err;
 }
+
 
 esp_err_t test_https_cert_connection() {
     ESP_LOGI(TAG, "Testing HTTPS connection to %s", TEST_URL);
