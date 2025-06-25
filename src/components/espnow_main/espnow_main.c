@@ -517,11 +517,11 @@ void espnow_task(void *pvParameter)
     for (;;) {
 
         //ESPNOW_COMPLETED_BIT signals time to stop
-        EventBits_t bits = xEventGroupGetBits(s_espnow_event_group);
-        if (bits & ESPNOW_COMPLETED_BIT) {
-            ESP_LOGI(TAG, "Shutting down ESPNOW...");
-            break;
-        }
+        // EventBits_t bits = xEventGroupGetBits(s_espnow_event_group);
+        // if (bits & ESPNOW_COMPLETED_BIT) {
+        //     ESP_LOGI(TAG, "Shutting down ESPNOW...");
+        //     break;
+        // }
 
         // Block until we receive something from the queue
         if (xQueueReceive(s_example_espnow_queue, &evt, portMAX_DELAY) != pdTRUE) {
@@ -530,7 +530,30 @@ void espnow_task(void *pvParameter)
         // By default the first message that arrives will be processed.
         switch (evt.id) {
             case EXAMPLE_ESPNOW_STOP:
-            {
+            {   
+                ga_ended = true;
+                
+                    /* ---- wait for GA_COMPLETED_BIT, discarding ESPNOW events -------- */
+                    for (;;) {
+                        /* 1.  Is GA finished yet? */
+                        if (xEventGroupGetBits(ga_event_group) & GA_COMPLETED_BIT) {
+                            break;                             /* done waiting */
+                        }
+                        /* 2.  Drain anything that may have been queued */
+                        while (xQueueReceive(s_example_espnow_queue, &evt, 0) == pdTRUE) {
+                            /* Free dynamically-allocated buffers to avoid leaks */
+                            if (evt.id == EXAMPLE_ESPNOW_RECV_CB &&
+                                evt.info.recv_cb.data) {
+                                free(evt.info.recv_cb.data);
+                            }
+                        }
+                        /* 3.  Sleep a little so we don't burn the CPU */
+                        vTaskDelay(pdMS_TO_TICKS(50));
+                    }
+
+                xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
+                ESP_LOGI(TAG, "Stopping ESPNOW task");
+                vTaskDelete(NULL);
                 break;
             }
             case EXAMPLE_ESPNOW_RECV_CB:
@@ -662,18 +685,10 @@ void espnow_task(void *pvParameter)
                 ESP_LOGE(TAG, "Callback type error: %d", evt.id);
                 break;
         }
+
     }
 
-    //free up resources before closing
-    if (s_example_espnow_queue) {
-        vQueueDelete(s_example_espnow_queue);
-        s_example_espnow_queue = NULL;
-    }
-
-    //end co-current ga task
-    ga_ended = true;
-    s_espnow_task_handle = NULL; 
-    vTaskDelete(NULL);
+    //vTaskDelete(NULL);
 }
 
 esp_err_t espnow_init(void)
@@ -753,6 +768,11 @@ void espnow_deinit_all(void)
 {
     ESP_LOGI(TAG, "De-initializing ESPNOW and stopping throughput timer");
 
+    if (!s_example_espnow_queue && !s_espnow_event_group && !s_throughput_timer) {
+        ESP_LOGW(TAG, "espnow_deinit_all() called twice; ignoring");
+        return;
+    }
+
     // Stop and delete the throughput timer if it exists
     if (s_throughput_timer) {
         esp_timer_stop(s_throughput_timer);
@@ -761,10 +781,23 @@ void espnow_deinit_all(void)
     }
 
     // Deinitialize ESPNOW
-    esp_now_deinit();
+    esp_err_t err = esp_now_deinit();
+    if (err != ESP_OK && err != ESP_ERR_ESPNOW_NOT_INIT) {
+        ESP_LOGW(TAG, "esp_now_deinit failed: %s", esp_err_to_name(err));
+    }
 
     // Delete the ESPNOW queue if exists
     if (s_example_espnow_queue) {
+        /* 1.  Drain anything a late ISR / task might still push */
+        example_espnow_event_t dummy;
+        while (xQueueReceive(s_example_espnow_queue, &dummy, 0) == pdTRUE) {
+            /* If the event contains a malloc-ed buffer, free it here */
+            if (dummy.id == EXAMPLE_ESPNOW_RECV_CB &&
+                dummy.info.recv_cb.data) {
+                free(dummy.info.recv_cb.data);
+            }
+        }
+        /* 2.  Now it is safe to delete the queue handle */
         vQueueDelete(s_example_espnow_queue);
         s_example_espnow_queue = NULL;
     }

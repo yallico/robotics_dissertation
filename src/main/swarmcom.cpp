@@ -249,14 +249,17 @@ void app_main() {
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
         vTaskDelay(pdMS_TO_TICKS(120000));
-        xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);
-        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
         example_espnow_event_t stop_evt = {};
         stop_evt.id = EXAMPLE_ESPNOW_STOP;
         xQueueSend(s_example_espnow_queue, &stop_evt, portMAX_DELAY);
-        while(!(xEventGroupGetBits(ga_event_group) & GA_COMPLETED_BIT)){
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
+        xEventGroupWaitBits(
+            s_espnow_event_group,
+            ESPNOW_COMPLETED_BIT,  /* bits to wait for            */
+            pdTRUE,                /* clear the bit on exit       */
+            pdTRUE,                /* wait for *all* bits (just 1)*/
+            portMAX_DELAY); 
+        vTaskDelay(pdMS_TO_TICKS(200));
+
         espnow_deinit_all();
 
         experiment_ended = true;
@@ -343,15 +346,18 @@ void app_main() {
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
-        vTaskDelay(pdMS_TO_TICKS(120000));
-        xEventGroupSetBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT);       
-        xEventGroupWaitBits(s_espnow_event_group, ESPNOW_COMPLETED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+        vTaskDelay(pdMS_TO_TICKS(5000));
         example_espnow_event_t stop_evt = {};
         stop_evt.id = EXAMPLE_ESPNOW_STOP;
         xQueueSend(s_example_espnow_queue, &stop_evt, portMAX_DELAY);
-        while(!(xEventGroupGetBits(ga_event_group) & GA_COMPLETED_BIT)){
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
+        xEventGroupWaitBits(
+            s_espnow_event_group,
+            ESPNOW_COMPLETED_BIT,  /* bits to wait for            */
+            pdTRUE,                /* clear the bit on exit       */
+            pdTRUE,                /* wait for *all* bits (just 1)*/
+            portMAX_DELAY);      
+        vTaskDelay(pdMS_TO_TICKS(200)); 
+
         espnow_deinit_all();
         
         //skip upload_all_sd_files since no WiFi
@@ -359,6 +365,8 @@ void app_main() {
         RTC_GetTime(&global_time);
         experiment_end = convert_to_time_t(&global_date, &global_time);
         ESP_LOGI(TAG, "Offline experiment has finished");
+
+        print_task_list();
     
         }
         
