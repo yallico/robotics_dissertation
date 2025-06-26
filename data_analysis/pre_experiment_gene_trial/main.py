@@ -59,7 +59,7 @@ def process_athena_output(input_file, log_file, output_file):
 
 # Example usage
 script_dir = os.path.dirname(__file__)
-input_file = os.path.join(script_dir, "temp/metadata.csv")
-log_file = os.path.join(script_dir, "temp/logs.csv")
-output_file = os.path.join(script_dir, "temp/results/filtered_output.csv")  # Replace with desired output file path
+input_file = os.path.join(script_dir, "../temp/one_device_results/metadata.csv")
+log_file = os.path.join(script_dir, "../temp/one_device_results/logs.csv")
+output_file = os.path.join(script_dir, "../temp/one_device_results/filtered_output.csv")  
 process_athena_output(input_file, log_file, output_file)
