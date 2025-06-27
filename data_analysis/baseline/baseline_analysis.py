@@ -292,7 +292,7 @@ rssi_long['second_bucket'] = (rssi_long['second_offset'] // 2) * 2
 rssi_agg = rssi_long.groupby(['device_mac_id', 'second_bucket'])['rssi'].agg(['mean', 'std']).reset_index()
 mean_rssi = rssi_agg['mean'].mean()
 
-fig, axes = plt.subplots(2, 3, figsize=(24, 12))
+fig, axes = plt.subplots(2, 3, figsize=(20, 10))
 
 # (a) Exchanged Messages (boxplot)
 sns.boxplot(
@@ -411,7 +411,7 @@ axes[1, 2].spines['right'].set_visible(False)
 plt.tight_layout(rect=[0, 0.05, 1, 1])
 plt.subplots_adjust(hspace=0.3, wspace= 0.2, left=0.05, top =0.93)
 plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/base_comm_stats.pdf', bbox_inches='tight')
-plt.show()
+#plt.show()
 
 ############### Calculate and print jitter, bandwidth and QoS #################
 
@@ -442,7 +442,7 @@ throughput_norm = mean_throughput / max_bandwidth if max_bandwidth > 0 else 0
 qos = w1 * (1 - mean_error_rate) + w2 * (1 - jitter_norm) + w3 * throughput_norm
 print(f"QoS (0-1): {qos:.3f}")
 
-####### Fitness Metrics ########
+####### Fitness & System Metrics ########
 
 # Filter messages for complete experiments
 messages_complete = messages_df[messages_df['experiment_id'].isin(complete_experiments)].copy()
@@ -464,7 +464,17 @@ final_fitness = (
     .tail(1)
 )
 
-fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+# (c) CPU Utilisation Plot Data Preparation
+cpu_logs = logs_complete[logs_complete['cpu_util_core0'].notnull() & logs_complete['cpu_util_core1'].notnull()].copy()
+cpu_logs['second'] = cpu_logs['log_datetime'].dt.floor('s')
+cpu_logs['exp_start'] = cpu_logs.groupby('experiment_id')['second'].transform('min')
+cpu_logs['second_offset'] = (cpu_logs['second'] - cpu_logs['exp_start']).dt.total_seconds().astype(int)
+
+cpu_agg = cpu_logs.groupby('second_offset')[['cpu_util_core0', 'cpu_util_core1']].agg(['mean', 'std']).reset_index()
+cpu_agg.columns = ['second_offset', 'core0_mean', 'core1_mean', 'core0_std', 'core1_std']
+
+
+fig, axes = plt.subplots(1, 3, figsize=(12, 3))
 
 # (a) Mean fitness score over time by device
 for dev_id in fitness_agg['device_mac_id'].unique():
@@ -493,10 +503,36 @@ axes[1].set_ylabel('Density')
 axes[1].spines['top'].set_visible(False)
 axes[1].spines['right'].set_visible(False)
 
+# (c) CPU Utilisation %
+core0_color = '#FFC300'  # yellow
+core1_color = '#FF5733'  # orange
+axes[2].plot(cpu_agg['second_offset'], cpu_agg['core0_mean'], color=core0_color, label='CPU 0', linewidth=1)
+# axes[2].fill_between(
+#     cpu_agg['second_offset'],
+#     np.maximum(cpu_agg['core0_mean'] - cpu_agg['core0_std'], 0),
+#     cpu_agg['core0_mean'] + cpu_agg['core0_std'],
+#     color=core0_color, alpha=0.15
+# )
+axes[2].plot(cpu_agg['second_offset'], cpu_agg['core1_mean'], color=core1_color, label='CPU 1', linewidth=1)
+# axes[2].fill_between(
+#     cpu_agg['second_offset'],
+#     np.maximum(cpu_agg['core1_mean'] - cpu_agg['core1_std'], 0),
+#     cpu_agg['core1_mean'] + cpu_agg['core1_std'],
+#     color=core1_color, alpha=0.15
+# )
+axes[2].set_title('(c)', fontweight='bold')
+axes[2].set_xlabel('Time (s)')
+axes[2].set_ylabel('CPU Utilisation (%)')
+#axes[2].set_ylim(0, 120)
+axes[2].legend(loc='upper right', frameon=False)
+axes[2].spines['top'].set_visible(False)
+axes[2].spines['right'].set_visible(False)
+
+
 plt.tight_layout()
 plt.subplots_adjust(wspace=0.25, left=0.08, top=0.92)
 plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/base_fitness_stats.pdf', bbox_inches='tight')
-plt.show()
+#plt.show()
 
 
 print("done")

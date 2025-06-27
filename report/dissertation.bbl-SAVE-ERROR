@@ -1,0 +1,91 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global}
+    \entry{esp-boards_esp-idf_nodate}{online}{}
+      \name{author}{1}{}{%
+        {{hash=4b5c1e55d99e16e07e06e28551fa8cb0}{%
+           family={{ESP}-{BOARDS}},
+           familyi={E\bibinitperiod}}}%
+      }
+      \strng{namehash}{4b5c1e55d99e16e07e06e28551fa8cb0}
+      \strng{fullhash}{4b5c1e55d99e16e07e06e28551fa8cb0}
+      \strng{bibnamehash}{4b5c1e55d99e16e07e06e28551fa8cb0}
+      \strng{authorbibnamehash}{4b5c1e55d99e16e07e06e28551fa8cb0}
+      \strng{authornamehash}{4b5c1e55d99e16e07e06e28551fa8cb0}
+      \strng{authorfullhash}{4b5c1e55d99e16e07e06e28551fa8cb0}
+      \field{sortinit}{E}
+      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{{ESP}-{IDF} ({ESP} {IoT} Development Framework) versus {ESP} Arduino core. Understand the difference and choose the development tools that suits your project best}
+      \field{langid}{english}
+      \field{title}{{ESP}-{IDF} ({IoT} Development Framework) vs Arduino Core in 2023}
+      \field{urlday}{3}
+      \field{urlmonth}{6}
+      \field{urlyear}{2024}
+      \field{urldateera}{ce}
+      \verb{file}
+      \verb Snapshot:/home/yallicol/Zotero/storage/JVM2MGC7/esp-idf-vs-arduino-core.html:text/html
+      \endverb
+      \verb{urlraw}
+      \verb https://www.espboards.dev/blog/esp-idf-vs-arduino-core/
+      \endverb
+      \verb{url}
+      \verb https://www.espboards.dev/blog/esp-idf-vs-arduino-core/
+      \endverb
+    \endentry
+    \entry{expressif_freertos_nodate}{online}{}
+      \name{author}{1}{}{%
+        {{hash=0af563cdee8ab569b7d6385d9fdc1dc6}{%
+           family={Expressif},
+           familyi={E\bibinitperiod},
+           given={Expressif},
+           giveni={E\bibinitperiod}}}%
+      }
+      \strng{namehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
+      \strng{fullhash}{0af563cdee8ab569b7d6385d9fdc1dc6}
+      \strng{bibnamehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
+      \strng{authorbibnamehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
+      \strng{authornamehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
+      \strng{authorfullhash}{0af563cdee8ab569b7d6385d9fdc1dc6}
+      \field{sortinit}{E}
+      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{{FreeRTOS} Overview - {ESP}32 - — {ESP}-{IDF} Programming Guide latest documentation}
+      \field{urlday}{4}
+      \field{urlmonth}{3}
+      \field{urlyear}{2024}
+      \field{urldateera}{ce}
+      \verb{file}
+      \verb FreeRTOS Overview - ESP32 - — ESP-IDF Programming Guide latest documentation:/home/yallicol/Zotero/storage/CJLPSGVQ/freertos.html:text/html
+      \endverb
+      \verb{urlraw}
+      \verb https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos.html
+      \endverb
+      \verb{url}
+      \verb https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos.html
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

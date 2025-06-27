@@ -1,4 +1,4 @@
-\documentclass{report}
+\documentclass[conference]{IEEEtran}
 % Packages
 \usepackage{titlesec}
 \usepackage{graphicx}
@@ -7,6 +7,7 @@
 \addbibresource{Communication.bib} % Add the .bib file
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{booktabs}
 
 % Title page
 \title{Dissertation Title}
@@ -151,18 +152,83 @@ Data logs are saved in the root directory of the SD card in a \.json format. Our
 \newpage
 \section{Preliminary Sensitivity Analysis}
 
-\begin{figure}[h]
+\begin{figure*}[h]
     \centering
     \includegraphics[width=1\textwidth]{ga_prelim_analysis.pdf}
     \caption{a: Number of iterations for algorithm to converge to either a global or local minimum. b: Fitness distribution by population size and genes.}
     \label{fig:ga_prelim_analysis}
-\end{figure}
+\end{figure*}
 
-Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes and gene dimensions. A total of \textbf{136 experiments} were performed, each terminating if fitness failed to improve beyond a \textbf{0.001 threshold} over \textbf{20 consecutive epochs} (patience). %TODO: Include reference for the patience parameter
-Only iterations exceeding this improvement threshold were logged. If the global optimum (fitness=0) was not reached, the run was considered converged to a local minimum. Across all runs, convergence times ranged \textbf{from 0 to 3 seconds}, reflecting the early stopping triggered by the patience setting. As shown in Figure~\ref{fig:ga_prelim_analysis}, larger populations and higher iteration counts generally yielded lower final fitness, consistent with the genetic algorithm’s search properties.\\
+Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). A total of \textbf{136 experiments} were performed, each terminating if fitness failed to improve beyond a \textbf{0.001 threshold} over \textbf{20 consecutive epochs} (patience). %TODO: Include reference for the patience parameter
+If the global optimum (fitness=0) was not reached, the run was considered to have converged into a local minimum. Across all runs, the time taken to converge ranged \textbf{between 0 to 3 seconds}, reflecting the early stopping triggered by the patience setting. As shown in Figure~\ref{fig:ga_prelim_analysis}, larger populations and higher iteration counts generally yielded lower final fitness, consistent with the genetic algorithm’s search properties.\\
 
-A practical takeaway from the data is that using five genes is sufficiently challenging to extend the runtime into the range of minutes rather than seconds, even though a single robot with fewer genes can solve the function in only a couple of seconds. This configuration will ensure that experiments in a swarm environment will involve cooperation, where the exchange of best solutions between members could permit convergence for a five-dimensional Rastrigin function.
+A practical takeaway from the data is that using five genes is sufficiently challenging to extend the runtime into the range of minutes rather than seconds, even though a single robot with fewer genes can solve the function in only a couple of seconds. This configuration will ensure that experiments in a swarm environment will involve cooperation, where the exchange of best solutions between members could enable global convergence for a five-dimensional Rastrigin function.
 
+\newpage
+\section{Base Line Results}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=1\textwidth]{base_fitness_stats.pdf}
+  \caption{a: Mean population fitness score for each agent over time,  b: Final fitness score density distribution, c: Mean CPU utilisation over time.}
+  \label{fig:base_fitness_stats}
+\end{figure*}
+
+Figure \ref{fig:base_fitness_stats} shows the fitness scores and system metrics for a deployment of two agents. A total of 34 experimens were conducted, out of which 6 experiments had to be excluded from the analysis as the data did not reach the S3 for at least one of the devices, mainly due to a bug in the code that was caused by the messages arriving late and the system not being able to handle these in the de-initiasation sequence. This bug bug was addressed since version 0.4 of the project, which allows the \texttt{espnow\_task} to drain the queue for any late messages coming in.\\
+
+\begin{table}[h]
+  \centering
+  \caption{Baseline Configuration Parameters}
+  \label{tab:base_config}
+  \begin{tabular}{l@{~=~}l}
+    app\_ver & 0.3\\
+    data\_link & ESPNOW\\
+    routing & unicast\\
+    population\_size & 30\\
+    max\_genes & 5\\
+    patience & 30\\
+    migration\_type & asynchronous\\
+    migration\_scheme & elitist\\
+    migration\_rate & 1\\
+    migration\_frequency & patience based\\
+    hyper\_mutation & true\\
+    mass\_extinction & true\\
+    robot\_speed & 0\\
+    topology & fully connected\\
+    experiment\_time & 120 s\\
+  \end{tabular}
+\end{table}
+
+Using the baseline parameters shown in Table \ref{tab:base_config}, we can see that none of the experiments was able to reach the global minimun of 0.0 in terms of the fitness score. The mean final fitness score achieved was X.X indicating that a local minimum is reached, whereas the rate of the converge takes place within the first 10 seconds of the experiment and stagnates thereafter. This behaviour is aligns with a large CPU utilisation in both cores at the start of the experiment, from observations this can be attributed to the first local GA running in each agent which then stagnates after exchanging a few messages with the other peer. Taking this into consideration, for experiments from version 0.4 onwards the population size is doubled to 60 to ensure diversity in the gene pool, with the trade off of slower convergence.\\
+
+\begin{figure*}[b]
+  \centering
+  \includegraphics[width=1\textwidth]{base_comm_stats.pdf}
+  \caption{a: Message sent distribution by each device,  b: Mean latency by device over time, c: Latency distribution accross all experiments, d: Mean error rate from failed messages over time, e: Mean throughput In/Out over time, f: Mean RSSI by device over time.}
+  \label{fig:base_comm_stats}
+\end{figure*}
+
+Figure \ref{fig:base_comm_stats} shows the communication statistics for the same deployment of the two agents and the top level metrics are described in Table X. The mean latency was X.X ms, with a maximum latency of X.X ms. The latency statistics show that the ESPNOW protocol is able to handle the communication between the agents with low latency which is in line with other IoT applications REF. One artifact of the data worth noting is that high latencies were observed at the end of the experiments where the error rate was the highest, this is likely due to the longer delay in recieving an ACK from the other peer which has already de-initialised the ESPNOW task and is no longer able to respond to the messages. This would indicate that larger latencies are driven by failed messages pending an ACK. Note that in our base config we set the ESPNOW parameter \texttt{ESPNOW\_MAX\_RETRIES} to 0, which means that the messages are not retried if they fail to be sent. This is done to avoid having to handle pull type protocols which would involve having to handle requests and responses in a sequential manner.\\
+
+\begin{table}[h]
+  \centering
+  \caption{Baseline Network Performance Metrics}
+  \label{tab:baseline_network_metrics}
+  \begin{tabular}{ll}
+  \toprule
+  \textbf{Metric} & \textbf{Value} \\
+  \midrule
+  Network Jitter (ms)      & 8.80  \\
+  Max Bandwidth (kbps)     & 1.41  \\
+  Network Error Rate (\%)  & 0.01  \\
+  QoS (0--1)               & 0.7   \\
+  \bottomrule
+  \end{tabular}
+\end{table}
+
+The mean In/Out throughput achieved was X.X kbps and X.X respectively. It is worth noting that the higher In throughput suggests that there is an imbalance in the number of messages being exchanged, this can be confirmed by plot (a) in Figure \ref{fig:base_comm_stats} that shows one agent sending more messages than the other. This is likely due to the fact that the agents are not perfectly synchronised by the RTC, this means they finalise their first local GA at different times (also impacted by the random seed). This means that one agent is able to send its best solution before the other agent has a chance to send its own, this is an artifact of the current implementation and might have to be addressed in future work. Note that the expectation is that the network throughput will increase as the swarm increases in size, where the theoretical max throughput for ESPNOW is 214 kbps by device.\\ 
+
+The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
 
 
 
