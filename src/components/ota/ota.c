@@ -24,6 +24,8 @@
 
 #include "ota.h"
 
+static const char * OTA_URL = "https://s3.eu-north-1.amazonaws.com/robotics-dissertation/OTA/swarmcom.bin";
+
 // Define event bits
 #define OTA_READY_BIT BIT0
 #define OTA_COMPLETED_BIT BIT1
@@ -91,11 +93,12 @@ void simple_ota_example_task(void)
     ESP_LOGI(TAG, "Bind interface name is %s", ifr.ifr_name);
 #endif
     esp_http_client_config_t config = {
-        .url = CONFIG_EXAMPLE_FIRMWARE_UPGRADE_URL,
+        //.url = CONFIG_EXAMPLE_FIRMWARE_UPGRADE_URL,
+        .url = OTA_URL,
         .cert_pem = (char *)server_cert_pem_start,
-        .timeout_ms = 9000,
+        .timeout_ms = 10000,
         .event_handler = _http_event_handler,
-        .keep_alive_enable = true,
+        .keep_alive_enable = false,
 #ifdef CONFIG_EXAMPLE_FIRMWARE_UPGRADE_BIND_IF
         .if_name = &ifr,
 #endif

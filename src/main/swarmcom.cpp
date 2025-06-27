@@ -198,7 +198,10 @@ void app_main() {
         vTaskDelay(pdMS_TO_TICKS(1000));
 
         //OTA
-        ESP_LOGI(TAG, "Initializing OTA Update");
+        ESP_LOGI(TAG, "Free internal heap before OTA: %u   PSRAM heap: %u",
+            heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+            heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+        ESP_LOGI(TAG, "Initializing OTA Update"); 
         ota_event_group = xEventGroupCreate(); // Create the OTA event group
         // Check for new version
         if (ota_check_ver()) {
