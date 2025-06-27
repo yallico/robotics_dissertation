@@ -68,8 +68,14 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     char app_version_str[8];
     snprintf(app_version_str, sizeof(app_version_str), "%.2f", metadata->app_version);
     cJSON_AddStringToObject(root, "app_version", app_version_str);
-
-
+    cJSON_AddNumberToObject(root, "experiment_duration", metadata->experiment_duration);
+    cJSON_AddStringToObject(root, "migration_type", metadata->migration_type);
+    cJSON_AddStringToObject(root, "topology", metadata->topology);
+    cJSON_AddNumberToObject(root, "migration_rate", metadata->migration_rate);
+    cJSON_AddNumberToObject(root, "patience", metadata->patience);
+    cJSON_AddNumberToObject(root, "mass_extinction", metadata->mass_extinction);
+    cJSON_AddNumberToObject(root, "hypermutation_generations", metadata->s_hyper_mutation_generations);
+    
     char *json_data = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);  
 
@@ -86,12 +92,21 @@ char*  log_experiment_metadata(experiment_metadata_t *metadata) {
     metadata->routing = DEFAULT_ROUTING;
     metadata->msg_limit = DEFAULT_MSG_LIMIT;
     metadata->com_type = DEFAULT_COM_TYPE;
-    metadata->msg_size_bytes = DEFAULT_MSG_SIZE_BYTES;
+    metadata->msg_size_bytes = sizeof(out_message_t);
     metadata->robot_speed = DEFAULT_ROBOT_SPEED;
     metadata->pop_size = POP_SIZE;
     metadata->max_genes = MAX_GENES;
     metadata->experiment_start = experiment_start;
     metadata->experiment_end = experiment_end;
+    metadata->experiment_duration = DEFAULT_EXPERIMENT_DURATION;
+    metadata->migration_type = DEFAULT_MIGRATION_TYPE;
+    metadata->migration_scheme = DEFAULT_MIGRATION_SCHEME;
+    metadata->topology = DEFAULT_TOPOLOGY;
+    metadata->migration_rate = DEFAULT_MIGRATION_RATE;
+    metadata->migration_frequency = DEFAULT_MIGRATION_FREQUENCY;
+    metadata->patience = DEFAULT_PATIENCE;
+    metadata->mass_extinction = DEFAULT_MASS_EXTINCTION;
+    metadata->s_hyper_mutation_generations = DEFAULT_HYPERMUTATION_GENERATIONS;
     
     //app version
     const esp_app_desc_t *app_desc = esp_app_get_description();

@@ -26,7 +26,7 @@ uint16_t seed = 0; //0 error code
 unsigned long dt;
 //track hyper-mutation
 bool ga_has_run_before = false;
-static int s_hyper_mutation_generations = 0;
+int s_hyper_mutation_generations = DEFAULT_HYPERMUTATION_GENERATIONS;
 bool s_hyper_mutation_active = false;
 static float s_base_mutation_prob;
 uint32_t s_last_ga_time = 0;
@@ -69,14 +69,14 @@ float randFloat(float min, float max) {
 void activate_hyper_mutation(void) {
     
     s_hyper_mutation_active = true;
-    s_hyper_mutation_generations = 10;
+    //s_hyper_mutation_generations = 10;
     g_mutate_prob = 1.0f; //100% mutation rate
     //ESP_LOGI(TAG, "Hyper-mutation activated");
 
     //mass extinction: reinitialize half of the worst-performing population
-    int half_pop = POP_SIZE / 2;
+    //int half_pop = POP_SIZE / 2;
     float range = MAX_GENE_VALUE - MIN_GENE_VALUE;
-    for (int i = 0; i < half_pop; i++) {
+    for (int i = 0; i < DEFAULT_MASS_EXTINCTION; i++) {
         int worst_index = rank[i];
         for (int gene = 0; gene < MAX_GENES; gene++) {
             float randomVal = (float)esp_random() / (float)UINT32_MAX; 
@@ -464,7 +464,7 @@ void ga_task(void *pvParameters) {
     float last_best_fitness = -1.0;  // Init impossible fitness value
     float threshold = 0.01;  // Threshold for detecting significant changes in fitness
     int no_improvement_count = 0;
-    int patience = 30; // Stop if there are consecutive no-gain generations TODO: get reference
+    int patience = DEFAULT_PATIENCE; // Stop if there are consecutive no-gain generations TODO: get reference
     static bool start_logged = false;
 
     while (1) {
@@ -563,7 +563,7 @@ void ga_task(void *pvParameters) {
             //send the best solution via ESP‑NOW
             espnow_push_best_solution(
                 current_best_fitness,
-                population[rank[POP_SIZE - 1]],
+                population[rank[POP_SIZE - DEFAULT_MIGRATION_RATE]],
                 MAX_GENES,
                 log_counter,
                 now
