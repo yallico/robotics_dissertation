@@ -63,6 +63,7 @@ typedef struct {
     uint8_t mac_addr[ESP_NOW_ETH_ALEN];
     esp_now_send_status_t status;
     uint32_t start_time_ms;
+    uint32_t latency_ms;
 } example_espnow_event_send_cb_t;
 
 typedef struct {

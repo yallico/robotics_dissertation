@@ -230,6 +230,64 @@ The mean In/Out throughput achieved was X.X kbps and X.X respectively. It is wor
 
 The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
 
+\section{Topology Inference}
+
+Based on the baseline results, we propose to investigate the impact of different communication schemes on the emergent swarm topology by introducing two message sending strategies: \textbf{RANDOM} and \textbf{COMM\_AWARE}. These schemes are implemented in the communication layer and are designed to influence the order and priority with which each agent sends its best solution to its peers. The aim is to understand how these strategies affect the connectivity and robustness of the swarm network.\\
+
+The expectation is that both \textbf{RANDOM} and \textbf{COMM\_AWARE} will result in a fully connected network over time, as each agent attempts to send messages to all other agents. However, the \textbf{COMM\_AWARE} scheme is designed to preferentially strengthen links with agents that are either furthest away (as inferred by higher latency and lower RSSI) or have not yet established a reliable connection (null metrics). This should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position.\\
+
+\subsection{Methodology}
+
+The two communication schemes are implemented as follows:
+
+\begin{itemize}
+    \item \textbf{RANDOM}: Each agent shuffles the list of peer MAC addresses using a Fisher-Yates shuffle (with a random seed) before sending its message. This ensures that the order of communication is random for each broadcast cycle, preventing bottlenecks or biases.
+    \item \textbf{COMM\_AWARE}: Each agent ranks its peers based on the most recent measurements of communication quality, specifically the last known latency (measured via ACK round-trip time) and RSSI (received signal strength indicator). Peers with unknown metrics (null latency or RSSI) are prioritized first to ensure all links are measured. Among the rest, peers are scored by normalizing both latency and RSSI, and those with the worst (highest latency, lowest RSSI) are prioritized for message sending.
+\end{itemize}
+
+The following pseudocode outlines the logic for each scheme:
+
+\paragraph{RANDOM Communication Scheme}
+\begin{algorithm}[H]
+\caption{Randomized Peer Selection}
+\begin{algorithmic}[1]
+\State \textbf{Input:} List of peer MAC addresses
+\State Shuffle the list using Fisher-Yates and a random seed
+\For{each peer in shuffled list}
+    \If{peer is not self}
+        \State Send message to peer
+    \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{COMM\_AWARE Communication Scheme}
+\begin{algorithm}[H]
+\caption{Communication-Aware Peer Ranking}
+\begin{algorithmic}[1]
+\State \textbf{Input:} List of peer MAC addresses, last known RSSI and latency for each peer
+\For{each peer}
+    \If{RSSI or latency is null}
+        \State Assign highest priority
+    \Else
+        \State Normalize RSSI and latency across all peers
+        \State Compute score: $score = norm\_latency + norm\_rssi$
+    \EndIf
+\EndFor
+\State Sort peers: null metrics first, then by descending score (worst first)
+\For{each peer in sorted list}
+    \If{peer is not self}
+        \State Send message to peer
+    \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Applicability and Limitations}
+
+These communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. Furthermore, this approach is specifically designed for \textbf{UNICAST} communication, where messages are sent directly to individual peers and round-trip latency can be measured via ACKS. In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.
+
+
 
 
 

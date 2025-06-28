@@ -70,7 +70,7 @@ char* serialize_metadata_to_json(const experiment_metadata_t *metadata) {
     cJSON_AddStringToObject(root, "app_version", app_version_str);
     cJSON_AddNumberToObject(root, "experiment_duration", metadata->experiment_duration);
     cJSON_AddStringToObject(root, "migration_type", metadata->migration_type);
-    cJSON_AddStringToObject(root, "topology", metadata->topology);
+    cJSON_AddNumberToObject(root, "topology", metadata->topology);
     cJSON_AddNumberToObject(root, "migration_rate", metadata->migration_rate);
     cJSON_AddNumberToObject(root, "patience", metadata->patience);
     cJSON_AddNumberToObject(root, "mass_extinction", metadata->mass_extinction);

@@ -49,6 +49,7 @@ QueueHandle_t s_example_espnow_queue;
 
 static uint32_t s_peer_start_times[DEFAULT_NUM_ROBOTS] = {0};
 static int8_t s_last_rssi[DEFAULT_NUM_ROBOTS] = {0}; // Track per-robot RSSI
+static uint32_t s_last_latency[DEFAULT_NUM_ROBOTS] = {0}; // Track per-robot latency (ms)
 
 
 /* Throughput counting variables */
@@ -246,6 +247,10 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
     for(int i=0; i<DEFAULT_NUM_ROBOTS; i++){
         if(memcmp(mac_addresses[i], mac_addr, ESP_NOW_ETH_ALEN) == 0){
             send_cb->start_time_ms = s_peer_start_times[i];
+            uint32_t ack_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+            uint32_t latency_ms = ack_time_ms - send_cb->start_time_ms;
+            s_last_latency[i] = latency_ms; // Store last measured latency by mac
+            send_cb->latency_ms = latency_ms;
             break;
         }
     }
@@ -369,28 +374,93 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     int offset = 0;
     offset += snprintf(out_msg.message + offset, sizeof(out_msg.message) - offset, "%.3f|", current_best_fitness);
     for (size_t i = 0; i < gene_count && offset < (int)sizeof(out_msg.message); i++) {
-    offset += snprintf(out_msg.message + offset, sizeof(out_msg.message) - offset, "%.3f|", best_solution[i]);
+        offset += snprintf(out_msg.message + offset, sizeof(out_msg.message) - offset, "%.3f|", best_solution[i]);
     }
 
     //get own MAC
     uint8_t own_mac[ESP_NOW_ETH_ALEN];
     esp_wifi_get_mac(ESP_IF_WIFI_STA, own_mac);
 
+    // Prepare a local copy of mac_addresses for shuffling or ranking if needed
+    uint8_t macs[DEFAULT_NUM_ROBOTS][ESP_NOW_ETH_ALEN];
+    memcpy(macs, mac_addresses, sizeof(macs));
+
+    // COMM_AWARE mode: rank peers by latency/RSSI (worst first)
+    #if DEFAULT_TOPOLOGY == TOPOLOGY_COMM_AWARE // "COMM_AWARE"
+    typedef struct {
+        uint8_t mac[ESP_NOW_ETH_ALEN];
+        int8_t rssi;
+        uint32_t latency;
+        int null_metric; // 1 if rssi or latency is null
+        float score; // for sorting
+        int orig_idx;
+    } comm_peer_t;
+    comm_peer_t peers[DEFAULT_NUM_ROBOTS];
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+        memcpy(peers[i].mac, macs[i], ESP_NOW_ETH_ALEN);
+        peers[i].rssi = s_last_rssi[i];
+        peers[i].latency = s_last_latency[i]; // Use actual last measured latency
+        peers[i].orig_idx = i;
+        // Null if rssi is -128 (never received) or latency is 0 (never sent)
+        peers[i].null_metric = (peers[i].rssi == -128 || peers[i].latency == 0);
+    }
+    // Normalise and score: higher score = worse
+    int8_t min_rssi = 127, max_rssi = -128;
+    uint32_t min_lat = UINT32_MAX, max_lat = 0;
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+        if (!peers[i].null_metric) {
+            if (peers[i].rssi < min_rssi) min_rssi = peers[i].rssi;
+            if (peers[i].rssi > max_rssi) max_rssi = peers[i].rssi;
+            if (peers[i].latency < min_lat) min_lat = peers[i].latency;
+            if (peers[i].latency > max_lat) max_lat = peers[i].latency;
+        }
+    }
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+        if (peers[i].null_metric) {
+            peers[i].score = 1e6f; // Highest priority
+        } else {
+            float norm_rssi = (max_rssi != min_rssi) ? (float)(max_rssi - peers[i].rssi) / (max_rssi - min_rssi) : 0.0f;
+            float norm_lat = (max_lat != min_lat) ? (float)(peers[i].latency - min_lat) / (max_lat - min_lat) : 0.0f;
+            peers[i].score = norm_rssi + norm_lat; // Simple sum, can be weighted
+        }
+    }
+    // Sort: null_metric first, then by score descending (worst first)
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS - 1; i++) {
+        for (int j = i + 1; j < DEFAULT_NUM_ROBOTS; j++) {
+            if (peers[i].score < peers[j].score) {
+                comm_peer_t tmp = peers[i];
+                peers[i] = peers[j];
+                peers[j] = tmp;
+            }
+        }
+    }
+    // Overwrite macs with sorted order
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+        memcpy(macs[i], peers[i].mac, ESP_NOW_ETH_ALEN);
+    }
+    #elif DEFAULT_TOPOLOGY == TOPOLOGY_RANDOM // "RANDOM"
+    // Fisher-Yates shuffle using esp_random()
+    for (int i = DEFAULT_NUM_ROBOTS - 1; i > 0; i--) {
+        uint32_t r = esp_random() % (i + 1);
+        uint8_t tmp[ESP_NOW_ETH_ALEN];
+        memcpy(tmp, macs[i], ESP_NOW_ETH_ALEN);
+        memcpy(macs[i], macs[r], ESP_NOW_ETH_ALEN);
+        memcpy(macs[r], tmp, ESP_NOW_ETH_ALEN);
+    }
+    #endif
     //unicast message to each registered peer except self
     for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
-        if (memcmp(mac_addresses[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
-        continue; // skip sending to self
+        if (memcmp(macs[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
+            continue; // skip sending to self
         }
-
         uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
         s_peer_start_times[i] = current_time_ms;
-
-        esp_err_t err = esp_now_send(mac_addresses[i], (uint8_t *)&out_msg, sizeof(out_msg));
+        esp_err_t err = esp_now_send(macs[i], (uint8_t *)&out_msg, sizeof(out_msg));
         if (err != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
-        MAC2STR(mac_addresses[i]), esp_err_to_name(err));
+            ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
+                MAC2STR(macs[i]), esp_err_to_name(err));
         } else {
-        ESP_LOGI(TAG, "Sending best solution to " MACSTR, MAC2STR(mac_addresses[i]));
+            ESP_LOGI(TAG, "Sending best solution to " MACSTR, MAC2STR(macs[i]));
         }
     }
 }
@@ -516,13 +586,6 @@ void espnow_task(void *pvParameter)
 
     for (;;) {
 
-        //ESPNOW_COMPLETED_BIT signals time to stop
-        // EventBits_t bits = xEventGroupGetBits(s_espnow_event_group);
-        // if (bits & ESPNOW_COMPLETED_BIT) {
-        //     ESP_LOGI(TAG, "Shutting down ESPNOW...");
-        //     break;
-        // }
-
         // Block until we receive something from the queue
         if (xQueueReceive(s_example_espnow_queue, &evt, portMAX_DELAY) != pdTRUE) {
             continue;
@@ -641,8 +704,9 @@ void espnow_task(void *pvParameter)
             {
                 example_espnow_event_send_cb_t *send_cb = &evt.info.send_cb;
 
-                uint32_t ack_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
-                uint32_t latency_ms = ack_time_ms - send_cb->start_time_ms;
+                // uint32_t ack_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+                // uint32_t latency_ms = ack_time_ms - send_cb->start_time_ms;
+                uint32_t latency_ms = send_cb->latency_ms;
 
                 char short_id[5] = {0};  // 2 bytes in hex + 2 digits + null terminator
                 sprintf(short_id, "%02X%02X", send_cb->mac_addr[4], send_cb->mac_addr[5]);

@@ -34,7 +34,7 @@ typedef struct {
     int experiment_duration; // Duration in seconds
     char *migration_type;    // e.g., "ASYNC"
     char *migration_scheme;  // e.g. "ELITIST"
-    char *topology;          // e.g., "FC"
+    int topology;            // e.g., 0 for RANDOM 1 for COMM_AWARE
     int migration_rate;
     int migration_frequency; // seconds, 0 for patience based
     int patience;

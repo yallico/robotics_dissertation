@@ -61,7 +61,9 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_MIGRATION_FREQUENCY 0
 
-#define DEFAULT_TOPOLOGY "FC"
+#define TOPOLOGY_RANDOM      0
+#define TOPOLOGY_COMM_AWARE  1
+#define DEFAULT_TOPOLOGY TOPOLOGY_RANDOM     
 
 //Experimental metadata
 extern char* experiment_id;
@@ -72,7 +74,7 @@ extern uint16_t seed;
 extern int experiment_duration; // Duration in seconds
 extern char* migration_type;    // e.g., "ASYNC"
 extern char* migration_scheme;  // e.g. "ELITIST"
-extern char* topology;          // e.g., "FC"
+extern int topology;          // e.g., "RANDOM"/"COMM_AWARE"
 extern int migration_rate;      
 extern int migration_frequency; //seconds, 0 for patience based
 extern int patience;
