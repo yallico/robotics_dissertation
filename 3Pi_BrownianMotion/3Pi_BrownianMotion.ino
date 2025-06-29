@@ -11,6 +11,12 @@
 
 #define I2C_SLAVE_ADDR  0x04 // I2C address for the pololu
 volatile bool should_run = false;  // Flag for Brownian motion
+volatile float speed_gain = 0.0; // Default to full speed
+volatile bool heartbeat_active = false;
+
+// Heartbeat tracking
+unsigned long last_heartbeat_ms = 0;
+#define HEARTBEAT_TIMEOUT_MS 1000
 
 unsigned long ms_update_ts;  // A timestamp in ms to schedule a general update of the system.
 #define UPDATE_MS 50      // updates at 20ms intervals
@@ -44,20 +50,39 @@ float demand_theta;
 
 void onReceiveI2C(int numBytes) {
   if (numBytes < 1) return;
-  char command = Wire.read();
-  if (command == 'S') {
-    should_run = true;
-    spd_pid_left.reset();
-    spd_pid_right.reset();
-    heading_pid.reset();
-  } else if (command == 'X') {
-    should_run = false;
-    motors.setMotorsPWM(0, 0);
+  if (numBytes == sizeof(float)) {
+    union {
+      byte b[4];
+      float f;
+    } u;
+    for (int i = 0; i < 4; i++) {
+      u.b[i] = Wire.read();
+    }
+    speed_gain = constrain(u.f, 0.0, 1.0);
+    should_run = (speed_gain > 0.0) && heartbeat_active;
+    if (!should_run) motors.setMotorsPWM(0, 0);
+    return;
+  }
+  else if (numBytes == 2) {
+    // Heartbeat: [experiment_started, experiment_ended]
+    uint8_t exp_started = Wire.read();
+    uint8_t exp_ended = Wire.read();
+    last_heartbeat_ms = millis();
+    heartbeat_active = true;
+    if (exp_started && !exp_ended) {
+      should_run = true;
+    } else {
+      should_run = false;
+      motors.setMotorsPWM(0, 0);
+    }
   }
 }
 
   // put your setup code here, to run once:
 void setup() {
+  should_run = false;
+  heartbeat_active = false;
+  speed_gain = 0.0f;
 
   setupEncoder0();
   setupEncoder1();
@@ -111,11 +136,35 @@ void setup() {
 
 // put your main code here, to run repeatedly:
 void loop() {
+  static bool last_should_run = false;
+
+  // Heartbeat timeout check
+  if (should_run && (millis() - last_heartbeat_ms > HEARTBEAT_TIMEOUT_MS)) {
+    should_run = false;
+    heartbeat_active = false;
+  }
   // Run if I2C has set the flag.
   if (!should_run) {
+    motors.setMotorsPWM(0, 0);
+    if (last_should_run) {
+      pose.initialise(0, 0, 0);
+      ms_update_ts = millis();
+      spd_pid_left.reset();
+      spd_pid_right.reset();
+      heading_pid.reset();
+    }
+    last_should_run = false;
     delay(100);  // Idle if not running
     return;
   }
+
+  if (!last_should_run && should_run) {
+    spd_pid_left.reset();    
+    spd_pid_right.reset();
+    heading_pid.reset();
+  }
+
+  last_should_run = true;
 
   // Update heading, direction of movement.
   // 250ms, could be more or less.
@@ -168,7 +217,7 @@ void loop() {
     pose.update( count_e1, count_e0 );
 
     // Tell robot to turn - does PID motor control
-    turnToDemandTheta( 0.3, demand_theta, pose.theta );
+    turnToDemandTheta( 0.6 * speed_gain, demand_theta, pose.theta );
   }
 
   //Serial.println( spd_left.speed );
@@ -232,8 +281,15 @@ boolean turnToDemandTheta( float fwd_bias, float th_demand, float th_measurement
   // Get appropriate PID speed feedback for left and right
   // wheel by combining the forward bias and steering component
   float fb_l, fb_r;
-  fb_l = spd_pid_left.update( fwd + steer_fb, spd_left.ave_spd );
-  fb_r = spd_pid_right.update( fwd - steer_fb, spd_right.ave_spd );
+  if(fwd_bias == 0.0f){
+    // If speed gain is 0, we stop the motors
+    fb_l = 0;
+    fb_r = 0;
+  } else {
+    fb_l = spd_pid_left.update( fwd + steer_fb, spd_left.ave_spd );
+    fb_r = spd_pid_right.update( fwd - steer_fb, spd_right.ave_spd );
+  }
+ 
   motors.setMotorsPWM( fb_l, fb_r );
   return false;
 

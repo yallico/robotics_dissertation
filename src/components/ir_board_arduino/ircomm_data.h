@@ -24,7 +24,7 @@ typedef struct i2c_status {
 // pass around 1 byte of data.
 typedef struct i2c_mode {
   uint8_t mode;
-} i2c_mode_t;
+} i2c_ir_mode_t; //cannot use i2c_mode_t as it conflicts with HAL
 
 // To find out if a message is ready
 // to collect

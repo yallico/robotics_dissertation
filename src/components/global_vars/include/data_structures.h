@@ -26,7 +26,7 @@ typedef struct {
     int msg_limit;          // Message capacity for the experiment
     char *com_type;         // Nullable string
     int msg_size_bytes;     // Size of the message in bytes
-    int robot_speed;        // speed used in Pololu
+    float robot_speed;      // speed gain used in Pololu
     int pop_size;            // ga population size
     int max_genes;           // ga max genes
     time_t experiment_start; // Timestamp for the start of the experiment

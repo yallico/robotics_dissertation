@@ -3,6 +3,7 @@
 #include "ircomm_data.h"
 #include "esp_log.h"
 #include "ir_board_arduino.h"
+#include "globals.h"
 #include "lvgl.h"
 #include "gui_manager.h"
 
@@ -10,7 +11,7 @@
 #define I2C_ADDR_POLOLU  0x04
 
 static const char* TAG = "I2C_Arduino";
-i2c_mode_t ircomm_mode;
+i2c_ir_mode_t ircomm_mode;
 i2c_status_t ircomm_status;
 i2c_sensors_t ircomm_sensors;
 
@@ -48,19 +49,43 @@ static bool is_pololu_connected() {
     return (Wire1.endTransmission() == 0); // ACK
 }
 
-void i2c_pololu_command(const char *command) {
+void i2c_pololu_command(float command) {
     if (!is_pololu_connected()) {
         ESP_LOGW(TAG, "Pololu not detected at I2C address 0x%02X, skipping command", I2C_ADDR_POLOLU);
         return;
     }
 
     Wire1.beginTransmission(I2C_ADDR_POLOLU);
-    Wire1.write((const uint8_t*)command, strlen(command));
+    Wire1.write((uint8_t*)&command, sizeof(float));
     if (Wire1.endTransmission() == 0) {
-        ESP_LOGI(TAG, "Successfully sent command to Pololu: %s", command);
+        ESP_LOGI(TAG, "Successfully sent command to Pololu: %f", command);
     } else {
-        ESP_LOGI(TAG, "Failed to reach Pololu");
+        ESP_LOGW(TAG, "Failed to reach Pololu");
     }
+}
+
+// Heartbeat task: sends experiment state to Pololu every 500ms
+void pololu_heartbeat_task(void *pvParameter) {
+    uint8_t heartbeat[2];
+    while (1) {
+        if (experiment_started && !experiment_ended) {
+            heartbeat[0] = experiment_started ? 1 : 0;
+            heartbeat[1] = experiment_ended ? 1 : 0;
+            Wire1.beginTransmission(I2C_ADDR_POLOLU);
+            Wire1.write(heartbeat, 2);
+            Wire1.endTransmission();
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+        else if(experiment_started && experiment_ended){
+            break; // Exit the loop if the experiment has ended
+        }
+        else{
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+    ESP_LOGI(TAG, "Pololu heartbeat task ended");
+    xEventGroupSetBits(pololu_event_group, POLOLU_COMPLETE_BIT);
+    vTaskDelete(NULL); // Delete the task when done
 }
 
 void print_sensors(i2c_sensors_t *sensors) {
@@ -86,7 +111,7 @@ void i2c_get_sensors(){
 }
 
 void i2c_lvgl_task(void *pvParameter) {
-    i2c_mode_t ircomm_mode_sensors;
+    i2c_ir_mode_t ircomm_mode_sensors;
     ircomm_mode_sensors.mode = MODE_REPORT_SENSORS;
 
     while(1) {

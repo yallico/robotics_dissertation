@@ -58,6 +58,10 @@ uint32_t experiment_start_ticks = 0; // Tick count when experiment starts
 time_t experiment_start;
 time_t experiment_end;
 
+//Pololu
+TaskHandle_t pololu_heartbeat_task_handle = NULL;
+EventGroupHandle_t pololu_event_group = NULL;
+
 //Handle OTA
 TaskHandle_t ota_task_handle = NULL;
 EventGroupHandle_t ota_event_group; // declare the event group
@@ -152,7 +156,9 @@ void app_main() {
     i2c_get_status();
     vTaskDelay(pdMS_TO_TICKS(100));
     xTaskCreate(i2c_lvgl_task, "I2C Sensor Task", 4096, NULL, 5, &i2c_lvgl_task_handle);
-    i2c_pololu_command("S"); //start the Pololu's brownian motion
+    i2c_pololu_command(0.0f); //init initial pololu speed
+    pololu_event_group = xEventGroupCreate();
+    xTaskCreate(pololu_heartbeat_task, "Pololu Heartbeat Task", 2048, NULL, 5, &pololu_heartbeat_task_handle);
 
     //Initialize WIFI
     ESP_LOGI(TAG, "Initializing WIFI STA");
@@ -163,8 +169,7 @@ void app_main() {
     if (!validate_mac_addresses_count()) {
         ESP_LOGE(TAG, "Exiting app_main() due to invalid MAC count.");
         unmount_sd_card(mount_point);
-        i2c_pololu_command("X"); 
-        return;
+        abort();
     }
     ESP_LOGI(TAG, "Initializing ESPNOW");
     s_espnow_event_group = xEventGroupCreate();
@@ -242,6 +247,7 @@ void app_main() {
         ESP_LOGI(TAG, "Starting experiment now.");
         experiment_id = generate_experiment_id(&global_date, &global_time);
         experiment_start = convert_to_time_t(&global_date, &global_time);
+        i2c_pololu_command(DEFAULT_ROBOT_SPEED);
 
         //Check Heap
         free_heap_size = esp_get_free_heap_size();
@@ -344,12 +350,13 @@ void app_main() {
         ESP_LOGI(TAG, "Starting experiment in offline mode.");
         experiment_id = generate_experiment_id(&global_date, &global_time);
         experiment_start = convert_to_time_t(&global_date, &global_time);
+        i2c_pololu_command(DEFAULT_ROBOT_SPEED);
     
         // Genetic Algorithm task
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
         
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(10000));
         example_espnow_event_t stop_evt = {};
         stop_evt.id = EXAMPLE_ESPNOW_STOP;
         xQueueSend(s_example_espnow_queue, &stop_evt, portMAX_DELAY);
@@ -377,7 +384,18 @@ void app_main() {
     unmount_sd_card(mount_point);
 
     //Halt Pololu
-    i2c_pololu_command("X");
+    i2c_pololu_command(0.0f);
+    // Wait for Pololu to acknowledge complete (with timeout)
+    EventBits_t pololu_bits = xEventGroupWaitBits(
+        pololu_event_group,
+        POLOLU_COMPLETE_BIT,
+        pdTRUE,      // clear on exit
+        pdTRUE,      // wait for all bits (just one here)
+        pdMS_TO_TICKS(5000) // 5 second timeout
+    );
+    if (!(pololu_bits & POLOLU_COMPLETE_BIT)) {
+    ESP_LOGW(TAG, "Timeout waiting for Pololu COMPLETE_BIT.");
+    }
 
     ESP_LOGI(TAG, "Experiment cycle complete. Restarting device...");
     vTaskDelay(pdMS_TO_TICKS(1000)); 
