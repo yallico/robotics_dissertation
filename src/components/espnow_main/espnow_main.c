@@ -7,11 +7,6 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-/*
-   This example shows how to use ESPNOW.
-   Prepare two device, one for sending ESPNOW data and another for receiving
-   ESPNOW data.
-*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -281,16 +276,6 @@ static void example_espnow_recv_cb(const esp_now_recv_info_t *recv_info, const u
         ESP_LOGE(TAG, "Receive cb arg error");
         return;
     }
-
-    // if (IS_BROADCAST_ADDR(des_addr)) {
-    //     /* If added a peer with encryption before, the receive packets may be
-    //      * encrypted as peer-to-peer message or unencrypted over the broadcast channel.
-    //      * Users can check the destination address to distinguish it.
-    //      */
-    //     ESP_LOGD(TAG, "Receive broadcast ESPNOW data");
-    // } else {
-    //     ESP_LOGD(TAG, "Receive unicast ESPNOW data");
-    // }
 
     evt.id = EXAMPLE_ESPNOW_RECV_CB;
     memcpy(recv_cb->mac_addr, mac_addr, ESP_NOW_ETH_ALEN);
@@ -752,7 +737,6 @@ void espnow_task(void *pvParameter)
 
     }
 
-    //vTaskDelete(NULL);
 }
 
 esp_err_t espnow_init(void)

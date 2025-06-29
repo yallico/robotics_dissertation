@@ -99,19 +99,6 @@ typedef struct {
     uint8_t payload[0];                   //Real payload of ESPNOW data.
 } __attribute__((packed)) example_espnow_data_t;
 
-/* Parameters of sending ESPNOW data. */
-// typedef struct {
-//     bool unicast;                         //Send unicast ESPNOW data.
-//     bool broadcast;                       //Send broadcast ESPNOW data.
-//     uint8_t state;                        //Indicate that if has received broadcast ESPNOW data or not.
-//     uint32_t magic;                       //Magic number which is used to determine which device to send unicast ESPNOW data.
-//     uint16_t count;                       //Total count of unicast ESPNOW data to be sent.
-//     uint16_t delay;                       //Delay between sending two ESPNOW data, unit: ms.
-//     int len;                              //Length of ESPNOW data to be sent, unit: byte.
-//     uint8_t *buffer;                      //Buffer pointing to ESPNOW data.
-//     uint8_t dest_mac[ESP_NOW_ETH_ALEN];   //MAC address of destination device.
-// } example_espnow_send_param_t;
-
 typedef struct {
     uint8_t dest_addr[ESP_NOW_ETH_ALEN];  //MAC address of destination device.
     int len;                              //Length of ESPNOW data to be sent, unit: byte. 

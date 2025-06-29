@@ -51,6 +51,8 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_DATA_LINK "ESPNOW"
 
+#define ROUTING_UNICAST      0
+#define ROUTING_BROADCAST    1
 #define DEFAULT_ROUTING "UNICAST"
 
 #define DEFAULT_COM_TYPE "DIRECT"
