@@ -545,7 +545,7 @@ void drain_buffered_messages(void)
 
     /* If a better remote candidate is found, integrate it. */
     if (candidate_found) {
-        float local_best_fitness = ga_get_local_best_fitness();
+        float local_best_fitness = ((int)(ga_get_local_best_fitness() * 1000)) / 1000.0f;
         if (best_remote_fitness < local_best_fitness) {
 
             ESP_LOGI(TAG, "Best buffered remote solution %.3f from %s is better than local %.3f, re-initializing local GA.",
@@ -661,7 +661,7 @@ void espnow_task(void *pvParameter)
                     }
 
                     //get local fitness for comparison from ga.
-                    float local_best_fitness = ga_get_local_best_fitness();
+                    float local_best_fitness = ((int)(ga_get_local_best_fitness() * 1000)) / 1000.0f;
                     if (remote_best_fitness < local_best_fitness) {
                         
                         ESP_LOGI(TAG, "Remote solution %.3f is better than local %.3f, re-initializing local GA.",
