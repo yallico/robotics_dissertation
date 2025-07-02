@@ -12,8 +12,8 @@
 extern "C" {
 #endif
 
-#define LOG_Q_LEN       20
-#define LOG_BODY_Q_LEN  20
+#define LOG_Q_LEN       25
+#define LOG_BODY_Q_LEN  25
 
 extern QueueSetHandle_t logSet;
 

@@ -255,7 +255,7 @@ void app_main() {
 
         //Genetic Algorithm task and pin it to core 1
         ga_event_group = xEventGroupCreate();
-        xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        xTaskCreatePinnedToCore(ga_task,"GA Task",8192,NULL,3,&ga_task_handle,1);
         //Experiment length
         vTaskDelay(pdMS_TO_TICKS(DEFAULT_EXPERIMENT_DURATION * 1000));
         example_espnow_event_t stop_evt = {};
@@ -354,7 +354,7 @@ void app_main() {
     
         // Genetic Algorithm task
         ga_event_group = xEventGroupCreate();
-        xTaskCreatePinnedToCore(ga_task,"GA Task",4096,NULL,5,&ga_task_handle,1);
+        xTaskCreatePinnedToCore(ga_task,"GA Task",8192,NULL,3,&ga_task_handle,1);
         
         vTaskDelay(pdMS_TO_TICKS(10000));
         example_espnow_event_t stop_evt = {};

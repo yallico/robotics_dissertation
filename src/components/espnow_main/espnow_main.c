@@ -88,7 +88,7 @@ static void check_hyper_mutation(void)
                 // Restart GA with hyper-mutation
                 activate_hyper_mutation();
                 ga_ended = false;
-                xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
+                xTaskCreatePinnedToCore(ga_task, "GA Task", 8192, NULL, 3, &ga_task_handle, 1);
             }
         }
     }
@@ -555,7 +555,7 @@ void drain_buffered_messages(void)
             log_local_evaluation(best_remote_fitness, local_best_fitness, best_robot_id);
             ga_integrate_remote_solution(best_remote_genes);
             ga_ended = false;
-            xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
+            xTaskCreatePinnedToCore(ga_task, "GA Task", 8192, NULL, 3, &ga_task_handle, 1);
         } else {
             ESP_LOGW(TAG, "Best buffered remote solution %.3f from %s is not better than local %.3f, ignoring.",
                      best_remote_fitness, best_robot_id, local_best_fitness);
@@ -673,7 +673,7 @@ void espnow_task(void *pvParameter)
                         ga_integrate_remote_solution(remote_genes);
                         //re-init ga_task
                         ga_ended = false;
-                        xTaskCreatePinnedToCore(ga_task, "GA Task", 4096, NULL, 5, &ga_task_handle, 1);
+                        xTaskCreatePinnedToCore(ga_task, "GA Task", 8192, NULL, 3, &ga_task_handle, 1);
                        
                     }
 
@@ -751,7 +751,7 @@ esp_err_t espnow_init(void)
         return ESP_FAIL;
     }
 
-    ga_buffer_queue = xQueueCreate(10, sizeof(example_espnow_event_t));
+    ga_buffer_queue = xQueueCreate(25, sizeof(example_espnow_event_t));
     if (ga_buffer_queue == NULL) {
         ESP_LOGE(TAG, "Failed to create ga_buffer_queue");
         return ESP_FAIL;

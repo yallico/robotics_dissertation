@@ -503,6 +503,7 @@ void ga_task(void *pvParameters) {
         }        
         
         evolve();  // Run GA
+        taskYIELD();
         if (ga_ended) {
             ga_complete_callback();
             break;
