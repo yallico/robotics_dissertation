@@ -22,6 +22,7 @@ extern const esp_app_desc_t *app_desc;
 void gui_manager_init(void);
 void gui_task(void *pvParameter);
 void gui_update_wifi_icon(bool connected);
+void gui_show_ota_icon(bool show);
 
 #ifdef __cplusplus
 }

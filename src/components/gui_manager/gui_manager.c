@@ -14,12 +14,28 @@ static const char *TAG = "GUI_MANAGER";
 
 extern char *robot_id;
 lv_obj_t *wifi_label = NULL;
+lv_obj_t *ota_label = NULL;
 lv_obj_t *espnow_label = NULL;
 lv_obj_t *sensor_label = NULL;
 lv_obj_t *t_time_label = NULL;
 static lv_obj_t *battery_label = NULL;
 
 const esp_app_desc_t *app_desc = NULL;
+
+void gui_show_ota_icon(bool show) {
+    if (show) {
+        if (ota_label == NULL) {
+            ota_label = lv_label_create(lv_disp_get_scr_act(NULL), NULL);
+            lv_label_set_text(ota_label, LV_SYMBOL_REFRESH); // Use LV_SYMBOL_REFRESH or another symbol
+            lv_obj_align(ota_label, wifi_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+        }
+    } else {
+        if (ota_label != NULL) {
+            lv_obj_del(ota_label);
+            ota_label = NULL;
+        }
+    }
+}
 
 void gui_update_wifi_icon(bool connected) {
     if (connected) {
@@ -78,7 +94,6 @@ void gui_task(void *pvParameter) {
     lv_obj_t *scr = lv_disp_get_scr_act(NULL); // Get the current screen
     lv_coord_t screen_width = lv_obj_get_width(scr);
 
-    //wifi_label = lv_label_create(scr, NULL);
     espnow_label = lv_label_create(scr, NULL);
     sensor_label = lv_label_create(scr, NULL);
     lv_obj_t *ver_label = lv_label_create(scr, NULL);
@@ -87,7 +102,6 @@ void gui_task(void *pvParameter) {
     t_time_label = lv_label_create(scr, NULL);
     battery_label = lv_label_create(scr, NULL);
 
-    //lv_label_set_text(wifi_label, LV_SYMBOL_WIFI);
     lv_label_set_text(espnow_label, "Swarmcom Online!");
     lv_label_set_text(ga_label, "");
     lv_label_set_text(sensor_label, "");
@@ -103,7 +117,6 @@ void gui_task(void *pvParameter) {
     lv_obj_align(time_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 10);
     lv_obj_align(t_time_label, time_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
     lv_obj_align(battery_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -10, 10);
-    //lv_obj_align(wifi_label, battery_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
 
     uint32_t last_update_time = 0; //var to store the last update time in ticks
 

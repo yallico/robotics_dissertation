@@ -15,6 +15,7 @@
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
+#include "gui_manager.h"
 #include "string.h"
 #include "cJSON.h"
 
@@ -126,12 +127,14 @@ void simple_ota_example_task(void)
         .http_config = &config,
     };
     ESP_LOGI(TAG, "Attempting to download update from %s", config.url);
+    gui_show_ota_icon(true);
     esp_err_t ret = esp_https_ota(&ota_config);
     if (ret == ESP_OK) {
         ESP_LOGI(TAG, "OTA Succeed, Rebooting...");
         esp_restart();
     } else {
         ESP_LOGE(TAG, "Firmware upgrade failed");
+        gui_show_ota_icon(false);
         xEventGroupSetBits(ota_event_group, OTA_COMPLETED_BIT);
     }
     vTaskDelete(NULL);

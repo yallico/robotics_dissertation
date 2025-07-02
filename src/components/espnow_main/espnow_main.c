@@ -454,7 +454,6 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
 static void log_incoming_buffer_message(const out_message_t *incoming_msg)
 {
     event_log_t log_entry;
-    event_log_message_t log_body;
     time_t now = time(NULL);
 
     if (xSemaphoreTake(logCounterMutex, portMAX_DELAY)) {
@@ -699,7 +698,6 @@ void espnow_task(void *pvParameter)
 
 
                 event_log_t log_entry;
-                event_log_message_t log_body;
 
                 time_t now = time(NULL);
 
