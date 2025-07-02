@@ -57,9 +57,10 @@ static TaskStatus_t t[MAX_TASKS];
 static uint32_t prev_idle0 = 0, prev_idle1 = 0;
 
 //THIS NEEDS UPDATING MANUALLY FROM M5CORE2 MAC
-static const uint8_t mac_addresses[2][ESP_NOW_ETH_ALEN] = {
+static const uint8_t mac_addresses[DEFAULT_NUM_ROBOTS][ESP_NOW_ETH_ALEN] = {
     {0x78, 0x21, 0x84, 0x99, 0xDA, 0x8C},
-    {0x78, 0x21, 0x84, 0x93, 0x78, 0xC0}
+    {0x78, 0x21, 0x84, 0x93, 0x78, 0xC0},
+    {0x08, 0xB6, 0x1F, 0x88, 0x20, 0x04}
 };
 
 bool validate_mac_addresses_count() {

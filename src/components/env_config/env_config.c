@@ -126,6 +126,15 @@ void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
+    uint8_t own_mac[6];
+    esp_err_t mac_ret = esp_wifi_get_mac(WIFI_IF_STA, own_mac);
+    if (mac_ret == ESP_OK) {
+        ESP_LOGW(TAG, "Device MAC address: 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X",
+                 own_mac[0], own_mac[1], own_mac[2], own_mac[3], own_mac[4], own_mac[5]);
+    } else {
+        ESP_LOGW(TAG, "Failed to get device MAC address: %s", esp_err_to_name(mac_ret));
+    }
+
     ESP_LOGI(TAG, "wifi_init_sta finished.");
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
