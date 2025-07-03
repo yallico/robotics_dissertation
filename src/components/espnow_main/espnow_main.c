@@ -392,18 +392,21 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         int orig_idx;
     } comm_peer_t;
     comm_peer_t peers[DEFAULT_NUM_ROBOTS];
+    int peer_count = 0;
     for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
-        memcpy(peers[i].mac, macs[i], ESP_NOW_ETH_ALEN);
-        peers[i].rssi = s_last_rssi[i];
-        peers[i].latency = s_last_latency[i]; // Use actual last measured latency
-        peers[i].orig_idx = i;
+        if (memcmp(macs[i], own_mac, ESP_NOW_ETH_ALEN) == 0) continue; // skip self
+        memcpy(peers[peer_count].mac, macs[i], ESP_NOW_ETH_ALEN);
+        peers[peer_count].rssi = s_last_rssi[i];
+        peers[peer_count].latency = s_last_latency[i]; // Use actual last measured latency
+        peers[peer_count].orig_idx = i;
         // Null if rssi is -128 (never received) or latency is 0 (never sent)
-        peers[i].null_metric = (peers[i].rssi == -128 || peers[i].latency == 0);
+        peers[peer_count].null_metric = (peers[peer_count].rssi == -128 || peers[peer_count].latency == 0);
+        peer_count++;
     }
     // Normalise and score: higher score = worse
     int8_t min_rssi = 127, max_rssi = -128;
     uint32_t min_lat = UINT32_MAX, max_lat = 0;
-    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+    for (int i = 0; i < peer_count; i++) {
         if (!peers[i].null_metric) {
             if (peers[i].rssi < min_rssi) min_rssi = peers[i].rssi;
             if (peers[i].rssi > max_rssi) max_rssi = peers[i].rssi;
@@ -411,7 +414,7 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
             if (peers[i].latency > max_lat) max_lat = peers[i].latency;
         }
     }
-    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+    for (int i = 0; i < peer_count; i++) {
         if (peers[i].null_metric) {
             peers[i].score = 1e6f; // Highest priority
         } else {
@@ -421,8 +424,8 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         }
     }
     // Sort: null_metric first, then by score descending (worst first)
-    for (int i = 0; i < DEFAULT_NUM_ROBOTS - 1; i++) {
-        for (int j = i + 1; j < DEFAULT_NUM_ROBOTS; j++) {
+    for (int i = 0; i < peer_count - 1; i++) {
+        for (int j = i + 1; j < peer_count; j++) {
             if (peers[i].score < peers[j].score) {
                 comm_peer_t tmp = peers[i];
                 peers[i] = peers[j];
@@ -431,18 +434,18 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         }
     }
     // Overwrite macs with sorted order
-    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+    for (int i = 0; i < peer_count; i++) {
         memcpy(macs[i], peers[i].mac, ESP_NOW_ETH_ALEN);
     }
     // Only send to top 50% of ranked peers (rounded up)
-    int num_targets = DEFAULT_NUM_ROBOTS / 2;
+    int num_targets = peer_count / 2;
     if (num_targets < 1) num_targets = 1;
     //unicast message to each registered peer except self
     for (int i = 0; i < num_targets; i++) {
         if (memcmp(macs[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
             continue; // skip sending to self
         }
-        int idx = mac_addr_to_index(macs[i]);
+        int idx = peers[i].orig_idx;
         if (idx >= 0) {
             uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
             s_peer_start_times[idx] = current_time_ms;
