@@ -73,6 +73,15 @@ bool validate_mac_addresses_count() {
     return true;
 }
 
+static int mac_addr_to_index(const uint8_t mac[ESP_NOW_ETH_ALEN]) {
+    for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
+        if (memcmp(mac_addresses[i], mac, ESP_NOW_ETH_ALEN) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 // Check if hyper-mutation conditions are met
 static void check_hyper_mutation(void)
 {
@@ -240,15 +249,16 @@ static void example_espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_
         return;
     }
 
-    for(int i=0; i<DEFAULT_NUM_ROBOTS; i++){
-        if(memcmp(mac_addresses[i], mac_addr, ESP_NOW_ETH_ALEN) == 0){
-            send_cb->start_time_ms = s_peer_start_times[i];
-            uint32_t ack_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
-            uint32_t latency_ms = ack_time_ms - send_cb->start_time_ms;
-            s_last_latency[i] = latency_ms; // Store last measured latency by mac
-            send_cb->latency_ms = latency_ms;
-            break;
-        }
+    int idx = mac_addr_to_index(mac_addr);
+    if (idx >= 0) {
+        send_cb->start_time_ms = s_peer_start_times[idx];
+        uint32_t ack_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+        uint32_t latency_ms = ack_time_ms - send_cb->start_time_ms;
+        s_last_latency[idx] = latency_ms; // Store last measured latency by mac
+        send_cb->latency_ms = latency_ms;
+    } else {
+        send_cb->start_time_ms = 0;
+        send_cb->latency_ms = 0;
     }
 
     evt.id = EXAMPLE_ESPNOW_SEND_CB;
@@ -439,8 +449,11 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         if (memcmp(macs[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
             continue; // skip sending to self
         }
-        uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
-        s_peer_start_times[i] = current_time_ms;
+        int idx = mac_addr_to_index(macs[i]);
+        if (idx >= 0) {
+            uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+            s_peer_start_times[idx] = current_time_ms;
+        }
         esp_err_t err = esp_now_send(macs[i], (uint8_t *)&out_msg, sizeof(out_msg));
         if (err != ESP_OK) {
             ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
