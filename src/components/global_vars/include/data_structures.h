@@ -13,7 +13,7 @@ typedef struct {
     uint32_t log_id;
     char robot_id[5];
     time_t created_datetime;
-    char message[64];
+    char message[128]; //should be able to handle up to 15 genes
 } out_message_t;
 
 typedef struct {

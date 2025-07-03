@@ -337,8 +337,9 @@ float ga_get_local_best_fitness(void) {
 }
 
 void ga_integrate_remote_solution(const float *remote_genes)
-{
-    int how_many = (int)(0.1f * POP_SIZE);
+{   
+    //DEFAULT_GENE_OVERWRITE 5% of local population
+    int how_many = (int)(DEFAULT_GENE_OVERWRITE * POP_SIZE);
     if (how_many <= 0) {
         how_many = 1; // ensure at least 1
     }

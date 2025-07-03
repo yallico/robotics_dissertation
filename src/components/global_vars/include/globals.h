@@ -28,12 +28,15 @@ extern QueueHandle_t ga_buffer_queue;
                                 // More = better search, but slower to compute
                                 // Less = harder for algorithm to find solution
                                 
-#define MAX_GENES       5       // Dimensions (higher = more difficult)
+#define MAX_GENES       10       // Dimensions (higher = more difficult)
                                 // This is the number of parameters to be 
                                 // represented in the "genotype" (candidate
                                 // solution).
 
-#define DEFAULT_MIGRATION_RATE 1
+#define DEFAULT_MIGRATION_RATE 1 // Number of genome migrated from remote robot
+                                // to local population per generation
+
+#define DEFAULT_GENE_OVERWRITE 0.05f // Percentage of population to overwrite with remote genes
 
 #define DEFAULT_PATIENCE 60
 
@@ -65,7 +68,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define TOPOLOGY_RANDOM      0
 #define TOPOLOGY_COMM_AWARE  1
-#define DEFAULT_TOPOLOGY TOPOLOGY_RANDOM     
+#define DEFAULT_TOPOLOGY TOPOLOGY_RANDOM    
 
 //Experimental metadata
 extern char* experiment_id;
