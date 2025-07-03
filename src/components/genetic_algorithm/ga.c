@@ -462,6 +462,11 @@ static void ga_complete_callback(void)
 
 //Task function that the main application can call
 void ga_task(void *pvParameters) {
+    if (LogQueue == NULL || LogBodyQueue == NULL) {
+        ESP_LOGW(TAG, "LogQueue or LogBodyQueue is NULL! Exiting GA task.");
+        xEventGroupSetBits(ga_event_group, GA_COMPLETED_BIT);
+        vTaskDelete(NULL);
+    }
     float last_best_fitness = -1.0;  // Init impossible fitness value
     float threshold = 0.01;  // Threshold for detecting significant changes in fitness
     int no_improvement_count = 0;
@@ -497,6 +502,11 @@ void ga_task(void *pvParameters) {
             offset += sprintf(log_body.log_message + offset, "%.3f|", current_best_fitness);
             for (int gene = 0; gene < MAX_GENES; gene++) {
                 offset += sprintf(log_body.log_message + offset, "%.3f|", population[rank[POP_SIZE - 1]][gene]);
+            }
+            if (LogBodyQueue == NULL) {
+                ESP_LOGW(TAG, "LogBodyQueue is NULL! Exiting GA task.");
+                xEventGroupSetBits(ga_event_group, GA_COMPLETED_BIT);
+                vTaskDelete(NULL);
             }
             xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 
@@ -548,6 +558,11 @@ void ga_task(void *pvParameters) {
             strcpy(log_entry.from_id, "");
 
             // Send to queue
+            if (LogQueue == NULL) {
+                ESP_LOGW(TAG, "LogQueue is NULL! Exiting GA task.");
+                xEventGroupSetBits(ga_event_group, GA_COMPLETED_BIT);
+                vTaskDelete(NULL);
+            }
             xQueueSend(LogQueue, &log_entry, portMAX_DELAY);
 
             int offset = 0;  // track of where to write next in the buffer of msgbody
@@ -559,10 +574,21 @@ void ga_task(void *pvParameters) {
             }
 
             // Send to queue
+            if (LogBodyQueue == NULL) {
+                ESP_LOGW(TAG, "LogBodyQueue is NULL! Exiting GA task.");
+                xEventGroupSetBits(ga_event_group, GA_COMPLETED_BIT);
+                vTaskDelete(NULL);
+            }
             xQueueSend(LogBodyQueue, &log_body, portMAX_DELAY);
 
 
             //send the best solution via ESP‑NOW
+            if (LogQueue == NULL || LogBodyQueue == NULL) {
+                ESP_LOGW(TAG, "LogQueue or LogBodyQueue is NULL! Exiting GA task.");
+                xEventGroupSetBits(ga_event_group, GA_COMPLETED_BIT);
+                vTaskDelete(NULL);
+            }
+
             espnow_push_best_solution(
                 current_best_fitness,
                 population[rank[POP_SIZE - DEFAULT_MIGRATION_RATE]],

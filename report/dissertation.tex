@@ -174,7 +174,7 @@ A practical takeaway from the data is that using five genes is sufficiently chal
   \label{fig:base_fitness_stats}
 \end{figure*}
 
-Figure \ref{fig:base_fitness_stats} shows the fitness scores and system metrics for a deployment of two agents. A total of 34 experimens were conducted, out of which 6 experiments had to be excluded from the analysis as the data did not reach the S3 for at least one of the devices, mainly due to a bug in the code that was caused by the messages arriving late and the system not being able to handle these in the de-initiasation sequence. This bug bug was addressed since version 0.4 of the project, which allows the \texttt{espnow\_task} to drain the queue for any late messages coming in.\\
+Figure \ref{fig:base_fitness_stats} shows the fitness scores and system metrics for a deployment of two agents. A total of 34 experimens were conducted, out of which 6 experiments had to be excluded from the analysis as the data did not reach the S3 for at least one of the devices, mainly due to a bug in the code that was caused by the messages arriving late and the system not being able to handle these in the de-initiasation sequence. This bug was addressed since version 0.4 of the project, which allows the \texttt{espnow\_task} to drain the queue for any late messages coming in.\\
 
 \begin{table}[h]
   \centering
@@ -199,7 +199,7 @@ Figure \ref{fig:base_fitness_stats} shows the fitness scores and system metrics 
   \end{tabular}
 \end{table}
 
-Using the baseline parameters shown in Table \ref{tab:base_config}, we can see that none of the experiments was able to reach the global minimun of 0.0 in terms of the fitness score. The mean final fitness score achieved was X.X indicating that a local minimum is reached, whereas the rate of the converge takes place within the first 10 seconds of the experiment and stagnates thereafter. This behaviour is aligns with a large CPU utilisation in both cores at the start of the experiment, from observations this can be attributed to the first local GA running in each agent which then stagnates after exchanging a few messages with the other peer. Taking this into consideration, for experiments from version 0.4 onwards the population size is doubled to 60 to ensure diversity in the gene pool, with the trade off of slower convergence.\\
+Using the baseline parameters shown in Table \ref{tab:base_config}, we can see that none of the experiments was able to reach the global minimun of 0.0 in terms of the fitness score. The mean final fitness score achieved was X.X indicating that a local minimum is reached, whereas the rate of the converge takes place within the first 10 seconds of the experiment and stagnates thereafter. This behaviour is aligns with a large CPU utilisation in both cores at the start of the experiment, from observations this can be attributed to the first local GA running in each agent which then stagnates after exchanging a few messages with the other peer. Taking this into consideration, for experiments from version 0.4 onwards the population size and number of genes are doubled to 60 and 10 respectively, to ensure diversity in the gene pool with the trade off of slower convergence.\\
 
 \begin{figure*}[b]
   \centering
@@ -232,7 +232,7 @@ The mean RSSI accross all devices was X.X dBm, which in in a range that indicate
 
 \section{Topology Inference}
 
-Based on the baseline results, we propose to investigate the impact of different communication schemes on the emergent swarm topology by introducing two message sending strategies: \textbf{RANDOM} and \textbf{COMM\_AWARE}. These schemes are implemented in the communication layer and are designed to influence the order and priority with which each agent sends its best solution to its peers. The aim is to understand how these strategies affect the connectivity and robustness of the swarm network.\\
+Based on the baseline results, we propose to investigate the impact of different communication schemes on the emergent swarm topology by introducing two message sending strategies: \textbf{RANDOM} and \textbf{COMM\_AWARE}. From version 0.4 onwards, these schemes are implemented in the communication layer and are designed to influence the order and priority with which each agent sends its best solution to its peers. The aim is to understand how these strategies affect the connectivity and robustness of the swarm network.\\
 
 The expectation is that both \textbf{RANDOM} and \textbf{COMM\_AWARE} will result in a fully connected network over time, as each agent attempts to send messages to all other agents. However, the \textbf{COMM\_AWARE} scheme is designed to preferentially strengthen links with agents that are either furthest away (as inferred by higher latency and lower RSSI) or have not yet established a reliable connection (null metrics). This should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position.\\
 
@@ -287,7 +287,7 @@ The following pseudocode outlines the logic for each scheme:
 
 These communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. Furthermore, this approach is specifically designed for \textbf{UNICAST} communication, where messages are sent directly to individual peers and round-trip latency can be measured via ACKS. In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.
 
-
+%need to decide if we will test broadcast....
 
 
 
