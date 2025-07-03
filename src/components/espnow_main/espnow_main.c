@@ -434,6 +434,28 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
     for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
         memcpy(macs[i], peers[i].mac, ESP_NOW_ETH_ALEN);
     }
+    // Only send to top 50% of ranked peers (rounded up)
+    int num_targets = DEFAULT_NUM_ROBOTS / 2;
+    if (num_targets < 1) num_targets = 1;
+    //unicast message to each registered peer except self
+    for (int i = 0; i < num_targets; i++) {
+        if (memcmp(macs[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
+            continue; // skip sending to self
+        }
+        int idx = mac_addr_to_index(macs[i]);
+        if (idx >= 0) {
+            uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
+            s_peer_start_times[idx] = current_time_ms;
+        }
+        esp_err_t err = esp_now_send(macs[i], (uint8_t *)&out_msg, sizeof(out_msg));
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
+                MAC2STR(macs[i]), esp_err_to_name(err));
+        } else {
+            ESP_LOGI(TAG, "Sending best solution to " MACSTR, MAC2STR(macs[i]));
+        }
+    }
+
     #elif DEFAULT_TOPOLOGY == TOPOLOGY_RANDOM // "RANDOM"
     // Fisher-Yates shuffle using esp_random()
     for (int i = DEFAULT_NUM_ROBOTS - 1; i > 0; i--) {
@@ -443,7 +465,6 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         memcpy(macs[i], macs[r], ESP_NOW_ETH_ALEN);
         memcpy(macs[r], tmp, ESP_NOW_ETH_ALEN);
     }
-    #endif
     //unicast message to each registered peer except self
     for (int i = 0; i < DEFAULT_NUM_ROBOTS; i++) {
         if (memcmp(macs[i], own_mac, ESP_NOW_ETH_ALEN) == 0) {
@@ -462,6 +483,7 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
             ESP_LOGI(TAG, "Sending best solution to " MACSTR, MAC2STR(macs[i]));
         }
     }
+    #endif
 }
 
 static void log_incoming_buffer_message(const out_message_t *incoming_msg)
