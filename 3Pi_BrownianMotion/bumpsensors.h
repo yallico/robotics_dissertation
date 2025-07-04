@@ -20,7 +20,7 @@ const int bump_pins[ NUM_B_SENSORS ] = { 4, 5 };
 #define TIMEOUT_US  50000 
 
 
-#define BUMP_THRESHOLD 1700
+#define BUMP_THRESHOLD 1000
 
 // Class to operate the linesensor(s).
 class BumpSensor_c {
@@ -59,7 +59,7 @@ class BumpSensor_c {
     boolean isBumped() {
       boolean bumped;
       int i;
-      
+      getReading();
       bumped = false;
 
       for( i = 0; i < NUM_B_SENSORS; i++ ) {
@@ -89,8 +89,8 @@ class BumpSensor_c {
     // Note: For bump sensor we set EMIT
     // to LOW to activate the IR LEDs
     void setEmitterOn() {
-        //pinMode( BUMP_EMIT, OUTPUT );
-        //digitalWrite( BUMP_EMIT, LOW );
+        pinMode( BUMP_EMIT, OUTPUT );
+        digitalWrite( BUMP_EMIT, LOW );
     }
 
     // To get a reading, we have to time how

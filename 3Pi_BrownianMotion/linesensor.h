@@ -58,7 +58,7 @@ class LineSensor_c {
     boolean onLine() {
       boolean on_line;
       int i;
-      
+      getReading();
       on_line = false;
 
       for( i = 0; i < NUM_SENSORS; i++ ) {

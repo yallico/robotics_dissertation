@@ -48,6 +48,17 @@ BumpSensor_c bump_sensors; // Reads the bump sensors.
 // So we declare this outside loop()
 float demand_theta;
 
+// State machine to move between a random walk and
+// avoiding the line at the edge of the arena
+int state;
+#define STATE_RANDOMWALK 0
+#define STATE_AVOIDLINE  1
+unsigned long avoid_line_ts;
+#define AVOIDLINE_MS  700
+
+unsigned long beep_ts;
+#define BEEP_OFF_MS 50
+
 void onReceiveI2C(int numBytes) {
   if (numBytes < 1) return;
   if (numBytes == sizeof(float)) {
@@ -91,9 +102,9 @@ void setup() {
   motors.initialise();
 
   // init PID.
-  spd_pid_left.initialise( 20.0, 0.1, 0.0 );
+  spd_pid_left.initialise( 40.0, 0.1, 0.0 );
   spd_left.initialise();
-  spd_pid_right.initialise( 20.0, 0.1, 0.0 );
+  spd_pid_right.initialise( 40.0, 0.1, 0.0 );
   spd_right.initialise();
 
   // Heading controller.
@@ -126,17 +137,29 @@ void setup() {
   //bump_sensors.lp[0] = (float)bump_sensors.readings[0];
   //bump_sensors.lp[1] = (float)bump_sensors.readings[1];
 
-  // Not currently using line sensors
-  //line_sensors.initialise();
+  line_sensors.initialise();
+  bump_sensors.initialise();
 
 }
 
+void beep() {
+  beep_ts = millis();
+  analogWrite(6, 120);
+}
 
+void checkBeepOff() {
+  if ( millis() - beep_ts > BEEP_OFF_MS ) {
+    analogWrite(6, 0);
+  }
 
+}
 
 // put your main code here, to run repeatedly:
 void loop() {
   static bool last_should_run = false;
+  // Non-blocking call to end any beeping
+  // after BEEP_OFF_MS
+  checkBeepOff();
 
   // Heartbeat timeout check
   if (should_run && (millis() - last_heartbeat_ms > HEARTBEAT_TIMEOUT_MS)) {
@@ -166,25 +189,35 @@ void loop() {
 
   last_should_run = true;
 
-  // Update heading, direction of movement.
-  // 250ms, could be more or less.
-  if ( millis() - h_update_ts > HEADING_UPDATE ) {
-    h_update_ts = millis();
+  // Check line sensors to determine state
+  // We only want to trigger AVOIDLINE once
+  // because it will set the target heading
+  // as +180degrees (e.g., if called multiple
+  // times, the robot will just spin on the
+  // spot.
+  if ( (bump_sensors.isBumped() || line_sensors.onLine() ) && state != STATE_AVOIDLINE ) {
+    state = STATE_AVOIDLINE;
 
+    spd_pid_left.reset();
+    spd_pid_right.reset();
 
-    // Adjust heading.
-    // Gaussian means most often a small adjustment
-    // but sometimes big.
-    // randGaussian( <mean>, <standard deviation> )
-    // mean = values centre on
-    // standard deviation = spread, likelihood of big values
-    // Can be positive or negative.
-    float heading_adjust = randGaussian( 0.0, 0.5);
+    // record time stamp to exit from this
+    // state after an interval
+    avoid_line_ts = millis();
 
-    // Set a persistent demand for rotation based on
-    // the current kinematic theta
-    demand_theta = pose.theta + heading_adjust;
+    // Add 180, and a bit of noise just in case
+    // the robot gets stuck
+    demand_theta = pose.theta + PI + randGaussian( 0.0, 0.5);
 
+    beep();
+  }
+
+  if ( state == STATE_RANDOMWALK ) {
+    randomWalk();
+
+  } else if ( state == STATE_AVOIDLINE ) {
+
+    avoidLine();
   }
   
   if( millis() - spd_update_ts > SPD_UPDATE ) {
@@ -207,21 +240,71 @@ void loop() {
     Serial.println( demand_theta );
   }
 
-  // General update
+  //Serial.println( spd_left.speed );
+  delay(2);
+}
+
+void randomWalk() {
+  // Update heading, direction of movement.
+  // 250ms, could be more or less.
+  if ( millis() - h_update_ts > HEADING_UPDATE ) {
+    h_update_ts = millis();
+
+
+    // Adjust heading.
+    // Gaussian means most often a small adjustment
+    // but sometimes big.
+    // randGaussian( <mean>, <standard deviation> )
+    // mean = values centre on
+    // standard deviation = spread, likelihood of big values
+    // Can be positive or negative.
+    float heading_adjust = randGaussian( 0.0, 0.5);
+
+    // Set a persistent demand for rotation based on
+    // the current kinematic theta
+    demand_theta = pose.theta + heading_adjust;
+
+  }
+
+  // Motor update
   if ( millis() - ms_update_ts > UPDATE_MS ) {
     ms_update_ts = millis();
 
-    
-    
     // Update robot position (kinematics)
     pose.update( count_e1, count_e0 );
 
-    // Tell robot to turn - does PID motor control
-    turnToDemandTheta( 0.6 * speed_gain, demand_theta, pose.theta );
+    // 0.3 is forward bias.
+    // the robot will move towards demand theta
+    // if already aligned, it will just move forwards
+    turnToDemandTheta( 0.3 * speed_gain, demand_theta, pose.theta );
+
+  }
+}
+
+void avoidLine() {
+
+  // Motor update
+  if ( millis() - ms_update_ts > UPDATE_MS ) {
+    ms_update_ts = millis();
+
+    // Update robot position (kinematics)
+    pose.update( count_e1, count_e0 );
+
+    // 0.0 is forward bias (turn on spot)
+    // the robot will move towards demand theta
+    // if already aligned, it will just move forwards
+    turnToDemandTheta( 0.0, demand_theta, pose.theta );
+
   }
 
-  //Serial.println( spd_left.speed );
-  delay(2);
+  // Finished turn duration?
+  if ( millis() - avoid_line_ts > AVOIDLINE_MS ) {
+    spd_pid_left.reset();
+    spd_pid_right.reset();
+    state = STATE_RANDOMWALK;
+    beep();
+  }
+
 }
 
 /*
@@ -267,8 +350,8 @@ boolean turnToDemandTheta( float fwd_bias, float th_demand, float th_measurement
   float steer_fb = heading_pid.update( 0, diff );
   
   // Limit magnitude of steering
-  if ( steer_fb > 0.4 ) steer_fb = 0.4;
-  if ( steer_fb < -0.4 ) steer_fb = -0.4;
+  //if ( steer_fb > 0.4 ) steer_fb = 0.4;
+  //if ( steer_fb < -0.4 ) steer_fb = -0.4;
   //Serial.println( steer_fb );
   
   // Reduce the forward bias (movement) depending on
@@ -276,18 +359,18 @@ boolean turnToDemandTheta( float fwd_bias, float th_demand, float th_measurement
   // It turns out allowing the robots to reverse a little
   // (negative speed) actually improves their ability to
   // face the same way, as it seems to stop collisions
-  float fwd = fwd_bias - abs(steer_fb);
+  //float fwd = fwd_bias - abs(steer_fb);
   
   // Get appropriate PID speed feedback for left and right
   // wheel by combining the forward bias and steering component
   float fb_l, fb_r;
-  if(fwd_bias == 0.0f){
+  if(speed_gain == 0.0f) {
     // If speed gain is 0, we stop the motors
     fb_l = 0;
     fb_r = 0;
   } else {
-    fb_l = spd_pid_left.update( fwd + steer_fb, spd_left.ave_spd );
-    fb_r = spd_pid_right.update( fwd - steer_fb, spd_right.ave_spd );
+    fb_l = spd_pid_left.update( fwd_bias + steer_fb, spd_left.ave_spd );
+    fb_r = spd_pid_right.update( fwd_bias - steer_fb, spd_right.ave_spd );
   }
  
   motors.setMotorsPWM( fb_l, fb_r );
