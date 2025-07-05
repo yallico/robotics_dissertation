@@ -356,7 +356,7 @@ void app_main() {
         ga_event_group = xEventGroupCreate();
         xTaskCreatePinnedToCore(ga_task,"GA Task",8192,NULL,3,&ga_task_handle,1);
         
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(15000));
         example_espnow_event_t stop_evt = {};
         stop_evt.id = EXAMPLE_ESPNOW_STOP;
         xQueueSend(s_example_espnow_queue, &stop_evt, portMAX_DELAY);

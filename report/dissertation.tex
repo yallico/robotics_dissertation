@@ -290,6 +290,53 @@ These communication schemes are only meaningful in swarms with more than two rob
 
 %need to decide if we will test broadcast....
 
+\section{Limited-Rate Communication (TOKEN\_BUCKET)}
+
+Inspired by the “less-is-more” (LIME) effect reported for Kilobots using infrared links \cite{aust_hidden_2022}, we add a *token-bucket* limiter to the ESP-NOW layer and treat its quota as an **independent variable**.  
+Each agent is given a small budget of $1$ message in a sliding window of length $10000$ milliseconds.  When the bucket is empty the agent must keep silent until the window refreshes, regardless of how often its GA stagnates or improves.  This caps the *total* interaction rate per robot rather than merely spacing individual transmissions, closely matching the physical connectivity ceiling studied in \cite{aust_hidden_2022} but now in a 2.4-GHz ESPNOW setting.
+
+\subsection{Algorithm}
+
+\paragraph{Parameters}
+\begin{itemize}
+  \item $B$ – message budget (tokens) per window
+  \item $W$ – window length in milliseconds
+  \item $t_{\mathrm{last}}$ – start-time of current window (initialised at boot)
+  \item $\mathit{tokens}$ – remaining tokens in the current window
+\end{itemize}
+
+\begin{algorithm}[H]
+\caption{Token-Bucket Throttled Send}
+\label{alg:token_bucket}
+\begin{algorithmic}[1]
+\State \textbf{procedure} \textsc{MaybeSend}$(\mathit{payload})$
+\State $now \gets$ \Call{CurrentTimeMs}{}
+\If{$now - t_{\mathrm{last}} \ge W$}               \Comment{window refresh}
+    \State $\mathit{tokens} \gets B$
+    \State $t_{\mathrm{last}} \gets now$
+\EndIf
+\If{$\mathit{tokens} = 0$}
+    \State \textbf{return}   \Comment{bucket empty $\rightarrow$ no send}
+\EndIf
+\If{\Call{ImprovedFitness}{}}
+    \State $\mathit{tokens} \gets \mathit{tokens} - 1$
+    \State \Call{ESP\_NOW\_Send}{$\mathit{payload}$}
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Rationale and Expectations}
+
+By tightening $B$ (or enlarging $W$) we progressively restrict social signalling.  
+Following the findings in \cite{aust2022hidden}, we hypothesise that
+
+\begin{enumerate}
+  \item \textbf{Convergence speed will decrease}: fewer migrations mean each island explores locally for longer before external influence arrives.
+  \item \textbf{Task performance will improve}: reduced network contention and wider behavioural diversity should help the swarm escape local minima, yielding lower global Rastrigin scores by the termination time.
+\end{enumerate}
+
+Thus, the experiment sweeps $B\in\{1,2,4,8\}$ (with $W=10\,\mathrm{s}$) to test whether the LIME phenomenon extends from low-bandwidth IR to high-bandwidth ESPNOW links.
+
 
 
 

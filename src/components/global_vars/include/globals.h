@@ -46,11 +46,13 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_NUM_ROBOTS 3
 
-#define DEFAULT_MSG_LIMIT 0
+#define MSG_UNLIMITED     0
+#define MSG_LIMITED       1
+#define DEFAULT_MSG_LIMIT MSG_LIMITED
 
 #define DEFAULT_EXPERIMENT_DURATION 120 //seconds
 
-#define DEFAULT_ROBOT_SPEED 1.0f
+#define DEFAULT_ROBOT_SPEED 0.0f
 
 #define DEFAULT_DATA_LINK "ESPNOW"
 

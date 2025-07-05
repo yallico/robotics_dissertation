@@ -35,6 +35,8 @@
 #include "ga.h"
 
 #define ESPNOW_MAXDELAY 512
+#define TX_BUDGET   1        
+#define WINDOW_MS   8000
 
 static const char *TAG = "espnow";
 
@@ -45,7 +47,6 @@ QueueHandle_t s_example_espnow_queue;
 static uint32_t s_peer_start_times[DEFAULT_NUM_ROBOTS] = {0};
 static int8_t s_last_rssi[DEFAULT_NUM_ROBOTS] = {0}; // Track per-robot RSSI
 static uint32_t s_last_latency[DEFAULT_NUM_ROBOTS] = {0}; // Track per-robot latency (ms)
-
 
 /* Throughput counting variables */
 static uint32_t s_send_bytes = 0;
@@ -62,6 +63,22 @@ static const uint8_t mac_addresses[DEFAULT_NUM_ROBOTS][ESP_NOW_ETH_ALEN] = {
     {0x78, 0x21, 0x84, 0x93, 0x78, 0xC0},
     {0x08, 0xB6, 0x1F, 0x88, 0x20, 0x04}
 };
+
+#if DEFAULT_MSG_LIMIT == MSG_LIMITED
+    static uint8_t tokens = TX_BUDGET;
+    static int64_t windowStart = 0;
+    static bool shouldSendNow()
+    {
+        int64_t now = esp_timer_get_time() / 1000;   // ms
+        if (now - windowStart >= WINDOW_MS) {        // new window
+            tokens = TX_BUDGET;
+            windowStart = now;
+        }
+        if (!tokens) return false;                   // bucket empty → stay quiet
+        --tokens;
+        return true;
+    }
+#endif
 
 bool validate_mac_addresses_count() {
     int addresses_count = sizeof(mac_addresses) / sizeof(mac_addresses[0]);
@@ -355,6 +372,13 @@ int example_espnow_data_parse(uint8_t *data, uint16_t data_len, uint8_t *state, 
 void espnow_push_best_solution(float current_best_fitness, const float *best_solution,
     size_t gene_count, uint32_t log_id, time_t created_datetime)
 {
+    #if DEFAULT_MSG_LIMIT == MSG_LIMITED
+        if (!shouldSendNow()) {
+            ESP_LOGI(TAG, "TX quota exceeded, not sending best solution this window.");
+            return;
+        }
+    #endif
+
     // Prepare the out_message structure
     out_message_t out_msg;
     memset(&out_msg, 0, sizeof(out_message_t));
