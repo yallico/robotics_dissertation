@@ -184,8 +184,8 @@ messages_df, logs_df, metadata_df = ingest_data('data_analysis/temp/data')
 in_scope = metadata_df[
     (metadata_df['num_robots'] == 3) &
     (metadata_df['robot_speed'] == 0.0) &
-    (metadata_df['topology'] == 1) &
-    (metadata_df['msg_limit'] == 0) &
+    (metadata_df['topology'] == 0) &
+    (metadata_df['msg_limit'] == 1) &
     (metadata_df['max_genes'] == 10) 
 ]
 in_scope_experiment_ids = in_scope['experiment_id'].unique()
