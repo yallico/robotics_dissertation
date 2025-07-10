@@ -52,7 +52,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_EXPERIMENT_DURATION 120 //seconds
 
-#define DEFAULT_ROBOT_SPEED 0.0f
+#define DEFAULT_ROBOT_SPEED 1.0f
 
 #define DEFAULT_DATA_LINK "ESPNOW"
 
@@ -70,7 +70,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define TOPOLOGY_RANDOM      0
 #define TOPOLOGY_COMM_AWARE  1
-#define DEFAULT_TOPOLOGY TOPOLOGY_RANDOM    
+#define DEFAULT_TOPOLOGY TOPOLOGY_COMM_AWARE
 
 //Experimental metadata
 extern char* experiment_id;
