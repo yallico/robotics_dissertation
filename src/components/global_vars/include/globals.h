@@ -48,7 +48,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define MSG_UNLIMITED     0
 #define MSG_LIMITED       1
-#define DEFAULT_MSG_LIMIT MSG_LIMITED
+#define DEFAULT_MSG_LIMIT MSG_UNLIMITED
 
 #define DEFAULT_EXPERIMENT_DURATION 120 //seconds
 
