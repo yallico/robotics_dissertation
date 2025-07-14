@@ -3,11 +3,14 @@ import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
+import statsmodels.formula.api as smf
+import statsmodels.api as sm
+from statsmodels.stats.multitest import multipletests
 
 ROOT = Path(__file__).parent        # directory where this .py lives
-logs_path     = ROOT / "three_device_results/logs.parquet"
-metadata_path = ROOT / "three_device_results/metadata.parquet"
-messages_path = ROOT / "three_device_results/messages.parquet"
+logs_path     = ROOT / "temp/three_device_results/logs.parquet"
+metadata_path = ROOT / "temp/three_device_results/metadata.parquet"
+messages_path = ROOT / "temp/three_device_results/messages.parquet"
 
 ###############################################################################
 # 1. Load the raw parquet data  (adapt the paths if needed)
@@ -99,11 +102,10 @@ exp_tbl = (
 )
 
 agg_plan = {
-    "fitness_score"   : ["mean", "std", "min", "max"],
-    "log_id"          : ["count"], 
+    "fitness_score"   : ["mean", "std"],
     "cpu_util_core0"  : ["mean", "std"],
     "cpu_util_core1"  : ["mean", "std"],
-    "latency"      : ["mean", "std"],
+    "latency"         : ["mean", "std"],
     "kbps_in"         : ["mean", "std"],
     "kbps_out"        : ["mean", "std"],
 }
@@ -123,43 +125,23 @@ agg_df.columns = [
 # Append to the experiment-level table
 exp_tbl = exp_tbl.join(agg_df, how="left")
 
-###Custom Columns
-
-n_devices = (
-    full_df.groupby("experiment_id")["device_mac_id"]
-           .nunique()                          # → Series indexed by experiment_id
-)
-
-full_df["n_devices"] = full_df["experiment_id"].map(n_devices)
-
-# FINAL fitness = value at the largest log_id per experiment
-final_fit = (
-    full_df
-      .sort_values(["experiment_id", "log_id"])
-      .groupby("experiment_id")
-      .tail(1)                      # keep last row of each group
-      .set_index("experiment_id")["fitness_score"]
-      .rename("fitness_final")
-)
-
-# IMPROVEMENT per second  (first – last) / total_time
-impr_per_sec = (
-    full_df
-      .groupby("experiment_id")
-      .apply(lambda g: (g.fitness_score.iloc[0] - g.fitness_score.iloc[-1]) /
-                       max(g.second_offset))
-      .rename("fitness_delta_per_sec")
-)
 
 ###############################################################################
 # RSSI
 ###############################################################################
 
+n_devices = (
+    full_df.groupby("experiment_id")["device_mac_id"]
+           .nunique()                          
+)
+
+full_df["n_devices"] = full_df["experiment_id"].map(n_devices)
+
 rssi_cols = ["rssi_2004", "rssi_DA8C", "rssi_78C0"]
 
-full_df["avg_rssi_row"] = (
-    full_df[rssi_cols].mean(axis=1, skipna=True) / (full_df["n_devices"] - 1)  # average per row, excluding self
-)
+row_mean = full_df[rssi_cols].mean(axis=1, skipna=True)
+
+full_df["avg_rssi_row"] = row_mean / (full_df["n_devices"] - 1)
 
 rssi_exp = (
     full_df.groupby("experiment_id")["avg_rssi_row"]
@@ -238,7 +220,7 @@ cos_sim_exp = (
     messages[messages["gene_10"].notna()]  # filter out rows with no genes
       .groupby("experiment_id")
       .apply(lambda df: mean_cosine(df[gene_cols]))
-      .rename("avg_cosine_similarity")
+      .rename("gene_cosine_similarity")
 )
 
 ###############################################################################
@@ -274,11 +256,10 @@ pair_var_exp = (
 #   total  = rows whose msg_count column is NOT NULL
 ###############################################################################
 flag_col   = "msg_rcv_flag"             # sender’s ACK or status flag
-count_col  = "fitness_score"           # any non-null → message exists
 exp_col    = "experiment_id"
 
 # 1 .  Consider only rows that represent a message (msg_count not null)
-msg_rows = full_df.loc[full_df[count_col].notna(), [exp_col, flag_col]]
+msg_rows = full_df.loc[full_df[flag_col].notna(), [exp_col, flag_col]]
 
 # 2 .  Compute per-experiment counts
 totals  = msg_rows.groupby(exp_col).size().rename("n_messages")
@@ -300,51 +281,104 @@ err_tbl = (
 # Jitter per experiment  (mean absolute delta of latency over time)
 ###############################################################################
 
-lat_col   = "latency"
+lat_col   = "latency"          # or "latency_ms", whichever is in your frame
 time_col  = "second_offset"
-recv_col  = "device_mac_id" 
+dev_col   = "device_mac_id"
 exp_col   = "experiment_id"
 
-def stream_jitter(df):
+# 1 .  Keep rows with valid latency + timestamp
+lat_rows = full_df.loc[
+    full_df[lat_col].notna() & full_df[time_col].notna(),
+    [exp_col, dev_col, time_col, lat_col]
+]
+
+# 2 .  Build latency-diff series for each (experiment, device)
+def device_jitter_std(df):
     """
-    df: DataFrame for one (experiment, device) stream, sorted by time
-    → mean absolute delta of successive latency values, or NaN (<2 rows)
+    df: rows for a single (experiment, device) stream, sorted by time.
+    Returns population stdev of latency_diff (same as STDEVX.P in DAX).
     """
     lat = df[lat_col].to_numpy(dtype=float)
     if lat.size < 2:
-        return np.nan
-    return np.mean(np.abs(np.diff(lat)))
+        return np.nan                             # undefined with <2 msgs
+    latency_diff = np.diff(lat)
+    # population standard deviation  (ddof=0)
+    return np.std(latency_diff, ddof=0)
 
-
-# 1 .  Keep rows with valid latency & timestamp
-lat_rows = full_df.loc[
-    full_df[lat_col].notna() & full_df[time_col].notna(),
-    [exp_col, recv_col, time_col, lat_col]
-]
-
-# 2 .  Sort and compute jitter per (experiment, device) stream
-stream_jit = (
-    lat_rows.sort_values([exp_col, recv_col, time_col])
-            .groupby([exp_col, recv_col])
-            .apply(stream_jitter)                 # → Series indexed by (exp, dev)
+device_jit = (
+    lat_rows.sort_values([exp_col, dev_col, time_col])
+            .groupby([exp_col, dev_col])
+            .apply(device_jitter_std)
             .rename("device_jitter")
             .reset_index()
 )
 
-# 3 .  Aggregate device-jitters to one figure per experiment
-#     (simple mean; switch to .median(), .mean(weight=…) if preferred)
+# 3 .  Experiment-level mean of device_jitter
 jitter_exp = (
-    stream_jit.groupby(exp_col)["device_jitter"]
-             .mean()                              # average across devices
-             .rename("jitter_ms")
+    device_jit.groupby(exp_col)["device_jitter"]
+              .mean()                          
+              .rename("jitter_ms")            
 )
 
+#TODO: Condiser adding, final_fitness_score and fiteness rate of change (for first 30 seconds)
 
 #MERGE
-exp_tbl = exp_tbl.join([rssi_exp, final_fit, impr_per_sec, gene_var_exp, cos_sim_exp, pair_var_exp, err_tbl, jitter_exp], how="left")
+exp_tbl = exp_tbl.join([rssi_exp, gene_var_exp, cos_sim_exp, pair_var_exp, jitter_exp], how="left")
 exp_tbl = exp_tbl.join(success_tbl[["success_migration_rate"]], how="left")
+exp_tbl = exp_tbl.join(err_tbl[["error_rate"]], how="left")
 
 print(exp_tbl.columns)
-print(exp_tbl.describe())
+
+# Save the final table to .csv
+exp_tbl.to_csv(ROOT / "experiment_statistics.csv")
+
+###############################################################################
+# STATISTICS    
+###############################################################################
+
+factor_cols = ["topology", "robot_speed", "msg_limit"]
+
+# any *numeric* column that is NOT one of the factors and not the key
+response_cols = [
+    c for c in exp_tbl.select_dtypes(include=[np.number]).columns
+    if c not in factor_cols and c not in ["experiment_id", "max_genes", "num_robots"]
+]
+
+
+###############################################################################
+# 2 .  Helper: run Type-II ANOVA on one response and return a tidy frame
+###############################################################################
+def anova_for(response):
+    formula = f"{response} ~ C(topology) * C(robot_speed) * C(msg_limit)"
+    model   = smf.ols(formula, data=exp_tbl).fit()
+    aov     = sm.stats.anova_lm(model, typ=2)        # DataFrame
+    aov = aov.reset_index().rename(columns={
+        "index": "effect",         # e.g. 'C(topology):C(robot_speed)'
+        "F":      "F_value",
+        "PR(>F)": "p_value",
+        "sum_sq": "sum_sq"
+    })
+    aov.insert(0, "response", response)
+    return aov[["response", "effect", "F_value", "p_value", "sum_sq"]]
+
+###############################################################################
+# 3 .  Loop over every response column and stack the results
+###############################################################################
+results = pd.concat([anova_for(col) for col in response_cols], ignore_index=True)
+
+###############################################################################
+# 5 .  Save or inspect
+###############################################################################
+results.to_csv(ROOT / "anova_all_metrics.csv", index=False)
+
+sig = results[results["p_value"] < 0.05].sort_values("p_value")
+print(sig)
+
+pivot = (
+    results.pivot_table(index="response", columns="effect",
+                        values="p_value", aggfunc="min")
+)
+
+print(pivot)
 
 print("done")
