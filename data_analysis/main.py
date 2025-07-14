@@ -34,7 +34,7 @@ def parse_log_message(log_message):
     Returns a dict with these fields.
     """
     parts = log_message.strip('|').split('|')
-    if len(parts) >= 6:
+    if len(parts) == 6:
         return {
             'fitness_score': float(parts[0]),
             'gene_1': float(parts[1]),
