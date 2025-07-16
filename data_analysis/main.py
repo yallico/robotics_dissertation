@@ -92,7 +92,7 @@ def parse_log_type(record):
     # Case 3: rssi matrix (mapping robot IDs)
     elif log_level == 'C':
         # Example mapping, update as needed
-        robot_id_map = ['DA8C', '78C0', '2004', 'YYYY', 'ZZZZ', 'AAAA', 'BBBB', 'CCCC', 'DDDD', 'EEEE',
+        robot_id_map = ['DA8C', '78C0', '2004', '669C', '9288', 'A984', 'DE9C', 'DF8C', 'DDDD', 'EEEE',
                         'FFFF', 'GGGG', 'HHHH', 'IIII', 'JJJJ', 'KKKK', 'LLLL', 'MMMM', 'NNNN', 'OOOO']
         for idx, robot_id in enumerate(robot_id_map):
             try:
