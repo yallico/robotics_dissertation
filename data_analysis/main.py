@@ -92,8 +92,8 @@ def parse_log_type(record):
     # Case 3: rssi matrix (mapping robot IDs)
     elif log_level == 'C':
         # Example mapping, update as needed
-        robot_id_map = ['DA8C', '78C0', '2004', '669C', '9288', 'A984', 'DE9C', 'DF8C', 'DDDD', 'EEEE',
-                        'FFFF', 'GGGG', 'HHHH', 'IIII', 'JJJJ', 'KKKK', 'LLLL', 'MMMM', 'NNNN', 'OOOO']
+        robot_id_map = ['DA8C', '78C0', '2004', '669C', '9288', 'A984', 'DE9C', 'DF8C', 'B19C', 'A184',
+                        '228C', 'CBAC', 'AC44', 'IIII', 'JJJJ', 'KKKK', 'LLLL', 'MMMM', 'NNNN', 'OOOO']
         for idx, robot_id in enumerate(robot_id_map):
             try:
                 parsed[f'rssi_{robot_id}'] = int(parts[idx])
@@ -184,7 +184,7 @@ messages_df, logs_df, metadata_df = ingest_data('data_analysis/temp/data')
 in_scope = metadata_df[
     (metadata_df['num_robots'] == 8) &
     (metadata_df['robot_speed'] == 1.0) &
-    (metadata_df['topology'] == 1) &
+    (metadata_df['topology'] == 0) &
     (metadata_df['msg_limit'] == 0) &
     (metadata_df['max_genes'] == 10) 
 ]

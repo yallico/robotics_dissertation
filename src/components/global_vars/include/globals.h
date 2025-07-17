@@ -44,7 +44,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_HYPERMUTATION_GENERATIONS 20
 
-#define DEFAULT_NUM_ROBOTS 8
+#define DEFAULT_NUM_ROBOTS 13
 
 #define MSG_UNLIMITED     0
 #define MSG_LIMITED       1
@@ -52,7 +52,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_EXPERIMENT_DURATION 60 //seconds
 
-#define DEFAULT_ROBOT_SPEED 1.0f
+#define DEFAULT_ROBOT_SPEED 0.0f
 
 #define DEFAULT_DATA_LINK "ESPNOW"
 
