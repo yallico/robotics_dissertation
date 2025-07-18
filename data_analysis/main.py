@@ -185,7 +185,7 @@ in_scope = metadata_df[
     (metadata_df['num_robots'] == 13) &
     (metadata_df['robot_speed'] == 1.0) &
     (metadata_df['topology'] == 1) &
-    (metadata_df['msg_limit'] == 0) &
+    (metadata_df['msg_limit'] == 1) &
     (metadata_df['max_genes'] == 10) 
 ]
 in_scope_experiment_ids = in_scope['experiment_id'].unique()
