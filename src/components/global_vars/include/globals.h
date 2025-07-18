@@ -64,11 +64,13 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_MIGRATION_SCHEME "ELITIST"
 
-#define DEFAULT_MIGRATION_FREQUENCY 0
+#define FREQUENCY_NONE      0
+#define FREQUENCY_RANDOM    1
+#define DEFAULT_MIGRATION_FREQUENCY FREQUENCY_NONE
 
 #define TOPOLOGY_RANDOM      0
 #define TOPOLOGY_COMM_AWARE  1
-#define DEFAULT_TOPOLOGY TOPOLOGY_RANDOM
+#define DEFAULT_TOPOLOGY TOPOLOGY_COMM_AWARE
 
 //Experimental metadata
 extern char* experiment_id;

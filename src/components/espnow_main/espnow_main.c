@@ -37,6 +37,7 @@
 #define ESPNOW_MAXDELAY 512
 #define TX_BUDGET   1        
 #define WINDOW_MS   8000
+#define MAX_RAND_FREQUENCY 500 // Max random delay in milliseconds
 
 static const char *TAG = "espnow";
 
@@ -484,6 +485,11 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
             uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
             s_peer_start_times[idx] = current_time_ms;
         }
+        // NEW: Insert a random delay if required
+        if (DEFAULT_MIGRATION_FREQUENCY == FREQUENCY_RANDOM) {
+            uint32_t delay_ms = esp_random() % MAX_RAND_FREQUENCY;
+            vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        }
         esp_err_t err = esp_now_send(macs[i], (uint8_t *)&out_msg, sizeof(out_msg));
         if (err != ESP_OK) {
             ESP_LOGW(TAG, "Failed to send best solution to " MACSTR ": %s",
@@ -511,6 +517,11 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
         if (idx >= 0) {
             uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
             s_peer_start_times[idx] = current_time_ms;
+        }
+        // NEW: Insert a random delay if required
+        if (DEFAULT_MIGRATION_FREQUENCY == FREQUENCY_RANDOM) {
+            uint32_t delay_ms = esp_random() % MAX_RAND_FREQUENCY;
+            vTaskDelay(pdMS_TO_TICKS(delay_ms));
         }
         esp_err_t err = esp_now_send(macs[i], (uint8_t *)&out_msg, sizeof(out_msg));
         if (err != ESP_OK) {
