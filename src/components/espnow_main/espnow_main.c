@@ -529,10 +529,11 @@ void espnow_push_best_solution(float current_best_fitness, const float *best_sol
             uint32_t current_time_ms = (uint32_t)(esp_timer_get_time() / 1000ULL);
             s_peer_start_times[idx] = current_time_ms;
         }
-        // NEW: Insert a random delay if required
+        // Random delay
         if (DEFAULT_MIGRATION_FREQUENCY == FREQUENCY_RANDOM) {
-            uint32_t delay_ms = esp_random() % MAX_RAND_FREQUENCY;
-            vTaskDelay(pdMS_TO_TICKS(delay_ms));
+            uint32_t max_rand = get_max_rand_frequency();
+            uint32_t delay_ms = (max_rand > 0) ? (esp_random() % max_rand) : 0;
+             vTaskDelay(pdMS_TO_TICKS(delay_ms));
         }
         esp_err_t err = esp_now_send(macs[i], (uint8_t *)&out_msg, sizeof(out_msg));
         if (err != ESP_OK) {
