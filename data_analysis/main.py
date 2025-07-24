@@ -184,7 +184,7 @@ messages_df, logs_df, metadata_df = ingest_data('data_analysis/temp/data')
 
 ##################### EXPERIMENT SCOPE ########################
 in_scope = metadata_df[
-    (metadata_df['num_robots'] == 13) &
+    (metadata_df['num_robots'] == 8) &
     (metadata_df['robot_speed'] == 1.0) &
     (metadata_df['topology'] == 0) &
     (metadata_df['msg_limit'] == 0) &
