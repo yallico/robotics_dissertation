@@ -103,9 +103,8 @@ static uint32_t get_max_rand_frequency(void)
 
 bool validate_mac_addresses_count() {
     int addresses_count = sizeof(mac_addresses) / sizeof(mac_addresses[0]);
-    if (addresses_count > DEFAULT_NUM_ROBOTS) {
-        ESP_LOGE(TAG, "Too many MAC addresses (%d) allowed = %d",
-                 addresses_count, DEFAULT_NUM_ROBOTS);
+    if (DEFAULT_NUM_ROBOTS > addresses_count) {
+        ESP_LOGE(TAG, "Not enough MAC addresses (%d available) for %d robots", addresses_count, DEFAULT_NUM_ROBOTS);
         return false;
     }
     return true;

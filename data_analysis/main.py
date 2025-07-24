@@ -189,7 +189,7 @@ in_scope = metadata_df[
     (metadata_df['topology'] == 0) &
     (metadata_df['msg_limit'] == 0) &
     (metadata_df['max_genes'] == 10) &
-    (metadata_df['migration_frequency'] == 0) &
+    (metadata_df['migration_frequency'] == 1) &
     (metadata_df['app_version'].astype('float') >=  0.6)
 ]
 in_scope_experiment_ids = in_scope['experiment_id'].unique()
