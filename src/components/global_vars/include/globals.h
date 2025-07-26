@@ -44,7 +44,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_HYPERMUTATION_GENERATIONS 20
 
-#define DEFAULT_NUM_ROBOTS 8
+#define DEFAULT_NUM_ROBOTS 3
 
 #define MSG_UNLIMITED     0
 #define MSG_LIMITED       1
