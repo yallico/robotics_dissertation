@@ -44,7 +44,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define DEFAULT_HYPERMUTATION_GENERATIONS 20
 
-#define DEFAULT_NUM_ROBOTS 3
+#define DEFAULT_NUM_ROBOTS 2
 
 #define MSG_UNLIMITED     0
 #define MSG_LIMITED       1
@@ -66,7 +66,7 @@ extern QueueHandle_t ga_buffer_queue;
 
 #define FREQUENCY_NONE      0
 #define FREQUENCY_RANDOM    1
-#define DEFAULT_MIGRATION_FREQUENCY FREQUENCY_RANDOM
+#define DEFAULT_MIGRATION_FREQUENCY FREQUENCY_NONE
 
 #define TOPOLOGY_RANDOM      0
 #define TOPOLOGY_COMM_AWARE  1
