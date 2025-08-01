@@ -1,5 +1,6 @@
 \documentclass[conference]{IEEEtran}
 % Packages
+%\pdfobjcompresslevel=0
 \usepackage{titlesec}
 \usepackage{graphicx}
 \usepackage{lipsum} % For dummy text, you can remove this
@@ -26,13 +27,43 @@ LOREM IPSUM
 
 
 \section{Introduction}
-Human speech likely emerged as vital tool for coordination and the formation of social bonds among early humans [Charles Darwin's Descent of Man]. The concept, that language evolved as an adaptive trait via natural selection is widely accepted by the scientific community. 
 
-Inspired by nature's evolutionary strategies, Swarm Engineers aspire to harness the collective intelligence mechanisms evident in social insects such as ants and bees [Ref]. This dissertation examines the communication protocols of a swarm of robots, with the aim to engineer a communication framework that enables robots to efficiently share information and collaborate on tasks, mirroring the sophisticated social interactions found in natural systems.
+Swarm engineers draw inspiration from social biological systems such as ants or bees to build decentralised robot collectives that are inherently robust to failure, flexible across tasks and scalable in number \cite{dias_swarm_2021}. In swarm systems, collective intelligence emerges when individual robots trade packets of information among neighbouring robots. Classic ant-colony-optimisation (ACO) work in the early 2000s has already proven that an indirect information exchange "virtual-pheromones" can lead to agents collectively discovering optimal routing behaviours \cite{dorigo_ant_2000}. Highlighting the importance of communication design in swarms and the effect it can have over their behaviour.\\
+
+Moreover, communication remains the least measured layer of swarm robotics. A recent survey by \cite{an_multi-robot_2023} found that the majority of swarm studies focus on coordination and task allocation, with relatively little focus on information exchange. Notwithstanding this, it was reported that bandwidth, latency and energy usage are now the main blockers to real-world swarm deployments. Parallel conclusions have been made by \cite{ding_advancements_2023}, whom suggests that researchers are challenged by the increasing data volume transmitted among swarm peers. As the number of agents grows so does the throughput of the network, which can exceed a single agent's processing capabilities as these tend to be hardware limited.\\
+
+Beyond the swarm's capacity, the architecture of the communication also matters. In many direct communication schemes, broadcasting is a common mode of data transmission across various swarm deployments \cite{an_multi-robot_2023}. For example,\cite{perrin_decentralised_2012} demonstrated that peer-to-peer broadcasts allowed swarms to map unknown environments in disaster zones. However, this type of data flooding is known to scale poorly \cite{an_multi-robot_2023}, this due to increasing Wi-Fi collision rates once swarms grow past a few dozen peers.\\ 
+
+Furthermore, embodied evolution of swarm controllers heavily relies on communication to tune the controller. Some recent studies explain that less communication can sometimes enhance swarm performance, as trimming neighbourhood size helps populations forget outdated beliefs and re-adapt faster \cite{hiraga_when_2023}\cite{ding_advancements_2023}. Most of these studies were performed in simulation, hence the need for empirical data on how swarm density, rate of data transfer and packet content affects evolution performance. With this in mind, it is possible to think of communication as a dynamic resource that can be manipulated by the swarm to achieve its goals. The ways in which this resource is allocated can have a significant impact on the behaviour of the swarm.\\
+
+This study addresses some of these gaps by exploring different communication protocols in a swarm system. To do this we deploy collective built on the low-cost ESP32 microcontrollers, that to our knowledge have not yet been profiled in swarm literature. Focusing on direct peer to peer ESP-NOW data transfer, we log key performance indicators such as latency, error rates, core usage and evolution metrics while systematically varying density, locomotion, topology awareness, imposed message budgets and stochastic transmission. Our goals are to (i) extend existing communication taxonomies to the ESP32/IoT hardware class, (ii) provide concrete data for the integration challenges flagged by literature, and (iii) translate abstract guidance on swarm communication into tangible design rules.
 
 \section{Related Work}
 
-\section{Design Rationale \& Implementation}
+\section{Experimental Setting}
+
+In this study, a global optimisation problem known as the Rastrigin function Eq. \ref{eq:rastrigin} is used to benchmark the communication performance in a swarm with up to 13 agents. This task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remained the same.\\ 
+
+The environment for the experiments was a rectangular arena without obstacles (Figure \ref{fig:arena}), where the initial positions, orientations and number of the robots was determined by the type of experiment being conducted (Section X). All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.49\textwidth]{arena.png}
+    \caption{Robot Arena: (a) dimensions and (b) example of locomotion experiment with 8 robots.}
+    \label{fig:arena}
+\end{figure}
+
+
+\subsection{Rastrigin Function}
+
+The Rastrigin function is defined as follows:
+
+\begin{equation}\label{eq:rastrigin}
+f_R(\mathbf{x}) = 10n + \sum_{i=1}^{n} \left(x_i^2 - 10\cos(2\pi x_i)\right)
+\end{equation}
+
+where $n$ is the number of dimensions, in this case the number of genes. Whereas, $x$ is the individual genome being evaluated. The function has a global minimum at \( f_R(\mathbf{x}) = 0 \) when $x = [0, 0, ..., 0]$ for all dimensions \cite{rucinski_impact_2010}. For the purpose of this study we used $n = 10$ and a solution bounded at $-5.12<=x_i<=5.12$.
+
 \subsection{Robot Platform}\label{sec:robot_platform}
 \begin{figure}[h]
     \centering
@@ -41,26 +72,51 @@ Inspired by nature's evolutionary strategies, Swarm Engineers aspire to harness 
     \label{fig:B2}
 \end{figure}
 
-Table~\ref{tab:B2-hardware} summarises the core hardware of Swarm-B2 platform used in this study REF. The M5Stack Core2 (ESP32) acts as the I\textsuperscript{2}C master, coordinating an Infra-red (IR) Communication board and a Pololu~3Pi+ driver base over a 100kHz bus. Although the IR board can transmit/receive 32-byte frames, the experiments reported here have disabled this feature by leaving its TX buffer empty. The board therefore behaves as a I²C bridge between the M5 master and the Pololu 3Pi+ slave. This guarantees that the communication results discussed in Section REF stem only from the ESP-NOW protocol.\\
+Table~\ref{tab:B2-hardware} summarises the core hardware components of the Swarm-B2 platform used in this study REF. The ESP32 microcontroller acts as the I\textsuperscript{2}C master, coordinating an communication board and a Pololu~3Pi+ driver base over a 100kHz bus. Although the IR board can transmit/receive 32-byte frames, the experiments reported here have disabled this feature. The board therefore behaves as a I²C bridge between the M5 master and the Pololu 3Pi+ slave. This guarantees that the communication results discussed in Section REF stem only from the ESP-NOW protocol.\\
 
 \begin{table}[h]
   \centering
-  \caption{Swarm robot hardware stack}
+  \caption{Swarm-B2 hardware stack}
   \label{tab:B2-hardware}
-  \begin{tabular}{lll}
+  \begin{tabular}{p{0.20\linewidth} p{0.22\linewidth} p{0.40\linewidth}}
     \toprule
-    Component & Interface & Function \\
+    Component & Interface(s) & Function \\
     \midrule
-    M5Stack Core2 & I\textsuperscript{2}C master & GA, Wi-Fi, logging \\
-    IR board (0xB2) & I\textsuperscript{2}C slave & optional IR, bus hub \\
-    Pololu 3Pi+ (0x10) & I\textsuperscript{2}C slave & locomotion sensors \\
-    AXP192 PMIC & I\textsuperscript{2}C slave & power, RTC \\
-    SD-card \& LCD & SPI & data + UI \\
+    M5Stack Core2 (240 MHz) & I\textsuperscript{2}C master and SPI & Solve Rastrigin, ESP-NOW communication, data logging to SD and user interface \\
+    IR board (16 MHz) & I\textsuperscript{2}C slave (0x04) & Bus hub, optional IR feature \\
+    Pololu 3Pi+ (16 MHz) & I\textsuperscript{2}C slave (0x08) & Locomotion, bumper and line following sensors \\
+
     \bottomrule
   \end{tabular}
 \end{table}
 
-The main reason for using the M5 as master is because of the SD card support which is discussed in Section X with regards to data logging. Furthermore, with 8MB PSRAM and integrated Wi-Fi support, the M5 is capable of running dual-core FreeRTOS tasks (comms on core 0, experiment on core 1) without starving multiple peripherals. In contrast, the Pololu's AVR board was not able meet the memory bandwidth required for concurrent SD card writes. Making the ESP32 the sole master also avoided multi master arbitration and simplified bus timing. 
+The ESP32 was used as the master device is because of the SD card support which is discussed in Section X and because of its larger flash memory. Furthermore, with 8MB PSRAM and its integrated Wi-Fi support, this microcontroller was capable of running dual-core FreeRTOS tasks (Section X comms on core 0, experiment on core 1) without starving other peripherals. In contrast, the Pololu's board was not able meet the memory bandwidth required for concurrent SD card writes. Making the ESP32 the master also avoided multi master arbitration and simplified bus timing.
+
+\subsubsection{Locomotion}
+
+The Pololu 3Pi+ is equipped with a line following sensor array and two bump sensors, which can be used to detect obstacles and detect the arena edges. We leverage this components to execute a \emph{Brownian-motion} gait that continuously drives the robot through the arena while producing an unbiased spatial trace. Using Brownian motion avoids any preferential trajectory that could skew communication statistics, and is able to keep all agents in motion throughout the run.\\
+
+The gait code exposes the Pololu slave to the ESP32 master node, this interface lets the ESP32 act as a passenger with override, that can set wheel-speed scaling factors or raise \texttt{START}/\texttt{STOP} flags without touching the low-level control loop.  In effect, the Pololu driver handles continuous motion, while the ESP32 decides when to go for each experimental condition (Section X).
+
+\subsubsection{Data Capture}
+We implemented local data logging mechanism (Section X) on the ESP32 with a 16GB SD card peripheral. The shared SPI bus (with the LCD) was set at a frequency of 20MHz and configured to use the FAT32 file system for storage. This approach was chosen to emulate a realistic swarm system capable of operating remotely without relying on a stable Wi-Fi connection to a central server. The additional benefit of the local data capture is that it minimizes data transmission loss during the experimental runs.\\
+
+Upon completing each run, the swarm members switch to a data upload mode and connect to the Wi-Fi, where the locally collected data is securely transmitted to an AWS S3 bucket using HTTPS. This might seem counter intuitive to our original objective, but it was planned to be this way as otherwise we would have to manually read each individual SD card to collect the data, which would be time consuming and error prone. Furthermore, we expect that in a real-world scenarios, the swarm would be deployed in a remote location where manual data collection would be impossible.\\
+
+Data logs are saved in the root directory of the SD card in a \.json format. Our system is designed to automatically generate new files upon reaching a specified size limit of 1MB, this enables efficient memory management and preventing heap memory overflow during log file writes.
+
+\subsubsection{User Interface}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.35\textwidth]{UI.png}
+    \caption{M5 user interface showing the current fitness score and device information.}
+    \label{fig:UI}
+\end{figure}
+
+Figure \ref{fig:UI} shows the on-board user interface (UI) each Swarm-B2 agent displays during trials. A real-time clock (RTC) seeds a unique \emph{experiment\_id}, just below a $T\pm SS$ counter tells the operator how long until the next minute aligned run. Note that between peers there is an RTC's $\pm1$ drift, this is discussed in Section X. Status lines on the display list the robot's ID (last four hex digits of the MAC address), the live fitness score, and a single debug message. The bottom-left tag logs which software build is running on the device. Two icons round out diagnostics, the Wi-Fi symbol flashes during S3 log upload, and the circular arrow signals an over-the-air update.
+
+\section{Design Rationale \& Implementation}
 
 \subsection{Software Development Environment}
 The B2's ESP32 microcontroller supports two software development environments (i) Arduino IDE or (ii) ESP-IDF (Espressif IoT Development Framework). In this project, the ESP-IDF was chosen for several key reasons. First and foremost, it is the official development framework maintained by Espressif for the ESP32. Unlike the Arduino IDE, which acts as an abstraction layer over ESP-IDF, the latter provides native and direct access to low level hardware, resulting in greater flexibility, especially for the ESP-NOW communication protocol (discussed Section X) \cite{esp-boards_esp-idf_nodate}.\\
@@ -156,13 +212,6 @@ An experiment is terminated when one of the following criteria is met:
   \item \textbf{Time Limit Exceeded}: A configurable maximum duration (e.g., 10 minutes) elapses without global convergence.
 \end{enumerate}
 Upon termination, all ESPNOW tasks drain pending message queues, final fitness and communication metrics are written to the SD card, and log files are uploaded to an Amazon S3 bucket over HTTPS. Finally, the system de‐initializes peripherals (Wi‐Fi stopped, SD card unmounted, IR board halted) to ensure a clean shutdown.
-
-\subsection{Data Capture}
-We implemented local data logging on the M5Stack by integrating a 16GB SD card peripheral, using the SPI bus (shared by the LCD) set at a frequency of 20MHz and utilizing the FAT32 file system for storage. This approach was chosen to emulate a realistic swarm system capable of operating remotely without relying on a stable Wi-Fi connection to a central server. Local logging minimizes data transmission loss, supporting the swarm's objective of avoiding any single point of failure. 
-
-Upon completing the experimental tasks, the swarm members switch to a data upload mode, where the locally collected data is securely transmitted to an S3 bucket using HTTPS. This might seem counter intuitive to our original decentralized objective, but it was planned to be this way as otherwise we would have to manually read each individual SD card to collect the data, which would be time consuming and error prone. Furthermore, we expect that in a real world scenario, the swarm would be deployed in a remote location where manual data collection would be impossible.
-
-Data logs are saved in the root directory of the SD card in a \.json format. Our system is designed to automatically generate new files upon reaching a specified size limit, this enables efficient memory management and preventing heap memory overflow during log file writes.
 
 
 \newpage

@@ -19,6 +19,383 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{an_multi-robot_2023}{article}{}
+      \name{author}{6}{}{%
+        {{hash=11624270cfc43e65813ef8bb8f0e5ef0}{%
+           family={An},
+           familyi={A\bibinitperiod},
+           given={Xing},
+           giveni={X\bibinitperiod}}}%
+        {{hash=e30e118a22919d556122f051c991957e}{%
+           family={Wu},
+           familyi={W\bibinitperiod},
+           given={Celimuge},
+           giveni={C\bibinitperiod}}}%
+        {{hash=a04902df3ee70c71f358d51f722acdfb}{%
+           family={Lin},
+           familyi={L\bibinitperiod},
+           given={Yangfei},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=d2827b813d1d73df44360201e3296bea}{%
+           family={Lin},
+           familyi={L\bibinitperiod},
+           given={Min},
+           giveni={M\bibinitperiod}}}%
+        {{hash=e5ca90c9548115d26359f75dd6790ed4}{%
+           family={Yoshinaga},
+           familyi={Y\bibinitperiod},
+           given={Tsutomu},
+           giveni={T\bibinitperiod}}}%
+        {{hash=106cbaef5d4e5beafa3291a000c76a92}{%
+           family={Ji},
+           familyi={J\bibinitperiod},
+           given={Yusheng},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \strng{namehash}{550dcbf88672ca1f3c79845bf92af415}
+      \strng{fullhash}{fdbe0e8daba588d919d5086836049c3a}
+      \strng{bibnamehash}{550dcbf88672ca1f3c79845bf92af415}
+      \strng{authorbibnamehash}{550dcbf88672ca1f3c79845bf92af415}
+      \strng{authornamehash}{550dcbf88672ca1f3c79845bf92af415}
+      \strng{authorfullhash}{fdbe0e8daba588d919d5086836049c3a}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Multi-robot systems gain considerable attention due to lower cost, better robustness, and higher scalability as compared with single-robot systems. Cooperative object transport, as a well-known use case of multi-robot systems, shows great potential in real-world applications. The design and implementation of a multi-robot system involve many technologies, specifically, communication, coordination, task allocation methods, experimental platforms, and simulators. However, most of recent multi-robot system studies focus on coordination and task allocation problems, with little focus on communications among multiple robots. In this review, we focus on the communication, validation platform, and simulator of multi-robot systems, and discuss one of the important applications, cooperative object transport. First, we study the multi-robot system fundamentals and comprehensively review the multi-robot system communication technologies. Then, the multi-robot system validating platform, testbed, simulator, and middleware used in academia and industry are investigated. Finally, we discuss recent advances in cooperative object transport, and challenges and possible future research directions for multi-robot systems.}
+      \field{issn}{2644-1268}
+      \field{journaltitle}{{IEEE} Open Journal of the Computer Society}
+      \field{note}{Conference Name: {IEEE} Open Journal of the Computer Society}
+      \field{shorttitle}{Multi-Robot Systems and Cooperative Object Transport}
+      \field{title}{Multi-Robot Systems and Cooperative Object Transport: Communications, Platforms, and Challenges}
+      \field{urlday}{26}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{volume}{4}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{23\bibrangedash 36}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1109/OJCS.2023.3238324
+      \endverb
+      \verb{file}
+      \verb IEEE Xplore Abstract Record:/home/yallicol/Zotero/storage/GAT5AUT8/10023955.html:text/html;IEEE Xplore Full Text PDF:/home/yallicol/Zotero/storage/HSLMB4RG/An et al. - 2023 - Multi-Robot Systems and Cooperative Object Transpo.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://ieeexplore.ieee.org/document/10023955
+      \endverb
+      \verb{url}
+      \verb https://ieeexplore.ieee.org/document/10023955
+      \endverb
+      \keyw{Scalability,Multi-robot systems,Decision making,Robot kinematics,Task analysis,Computer architecture,Communication technology,cooperative object transport,multi-robot system,platform,Robots,survey}
+    \endentry
+    \entry{aust_hidden_2022}{inproceedings}{}
+      \name{author}{5}{}{%
+        {{hash=fbfe4dea141636237cc46bf075f6bbdc}{%
+           family={Aust},
+           familyi={A\bibinitperiod},
+           given={Till},
+           giveni={T\bibinitperiod}}}%
+        {{hash=7bf27c3d478cc903373327b967778d58}{%
+           family={Talamali},
+           familyi={T\bibinitperiod},
+           given={Mohamed\bibnamedelima S.},
+           giveni={M\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=26c8dbd8b76182fc666371044ae8dfa4}{%
+           family={Dorigo},
+           familyi={D\bibinitperiod},
+           given={Marco},
+           giveni={M\bibinitperiod}}}%
+        {{hash=cdf093c36fe8a9f12850ff9151234f5d}{%
+           family={Hamann},
+           familyi={H\bibinitperiod},
+           given={Heiko},
+           giveni={H\bibinitperiod}}}%
+        {{hash=254a08562510e9e1b273f2d9767f3284}{%
+           family={Reina},
+           familyi={R\bibinitperiod},
+           given={Andreagiovanni},
+           giveni={A\bibinitperiod}}}%
+      }
+      \name{editor}{8}{}{%
+        {{hash=26c8dbd8b76182fc666371044ae8dfa4}{%
+           family={Dorigo},
+           familyi={D\bibinitperiod},
+           given={Marco},
+           giveni={M\bibinitperiod}}}%
+        {{hash=cdf093c36fe8a9f12850ff9151234f5d}{%
+           family={Hamann},
+           familyi={H\bibinitperiod},
+           given={Heiko},
+           giveni={H\bibinitperiod}}}%
+        {{hash=8e68ad0b8ba036d59af25b663314e149}{%
+           family={López-Ibáñez},
+           familyi={L\bibinithyphendelim I\bibinitperiod},
+           given={Manuel},
+           giveni={M\bibinitperiod}}}%
+        {{hash=5324fae1d9aba7edb562cda4d755cc72}{%
+           family={García-Nieto},
+           familyi={G\bibinithyphendelim N\bibinitperiod},
+           given={José},
+           giveni={J\bibinitperiod}}}%
+        {{hash=4eb1c9e11997045dbcd5686b21a46fef}{%
+           family={Engelbrecht},
+           familyi={E\bibinitperiod},
+           given={Andries},
+           giveni={A\bibinitperiod}}}%
+        {{hash=87ee11f7e7e3192fe56a89cadb09645b}{%
+           family={Pinciroli},
+           familyi={P\bibinitperiod},
+           given={Carlo},
+           giveni={C\bibinitperiod}}}%
+        {{hash=d1c8e5e502ae31ce51ea4a6e0509bf35}{%
+           family={Strobel},
+           familyi={S\bibinitperiod},
+           given={Volker},
+           giveni={V\bibinitperiod}}}%
+        {{hash=8fa2a8085312bd5f116e65a50b2fc7c9}{%
+           family={Camacho-Villalón},
+           familyi={C\bibinithyphendelim V\bibinitperiod},
+           given={Christian},
+           giveni={C\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Cham}%
+      }
+      \list{publisher}{1}{%
+        {Springer International Publishing}%
+      }
+      \strng{namehash}{dab2c04284042c959fceca5aafa921b3}
+      \strng{fullhash}{132785e86f25ac70a061424e4100d191}
+      \strng{bibnamehash}{dab2c04284042c959fceca5aafa921b3}
+      \strng{authorbibnamehash}{dab2c04284042c959fceca5aafa921b3}
+      \strng{authornamehash}{dab2c04284042c959fceca5aafa921b3}
+      \strng{authorfullhash}{132785e86f25ac70a061424e4100d191}
+      \strng{editorbibnamehash}{8b44337c326c7a5b82cbb4ec19b67d69}
+      \strng{editornamehash}{8b44337c326c7a5b82cbb4ec19b67d69}
+      \strng{editorfullhash}{670a3b85bddcb2508109fa51b9ae71b5}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Most of our experiences, as well as our intuition, are usually built on a linear understanding of systems and processes. Complex systems in general, and more specifically swarm robotics in this context, leverage non-linear effects to self-organize and to ensure that ‘more is different’. In previous work, the non-linear and therefore counter-intuitive effect of ‘less is more’ was shown for a site-selection swarm scenario. Although it seems intuitive that being able to communicate over longer distances should be beneficial, swarms were found to sometimes profit from communication limitations. Here, we build on this work and show the same effect for the collective perception scenario in a dynamic environment. We also find an additional effect that we call ‘slower is faster’: in certain situations, swarms benefit from sampling their environment less frequently. Our findings are supported by an intensive empirical approach and a mean-field model. All our experimental work is based on simulations using the {ARGoS} simulator extended with a simulator of the smart environment for the Kilobot robot called Kilogrid.}
+      \field{booktitle}{Swarm Intelligence}
+      \field{isbn}{978-3-031-20176-9}
+      \field{langid}{english}
+      \field{series}{Lecture Notes in Computer Science}
+      \field{title}{The Hidden Benefits of Limited Communication and Slow Sensing in Collective Monitoring of Dynamic Environments}
+      \field{year}{2022}
+      \field{dateera}{ce}
+      \field{pages}{234\bibrangedash 247}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1007/978-3-031-20176-9_19
+      \endverb
+      \verb{file}
+      \verb Submitted Version:/home/yallicol/Zotero/storage/8QASHB97/Aust et al. - 2022 - The Hidden Benefits of Limited Communication and S.pdf:application/pdf
+      \endverb
+    \endentry
+    \entry{dias_swarm_2021}{article}{}
+      \name{author}{6}{}{%
+        {{hash=b7d3312d019b329cabadc6361fbf1f44}{%
+           family={Dias},
+           familyi={D\bibinitperiod},
+           given={Pollyanna\bibnamedelimb G.\bibnamedelimi Faria},
+           giveni={P\bibinitperiod\bibinitdelim G\bibinitperiod\bibinitdelim F\bibinitperiod}}}%
+        {{hash=8469b99d5652f112756bcc5817932da3}{%
+           family={Silva},
+           familyi={S\bibinitperiod},
+           given={Mateus\bibnamedelima C.},
+           giveni={M\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=80f33c2c5d72830653d42d978ffd31bc}{%
+           family={Rocha\bibnamedelima Filho},
+           familyi={R\bibinitperiod\bibinitdelim F\bibinitperiod},
+           given={Geraldo\bibnamedelima P.},
+           giveni={G\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=226d6f8b6a0d45fb1d0d1cd1bc646fa6}{%
+           family={Vargas},
+           familyi={V\bibinitperiod},
+           given={Patrícia\bibnamedelima A.},
+           giveni={P\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=f5dbb95b8e2163981811550c78074fd0}{%
+           family={Cota},
+           familyi={C\bibinitperiod},
+           given={Luciano\bibnamedelima P.},
+           giveni={L\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=eb7499c5f1c0799bf47fd93fdedefca2}{%
+           family={Pessin},
+           familyi={P\bibinitperiod},
+           given={Gustavo},
+           giveni={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{97fb0c82bb7b7c6a54768d9846349687}
+      \strng{fullhash}{7ad61fa875c61a7d07c6c15c7f7be3af}
+      \strng{bibnamehash}{97fb0c82bb7b7c6a54768d9846349687}
+      \strng{authorbibnamehash}{97fb0c82bb7b7c6a54768d9846349687}
+      \strng{authornamehash}{97fb0c82bb7b7c6a54768d9846349687}
+      \strng{authorfullhash}{7ad61fa875c61a7d07c6c15c7f7be3af}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Known as an artificial intelligence subarea, Swarm Robotics is a developing study field investigating bio-inspired collaborative control approaches and integrates a huge collection of agents, reasonably plain robots, in a distributed and decentralized manner. It offers an inspiring essential platform for new researchers to be engaged and share new knowledge to examine their concepts in analytical and heuristic strategies. This paper introduces an overview of current activities in Swarm Robotics and examines the present literature in this area to establish to approach between a realistic swarm robotic system and real-world enforcements. First, we review several Swarm Intelligence concepts to define Swarm Robotics systems, reporting their essential qualities and features and contrast them to generic multi-robotic systems. Second, we report a review of the principal projects that allow realistic study of Swarm Robotics. We demonstrate knowledge regarding current hardware platforms and multi-robot simulators. Finally, the forthcoming promissory applications and the troubles to surpass with a view to achieving them have been described and analyzed.}
+      \field{day}{15}
+      \field{issn}{1424-8220}
+      \field{journaltitle}{Sensors}
+      \field{langid}{english}
+      \field{month}{3}
+      \field{number}{6}
+      \field{shortjournal}{Sensors}
+      \field{shorttitle}{Swarm Robotics}
+      \field{title}{Swarm Robotics: A Perspective on the Latest Reviewed Concepts and Applications}
+      \field{urlday}{17}
+      \field{urlmonth}{1}
+      \field{urlyear}{2024}
+      \field{volume}{21}
+      \field{year}{2021}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{2062}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/s21062062
+      \endverb
+      \verb{file}
+      \verb Full Text PDF:/home/yallicol/Zotero/storage/LNZE5ERZ/Dias et al. - 2021 - Swarm Robotics A Perspective on the Latest Review.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.mdpi.com/1424-8220/21/6/2062
+      \endverb
+      \verb{url}
+      \verb https://www.mdpi.com/1424-8220/21/6/2062
+      \endverb
+    \endentry
+    \entry{ding_advancements_2023}{inproceedings}{}
+      \name{author}{6}{}{%
+        {{hash=189263443a30e89dbed99aa590a73eff}{%
+           family={Ding},
+           familyi={D\bibinitperiod},
+           given={Tan\bibnamedelima Jian},
+           giveni={T\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=b38d4b0257262e60c9f6fb887111d3f3}{%
+           family={Chao\bibnamedelima Kang},
+           familyi={C\bibinitperiod\bibinitdelim K\bibinitperiod},
+           given={Chia},
+           giveni={C\bibinitperiod}}}%
+        {{hash=cf32d9f9ae46e9559a4cba7f9794a530}{%
+           family={Han},
+           familyi={H\bibinitperiod},
+           given={Wang},
+           giveni={W\bibinitperiod}}}%
+        {{hash=f01d7be0e09e542c8135bff9140c966e}{%
+           family={Ariannejad},
+           familyi={A\bibinitperiod},
+           given={Mohammadmahdi},
+           giveni={M\bibinitperiod}}}%
+        {{hash=18777ef957b587eb87ab4cb89cb33341}{%
+           family={Kang},
+           familyi={K\bibinitperiod},
+           given={Lee\bibnamedelima Yan},
+           giveni={L\bibinitperiod\bibinitdelim Y\bibinitperiod}}}%
+        {{hash=01796d5c5f4561b82fc66c72cc309179}{%
+           family={Khai\bibnamedelima Ren},
+           familyi={K\bibinitperiod\bibinitdelim R\bibinitperiod},
+           given={Cheng},
+           giveni={C\bibinitperiod}}}%
+      }
+      \strng{namehash}{1999b49d1842b2a192d136b8b218622d}
+      \strng{fullhash}{2f2a310783612eea92ff04ac0a652186}
+      \strng{bibnamehash}{1999b49d1842b2a192d136b8b218622d}
+      \strng{authorbibnamehash}{1999b49d1842b2a192d136b8b218622d}
+      \strng{authornamehash}{1999b49d1842b2a192d136b8b218622d}
+      \strng{authorfullhash}{2f2a310783612eea92ff04ac0a652186}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Collaborative control methods employed in swarm robotic systems often deal with bulks of information from the local interactions among agents and between the agents and the environment. The efficiency of overall information integration between decentralized and distributed agents can show major impacts on the collective behaviour of the swarm. It is crucial to establish an approach that bridges an existing gap present between realistic swarm robotic system and real-world enforcements. Therefore, this review paper vividly captures the challenges faced in control and information integration mechanisms within swarm robotic systems, and how recent developments enable tangible benefits to multiple industries as a whole. A comprehensive overview on the current advancements and challenges faced in effective sharing of important information via Pheromonal Communication is also presented. Besides, this paper also discusses the recent advancements pertaining to the information integration systems in one of the major swarm robotic system applications, namely the Autonomous Underwater Vehicles. Forthcoming promising applications with good potential to surpass the recent dilemmas were also explored and analyzed at the end of this paper, with discussions on possible gaps to close in order to enable further enhancements on the efficiency of information integration in swarm robotic systems.}
+      \field{booktitle}{2023 {IEEE} International Conference on Cybernetics and Intelligent Systems ({CIS}) and {IEEE} Conference on Robotics, Automation and Mechatronics ({RAM})}
+      \field{eventtitle}{2023 {IEEE} International Conference on Cybernetics and Intelligent Systems ({CIS}) and {IEEE} Conference on Robotics, Automation and Mechatronics ({RAM})}
+      \field{month}{6}
+      \field{note}{{ISSN}: 2326-8239}
+      \field{title}{Advancements and Challenges of Information Integration in Swarm Robotics}
+      \field{urlday}{25}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{year}{2023}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{89\bibrangedash 95}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1109/CIS-RAM55796.2023.10370011
+      \endverb
+      \verb{file}
+      \verb IEEE Xplore Abstract Record:/home/yallicol/Zotero/storage/2VIKFPBV/10370011.html:text/html;IEEE Xplore Full Text PDF:/home/yallicol/Zotero/storage/8ZIHCEBR/Ding et al. - 2023 - Advancements and Challenges of Information Integra.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://ieeexplore.ieee.org/document/10370011?denied=
+      \endverb
+      \verb{url}
+      \verb https://ieeexplore.ieee.org/document/10370011?denied=
+      \endverb
+      \keyw{swarm intelligence,swarm robotics,Swarm robotics,robotics,Industries,Mechatronics,Random access memory,Real-time systems,Reliability,Task analysis}
+    \endentry
+    \entry{dorigo_ant_2000}{article}{}
+      \name{author}{5}{}{%
+        {{hash=26c8dbd8b76182fc666371044ae8dfa4}{%
+           family={Dorigo},
+           familyi={D\bibinitperiod},
+           given={Marco},
+           giveni={M\bibinitperiod}}}%
+        {{hash=fcd6050d9822b0c036adcfa6abc536e3}{%
+           family={{Marco Dorigo}},
+           familyi={M\bibinitperiod}}}%
+        {{hash=2266c9c1f7f84136a89c448586226962}{%
+           family={Bonabeau},
+           familyi={B\bibinitperiod},
+           given={Eric},
+           giveni={E\bibinitperiod}}}%
+        {{hash=32f68746881c553d3acfadbe714f2818}{%
+           family={{Guy Théraulaz}},
+           familyi={G\bibinitperiod}}}%
+        {{hash=2fe09cc48ac5727d27ed7a40b18259b9}{%
+           family={Theraulaz},
+           familyi={T\bibinitperiod},
+           given={Guy},
+           giveni={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{8b44337c326c7a5b82cbb4ec19b67d69}
+      \strng{fullhash}{b88c9e43eb8df4ad106684be6c742cd7}
+      \strng{bibnamehash}{8b44337c326c7a5b82cbb4ec19b67d69}
+      \strng{authorbibnamehash}{8b44337c326c7a5b82cbb4ec19b67d69}
+      \strng{authornamehash}{8b44337c326c7a5b82cbb4ec19b67d69}
+      \strng{authorfullhash}{b88c9e43eb8df4ad106684be6c742cd7}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Ant colonies, and more generally social insect societies, are distributed systems that, in spite of the simplicity of their individuals, present a highly structured social organization. As a result of this organization, ant colonies can accomplish complex tasks that in some cases far exceed the individual capacities of a single ant. The study of ant colonies behavior and of their self-organizing capacities is interesting for computer scientists because it provides models of distributed organization which are useful to solve difficult optimization and distributed control problems. In this paper we overview some models derived from the observation of real ants, emphasizing the role played by stigmergy as distributed communication paradigm, and we show how these models have inspired a number of novel algorithms for the solution of distributed optimization and distributed control problems.}
+      \field{day}{1}
+      \field{journaltitle}{Future Generation Computer Systems}
+      \field{month}{6}
+      \field{note}{{MAG} {ID}: 2151758915}
+      \field{number}{9}
+      \field{title}{Ant algorithms and stigmergy}
+      \field{volume}{16}
+      \field{year}{2000}
+      \field{dateera}{ce}
+      \field{pages}{851\bibrangedash 871}
+      \range{pages}{21}
+      \verb{doi}
+      \verb 10.1016/s0167-739x(00)00042-x
+      \endverb
+      \verb{file}
+      \verb 1-s2.0-S0167739X0000042X-main.pdf:/home/yallicol/Downloads/1-s2.0-S0167739X0000042X-main.pdf:application/pdf
+      \endverb
+    \endentry
     \entry{esp-boards_esp-idf_nodate}{online}{}
       \name{author}{1}{}{%
         {{hash=4b5c1e55d99e16e07e06e28551fa8cb0}{%
@@ -52,40 +429,184 @@
       \verb https://www.espboards.dev/blog/esp-idf-vs-arduino-core/
       \endverb
     \endentry
-    \entry{expressif_freertos_nodate}{online}{}
-      \name{author}{1}{}{%
-        {{hash=0af563cdee8ab569b7d6385d9fdc1dc6}{%
-           family={Expressif},
-           familyi={E\bibinitperiod},
-           given={Expressif},
-           giveni={E\bibinitperiod}}}%
+    \entry{hiraga_when_2023}{article}{}
+      \name{author}{4}{}{%
+        {{hash=ab4b095486ba9628c9dacaa562fd0af8}{%
+           family={Hiraga},
+           familyi={H\bibinitperiod},
+           given={Motoaki},
+           giveni={M\bibinitperiod}}}%
+        {{hash=c0676adaf44ef96213aaf73c766e44b0}{%
+           family={Morimoto},
+           familyi={M\bibinitperiod},
+           given={Daichi},
+           giveni={D\bibinitperiod}}}%
+        {{hash=f9cd0025825e2aed5e9529bdf1cf1785}{%
+           family={Katada},
+           familyi={K\bibinitperiod},
+           given={Yoshiaki},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=cae62a2433513ed5ed07a499c79d9d12}{%
+           family={Ohkura},
+           familyi={O\bibinitperiod},
+           given={Kazuhiro},
+           giveni={K\bibinitperiod}}}%
       }
-      \strng{namehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
-      \strng{fullhash}{0af563cdee8ab569b7d6385d9fdc1dc6}
-      \strng{bibnamehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
-      \strng{authorbibnamehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
-      \strng{authornamehash}{0af563cdee8ab569b7d6385d9fdc1dc6}
-      \strng{authorfullhash}{0af563cdee8ab569b7d6385d9fdc1dc6}
-      \field{sortinit}{E}
-      \field{sortinithash}{8da8a182d344d5b9047633dfc0cc9131}
+      \strng{namehash}{a60a3c9e9450b01ec953f6bda38958f8}
+      \strng{fullhash}{b49c451289efc95eacf5dc3636e72778}
+      \strng{bibnamehash}{a60a3c9e9450b01ec953f6bda38958f8}
+      \strng{authorbibnamehash}{a60a3c9e9450b01ec953f6bda38958f8}
+      \strng{authornamehash}{a60a3c9e9450b01ec953f6bda38958f8}
+      \strng{authorfullhash}{b49c451289efc95eacf5dc3636e72778}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
       \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{title}{{FreeRTOS} Overview - {ESP}32 - — {ESP}-{IDF} Programming Guide latest documentation}
-      \field{urlday}{4}
-      \field{urlmonth}{3}
-      \field{urlyear}{2024}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{Embodied evolution is an evolutionary robotics approach that implements an evolutionary algorithm over a population of robots and evolves while the robots perform their tasks. In embodied evolution, robots send and receive genomes from their neighbors and generate an offspring genome from the exchanged genomes. This study focused on the effects of the communication range for exchanging genomes on the evolvability of embodied evolution. Experiments were conducted using computer simulations, where robot controllers were evolved during a two-target navigation task. The results of the experiments showed that the robotic swarm could achieve better performance by reducing the communication range for exchanging genomes.}
+      \field{day}{20}
+      \field{issn}{1883-8049, 0915-3942}
+      \field{journaltitle}{Journal of Robotics and Mechatronics}
+      \field{langid}{english}
+      \field{month}{8}
+      \field{number}{4}
+      \field{shortjournal}{{JRM}}
+      \field{shorttitle}{When Less Is More in Embodied Evolution}
+      \field{title}{When Less Is More in Embodied Evolution: Robotic Swarms Have Better Evolvability with Constrained Communication}
+      \field{urlday}{30}
+      \field{urlmonth}{7}
+      \field{urlyear}{2025}
+      \field{volume}{35}
+      \field{year}{2023}
+      \field{dateera}{ce}
       \field{urldateera}{ce}
+      \field{pages}{988\bibrangedash 996}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.20965/jrm.2023.p0988
+      \endverb
       \verb{file}
-      \verb FreeRTOS Overview - ESP32 - — ESP-IDF Programming Guide latest documentation:/home/yallicol/Zotero/storage/CJLPSGVQ/freertos.html:text/html
+      \verb PDF:/home/yallicol/Zotero/storage/8DY4FIT8/Hiraga et al. - 2023 - When Less Is More in Embodied Evolution Robotic Swarms Have Better Evolvability with Constrained Co.pdf:application/pdf
       \endverb
       \verb{urlraw}
-      \verb https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos.html
+      \verb https://www.fujipress.jp/jrm/rb/robot003500040988
       \endverb
       \verb{url}
-      \verb https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos.html
+      \verb https://www.fujipress.jp/jrm/rb/robot003500040988
       \endverb
     \endentry
+    \entry{perrin_decentralised_2012}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=13cc99a27fdedee0a9e0f092ce54ef95}{%
+           family={Perrin},
+           familyi={P\bibinitperiod},
+           given={Dimitri},
+           giveni={D\bibinitperiod}}}%
+        {{hash=5c46d8000e791fabbe5d238ed90e6733}{%
+           family={Ohsaki},
+           familyi={O\bibinitperiod},
+           given={Hiroyuki},
+           giveni={H\bibinitperiod}}}%
+      }
+      \strng{namehash}{5c69a0073e575985c108ffe9f80af36b}
+      \strng{fullhash}{5c69a0073e575985c108ffe9f80af36b}
+      \strng{bibnamehash}{5c69a0073e575985c108ffe9f80af36b}
+      \strng{authorbibnamehash}{5c69a0073e575985c108ffe9f80af36b}
+      \strng{authornamehash}{5c69a0073e575985c108ffe9f80af36b}
+      \strng{authorfullhash}{5c69a0073e575985c108ffe9f80af36b}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Communication and information diffusion are typically difficult in situations where centralised structures may become unavailable. In this context, decentralised communication based on epidemic broadcast becomes essential. It can be seen as an opportunity-based flooding for message broadcasting within a swarm of autonomous agents, where each entity tries to share the information it possesses with its neighbours. As an example of applications for such a system, we present simulation results where agents have to coordinate to map an unknown area.}
+      \field{booktitle}{2012 26th International Conference on Advanced Information Networking and Applications Workshops}
+      \field{eventtitle}{2012 26th International Conference on Advanced Information Networking and Applications Workshops}
+      \field{month}{3}
+      \field{title}{Decentralised Communication in Autonomous Agent Swarms}
+      \field{urlday}{19}
+      \field{urlmonth}{2}
+      \field{urlyear}{2024}
+      \field{year}{2012}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{1143\bibrangedash 1146}
+      \range{pages}{4}
+      \verb{doi}
+      \verb 10.1109/WAINA.2012.201
+      \endverb
+      \verb{file}
+      \verb IEEE Xplore Abstract Record:/home/yallicol/Zotero/storage/7IUBLLS4/6185403.html:text/html;IEEE Xplore Full Text PDF:/home/yallicol/Zotero/storage/F24CDD4T/Perrin and Ohsaki - 2012 - Decentralised Communication in Autonomous Agent Sw.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://ieeexplore.ieee.org/document/6185403
+      \endverb
+      \verb{url}
+      \verb https://ieeexplore.ieee.org/document/6185403
+      \endverb
+      \keyw{Ad hoc networks,Robot sensing systems,Collision avoidance,Context,Protocols,Robot kinematics}
+    \endentry
+    \entry{rucinski_impact_2010}{article}{}
+      \name{author}{3}{}{%
+        {{hash=baf71691e9a272b8b3a73b763b82d0b8}{%
+           family={Ruciński},
+           familyi={R\bibinitperiod},
+           given={M.},
+           giveni={M\bibinitperiod}}}%
+        {{hash=e7ee04c8b18fb7be5370ee32878270f3}{%
+           family={Izzo},
+           familyi={I\bibinitperiod},
+           given={D.},
+           giveni={D\bibinitperiod}}}%
+        {{hash=54d22d5ea9a613738886003320de86b9}{%
+           family={Biscani},
+           familyi={B\bibinitperiod},
+           given={F.},
+           giveni={F\bibinitperiod}}}%
+      }
+      \strng{namehash}{e0def976cb1f675c5d3ba83e543db20a}
+      \strng{fullhash}{e0def976cb1f675c5d3ba83e543db20a}
+      \strng{bibnamehash}{e0def976cb1f675c5d3ba83e543db20a}
+      \strng{authorbibnamehash}{e0def976cb1f675c5d3ba83e543db20a}
+      \strng{authornamehash}{e0def976cb1f675c5d3ba83e543db20a}
+      \strng{authorfullhash}{e0def976cb1f675c5d3ba83e543db20a}
+      \field{sortinit}{R}
+      \field{sortinithash}{5e1c39a9d46ffb6bebd8f801023a9486}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Parallel Global Optimization Algorithms ({PGOA}) provide an efficient way of dealing with hard optimization problems. One method of parallelization of {GOAs} that is frequently applied and commonly found in the contemporary literature is the so-called Island Model ({IM}). In this paper, we analyze the impact of the migration topology on the performance of a {PGOA} which uses the Island Model. In particular we consider parallel Differential Evolution and Simulated Annealing with Adaptive Neighborhood and draw first conclusions that emerge from the conducted experiments.}
+      \field{day}{1}
+      \field{issn}{0167-8191}
+      \field{journaltitle}{Parallel Computing}
+      \field{month}{10}
+      \field{number}{10}
+      \field{series}{Parallel Architectures and Bioinspired Algorithms}
+      \field{shortjournal}{Parallel Computing}
+      \field{title}{On the impact of the migration topology on the Island Model}
+      \field{urlday}{10}
+      \field{urlmonth}{12}
+      \field{urlyear}{2023}
+      \field{volume}{36}
+      \field{year}{2010}
+      \field{dateera}{ce}
+      \field{urldateera}{ce}
+      \field{pages}{555\bibrangedash 571}
+      \range{pages}{17}
+      \verb{doi}
+      \verb 10.1016/j.parco.2010.04.002
+      \endverb
+      \verb{file}
+      \verb ScienceDirect Snapshot:/home/yallicol/Zotero/storage/N7Q2ED6X/S0167819110000487.html:text/html;Submitted Version:/home/yallicol/Zotero/storage/THD7YK82/Ruciński et al. - 2010 - On the impact of the migration topology on the Isl.pdf:application/pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://www.sciencedirect.com/science/article/pii/S0167819110000487
+      \endverb
+      \verb{url}
+      \verb https://www.sciencedirect.com/science/article/pii/S0167819110000487
+      \endverb
+      \keyw{Complex networks,Differential evolution,Island Model,Migration topology,Parallel Global Optimization,Simulated annealing with adaptive neighborhood}
+    \endentry
   \enddatalist
+  \missing{aust2022hidden}
+  \missing{expressif_freertos_nodate}
 \endrefsection
 \endinput
 
