@@ -7,25 +7,33 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-import matplotlib as mpl
-
-# Use a serif font (like Times New Roman or Computer Modern)
+# --- IEEE-like params ---
 mpl.rcParams.update({
-    "font.family": "serif",
-    "font.serif": ["Times New Roman", "Times", "DejaVu Serif", "Computer Modern Roman"],
-    "axes.labelsize": 11,
-    "axes.titlesize": 12,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],  # fallbacks
+    "font.size": 8,
+    "axes.labelsize": 8,
+    "axes.titlesize": 10,
+    "axes.linewidth": 1,   # axis border thickness
+    "lines.linewidth": 1.2,
+    "lines.markersize": 5,
     "xtick.labelsize": 8,
     "ytick.labelsize": 8,
     "legend.fontsize": 8,
-    "axes.edgecolor": "black",
-    "axes.linewidth": 1,
-    "grid.color": "#cccccc",
-    "grid.linestyle": "--",
-    "grid.linewidth": 0.5,
+    "legend.title_fontsize": 8,
+    "legend.frameon": False,
+    "figure.dpi": 300,
     "axes.grid": True,
-    "figure.dpi": 150,
+    "grid.linewidth": 0.4,
+    "grid.alpha": 0.7,
+    "axes.grid.which": 'both',
+    "axes.edgecolor": "black",
+    "savefig.dpi": 300,
+    "pdf.fonttype": 42,  # TrueType fonts for pdflatex
+    "ps.fonttype": 42,
 })
+
+sns.set_theme(style="whitegrid", font_scale=1)
 
 
 def parse_log_message(log_message):

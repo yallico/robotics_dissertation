@@ -38,6 +38,8 @@ Beyond the swarm's exchange capacity, the architecture of the communication also
 
 Furthermore, embodied evolution of swarm controllers heavily relies on communication to tune the controller. Some recent studies explain that less communication can sometimes enhance swarm performance, as trimming neighbourhood size helps populations forget outdated beliefs and re-adapt faster \cite{hiraga_when_2023}\cite{ding_advancements_2023}. Most of these studies were performed in simulation, hence the need for empirical data on how swarm density, rate of data transfer and packet content affects evolution performance. With this in mind, it is possible to think of communication as a dynamic resource that can be manipulated by the swarm to achieve its goals. The ways in which this resource is allocated can have a significant impact on the behaviour of the swarm.\\
 
+
+%need a bridge here, maybe something along the lines "literature does not specify what the optimal global or local communication guidelines are, therefore....
 This study profiles swarm communication on ESP32 hardware, evaluating performance under varied conditions such as agent density, locomotion, topology inference, imposed message budgets and stochastic transmission. With a focus on direct peer-to-peer communication  we aim to (i) provide empirical data to validate the challenges flagged by literature, and (ii) inform tangible communication design rules for future swarm systems.
 
 \section{Related Work}
@@ -217,8 +219,6 @@ Figure \ref{fig:rtos} illustrates the sequence of these and their relation to th
   \item \texttt{write\_task}: Handles SD card operations, including data logging, managing file storage and uploading experimental results.
 \end{itemize}
 
-Following initialization, each robot enters the experiment phase explained in Algorithm \ref{alg:swarm-loop}. Using a random seed the initial local population for the GA is generated. The \texttt{ga\_task} then evolves the local population until 60 generations are reached without achieving a 0.01 decrease in population fitness. At which point the genome with the lowest fitness score is transmitted via ESP-NOW to remote peers. The \texttt{espnow\_task} then dequeues and parses all messages from the buffer, updating statistics and evaluating remote genomes with local genomes.\\
-
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.48\textwidth]{rtos.png}
@@ -237,32 +237,9 @@ Note that the local population undergoes evolution until the experiment phase is
 
 Upon reaching the de-initialisation phase, the \texttt{espnow\_task} drains pending message queues, final fitness and communication metrics are uploaded to an Amazon S3 bucket via HTTPS via the \texttt{write\_task}. Finally, the system peripherals are de-initialised to ensure a clean shutdown.
 
-\begin{algorithm*}[h]
-\caption{Experiment Phase Main Loop\label{alg:swarm-loop}}
-\begin{algorithmic}[1]
-  \State Generate random seed and initialise genetic algorithm population: \Call{init\_ga}{seed}
-  \Loop
-    \State \textbf{Check experimental phase:} \Call{ESPNOW\_COMPLETED\_BIT}{} \Comment{If set, proceed to de-initialisation phase}
-    \State \textbf{Run GA:} \Call{evolve}{}
-    \State Wait for GA completion flag \texttt{ga\_ended} \Comment{set in \texttt{ga\_complete\_callback}}
-    \State \Call{espnow\_push\_best\_solution}{local\_genome}
-    \State $ga\_has\_run\_before \gets \mathrm{true}$; $s\_last\_ga\_time \gets \mathrm{now\_ts}$
-    \State \Call{drain\_buffered\_messages}{} \Comment{Dequeue all ESP-NOW frames}
-    \ForAll{msg in \texttt{ga\_buffer\_queue}}
-      \State \Call{parse\_out\_message}{msg} \Comment{Parse raw messages}
-      \State \Call{ga\_integrate\_remote\_solution}{msg.genes}
-    \EndFor
-    \State \Call{check\_hyper\_mutation}{} \Comment{Apply if stagnation is detected}
-    \State Reset \texttt{ga\_ended}
-  \EndLoop
-\end{algorithmic}
-\end{algorithm*}
-
 \subsection{Communication Layer}\label{sec:comm-layer}
 
 We implemented ESP-NOW by pre-registering the MAC addresses for all peers in each agent, enabling direct unicast communication between swarm robots. Our design uses push only event-driven peer-to-peer messaging, where each device transmits data to peers without waiting for requests. Using this scheme avoids the complexity of pull-based communication protocols. Recall that once a local elite genome is found, the best solution is sent to all peers, if there are incoming messages these are queued for later processing, allowing task operations to continue uninterrupted. In this section we describe the specific communication independent variables that were manipulated during experiments.\\
-
-% Using the IR board, described previously, the ESP32 was connected via the external $I^2C$ port. We had to use the Arduino library as a component of the ESP-IDF implementation for the this to work, this was due to compatibility issues between ESP-IDF and Arduino libraries. The board itself runs on a Arduino Nano to process the IR signals into messages and then sending this data accross via the SDA/SCL pins. One major implication for this, was the need to change the FreeRTOS clock speed from 100Hz to 1000Hz. Some key parameters also include the frequency if the I2C itself which was set at 100kHtz and the master/slave configuration, this is initialized from the M5 once powered on after the 5V bus is switched on.
 
 \subsubsection{Topology Inference}\label{sec:topology-inference}
 
@@ -421,73 +398,74 @@ After the experimental phase concludes (Fig. \ref{fig:rtos}), the system enters 
     \label{fig:athena}
 \end{figure}
 
-As depicted by Figure \ref{fig:athena}, the S3 bucket is structured to store each agent's data in a separate folder, named by the robot's ID. Each file is named with a timestamp and the experiment ID, ensuring that all data is uniquely identifiable and traceable. The data is then processed using AWS Glue to prepare it for analysis in Amazon Athena. This process allowed us to automate the storage and evaluation of data logs from over $500$ experiment runs.\\
+As depicted by Figure \ref{fig:athena}, the S3 bucket is structured to store each agent's data in a separate folder, named by the robot's ID. Each file is named with a timestamp and the experiment ID, ensuring that all data is uniquely identifiable and traceable. The data is then processed using AWS Glue to prepare it for analysis in Amazon Athena. This process allowed us to automate the storage and evaluation of data logs from over $500$ experiment runs.
 
-\section{Preliminary Sensitivity Analysis}
+\subsection{Communication Performance Metrics}
 
-\begin{figure*}[h]
-    \centering
-    \includegraphics[width=1\textwidth]{ga_prelim_analysis.pdf}
-    \caption{a: Number of iterations for algorithm to converge to either a global or local minimum. b: Fitness distribution by population size and genes.}
-    \label{fig:ga_prelim_analysis}
-\end{figure*}
+To evaluate the quality of network communication in the swarm, the following metrics were computed, (i) $L$ \emph{latency (ms)}, the time taken for a message to be sent and acknowledged by a peer, (ii) $J$ \emph{jitter (ms)}, the variation in latency between messages, (iii) $P$ \emph{packet loss (\%)}, the percentage of messages that were sent but not acknowledged, and (iv) $T$ \emph{throughput (kbps)}, the rate at which data is successfully sent and received by each agent.
 
-Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). Over 100 experimental runs were performed, each terminating if fitness failed to improve beyond a 0.001 threshold over 20 consecutive epochs. Across all runs, the time taken to converge ranged between 0 to 3 seconds, reflecting the early stopping triggered by the patience setting. As shown in Figure~\ref{fig:ga_prelim_analysis}, larger populations yielded lower final fitness.\\
+To assess overall network performance, a Quality of Service (QoS) score was computed for each run using a weighted sum of normalized network metrics. The equation is defined as:
 
-The data gathered from these early experiments suggested that using five genes was not sufficiently challenging for a single agent as convergence was achieved too quickly. Due to this we decide to expand the Rastrigin search dimentionality to 10 genes and extend the local population and threshold epochs to 60. Hypermutation parameters are also set at this stage and detertime that the most practical experiment run time of 60 seconds is appropiate for this configuration.
+\begin{equation}
+\mathrm{QoS} = w_0 \cdot (1 - \hat{L}) + w_1 \cdot (1 - \hat{J}) + w_2 \cdot (1 - \hat{P}) + w_3 \cdot \hat{T}
+\end{equation}
 
-\section{Base Line Results}
+Here, each metric is normalized to the range [0,1] and the weights $w_i$ are defined in Table \ref{tab:qos}. A higher QoS value indicates better overall network communication performance.
 
-\begin{figure*}[t]
-  \centering
-  \includegraphics[width=1\textwidth]{base_fitness_stats.pdf}
-  \caption{a: Mean population fitness score for each agent over time,  b: Final fitness score density distribution, c: Mean CPU utilisation over time.}
-  \label{fig:base_fitness_stats}
-\end{figure*}
-
-Figure \ref{fig:base_fitness_stats} shows the fitness scores and system metrics for a deployment of two agents. A total of 34 experimens were conducted, out of which 6 experiments had to be excluded from the analysis as the data did not reach the S3 for at least one of the devices, mainly due to a bug in the code that was caused by the messages arriving late and the system not being able to handle these in the de-initiasation sequence. This bug was addressed since version 0.4 of the project, which allows the \texttt{espnow\_task} to drain the queue for any late messages coming in.\\
-
-\begin{table}[h]
-  \centering
-  \caption{Baseline Configuration Parameters}
-  \label{tab:base_config}
-  \begin{tabular}{l@{~=~}l}
-    app\_ver & 0.3\\
-    data\_link & ESPNOW\\
-    routing & unicast\\
-    population\_size & 30\\
-    max\_genes & 5\\
-    patience & 30\\
-    migration\_type & asynchronous\\
-    migration\_scheme & elitist\\
-    migration\_rate & 1\\
-    migration\_frequency & patience based\\
-    hyper\_mutation & true\\
-    mass\_extinction & true\\
-    robot\_speed & 0\\
-    topology & fully connected\\
-    experiment\_time & 120 s\\
+\begin{table}[H]
+\centering
+\caption{QoS utility function weights for different swarm robotics applications}
+\label{tab:qos}
+  \begin{tabular}{@{} lcccc p{3.5cm} @{}}
+  \toprule
+  \textbf{QoS} & \textbf{$w_0$} & \textbf{$w_1$} & \textbf{$w_2$} & \textbf{$w_3$} & \textbf{Application} \\
+  \midrule
+  $QoS_c$      & 0.5 & 0.25   & 0.15   & 0.1     & Swarm consensus and voting     \\
+  $QoS_s$      & 0.3 & 0.15   & 0.45   & 0.1     & Swarm sparse deployments       \\
+  \bottomrule
   \end{tabular}
 \end{table}
 
-Using the baseline parameters shown in Table \ref{tab:base_config}, we can see that none of the experiments was able to reach the global minimun of 0.0 in terms of the fitness score. The mean final fitness score achieved was X.X indicating that a local minimum is reached, whereas the rate of the converge takes place within the first 10 seconds of the experiment and stagnates thereafter. This behaviour is aligns with a large CPU utilisation in both cores at the start of the experiment, from observations this can be attributed to the first local GA running in each agent which then stagnates after exchanging a few messages with the other peer. Taking this into consideration, for experiments from version 0.4 onwards the population size and number of genes are doubled to 60 and 10 respectively, to ensure diversity in the gene pool with the trade off of slower convergence.\\
+\section{Preliminary Analysis}
 
-\begin{figure*}[b]
-  \centering
-  \includegraphics[width=1\textwidth]{base_comm_stats.pdf}
-  \caption{a: Message sent distribution by each device,  b: Mean latency by device over time, c: Latency distribution accross all experiments, d: Mean error rate from failed messages over time, e: Mean throughput In/Out over time, f: Mean RSSI by device over time.}
-  \label{fig:base_comm_stats}
-\end{figure*}
+Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). Over 100 experimental runs were performed, each terminating if fitness failed to improve beyond a 0.001 threshold over 20 consecutive epochs. As shown in Figure \ref{fig:ga_prelim_analysis}, larger populations yielded lower median fitness scores.\\
 
-Figure \ref{fig:base_comm_stats} shows the communication statistics for the same deployment of the two agents and the top level metrics are described in Table X. The mean latency was X.X ms, with a maximum latency of X.X ms. The latency statistics show that the ESPNOW protocol is able to handle the communication between the agents with low latency which is in line with other IoT applications REF. One artifact of the data worth noting is that high latencies were observed at the end of the experiments where the error rate was the highest, this is likely due to the longer delay in recieving an ACK from the other peer which has already de-initialised the ESPNOW task and is no longer able to respond to the messages. This would indicate that larger latencies are driven by failed messages pending an ACK. Note that in our base config we set the ESPNOW parameter \texttt{ESPNOW\_MAX\_RETRIES} to 0, which means that the messages are not retried if they fail to be sent. This is done to avoid having to handle pull type protocols which would involve having to handle requests and responses in a sequential manner.\\
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.50\textwidth]{ga_prelim_analysis_v2.pdf}
+    \caption{Fitness distribution by population size and gene dimensionality}
+    \label{fig:ga_prelim_analysis}
+\end{figure}
 
-\begin{table}[h]
+The time taken to converge ranged between 0 to 3 seconds, reflecting the early stopping triggered by the patience setting. The data gathered from these early experiments suggested that using five genes was not sufficiently challenging for a single agent as convergence was achieved too quickly. Due to this we decide to expand the Rastrigin search dimensionality to 10 genes and extend the local population and threshold epochs to 60. Hypermutation parameters are also set at this stage and implemented the most practical experiment run time, firmware improvements are summarised in Table \ref{tab:firmware_versions}.
+
+\begin{table}[H]
+\centering
+\caption{Firmware updates and change log}
+\begin{tabular}{@{} l p{7.5cm} @{}} 
+\toprule
+\textbf{Version} & \textbf{Notes} \\
+\midrule
+v0.3 & Single agent experiments, GA parameter tuning. \\
+v0.4 & Improved late message queue handling. Increased number of genes to 10 from 5.\\
+v0.5 & Reduced experiment time from 120 seconds to 60 seconds. \\
+v0.6 & Increased queue size to 40 (previously 25), to ensure no messages are lost.\\
+\bottomrule
+\end{tabular}
+\label{tab:firmware_versions}
+\end{table}
+
+\subsection{Baseline Results}
+
+Using two agents as a baseline, 28 experimental runs were conducted to characterize system performance. The network did not reach the global minimum in these trials, but consistently converged to a local minimum within the first 10 seconds.
+
+\begin{table}[H]
   \centering
   \caption{Baseline Network Performance Metrics}
   \label{tab:baseline_network_metrics}
   \begin{tabular}{ll}
   \toprule
-  \textbf{Metric} & \textbf{Value} \\
+  \textbf{Metric} & \textbf{Mean Value} \\
   \midrule
   Network Jitter (ms)      & 8.80  \\
   Max Bandwidth (kbps)     & 1.41  \\
@@ -497,9 +475,7 @@ Figure \ref{fig:base_comm_stats} shows the communication statistics for the same
   \end{tabular}
 \end{table}
 
-The mean In/Out throughput achieved was X.X kbps and X.X respectively. It is worth noting that the higher In throughput suggests that there is an imbalance in the number of messages being exchanged, this can be confirmed by plot (a) in Figure \ref{fig:base_comm_stats} that shows one agent sending more messages than the other. This is likely due to the fact that the agents are not perfectly synchronised by the RTC, this means they finalise their first local GA at different times (also impacted by the random seed). This means that one agent is able to send its best solution before the other agent has a chance to send its own, this is an artifact of the current implementation and might have to be addressed in future work. Note that the expectation is that the network throughput will increase as the swarm increases in size, where the theoretical max throughput for ESPNOW is 214 kbps by device.\\ 
-
-The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
+The mean fitness score after convergence was X.X, and mean In/Out throughput was X.X/X.X kbps, respectively.
 
 \section{Hypothesis}
 
@@ -523,7 +499,7 @@ Thus, the experiments tests whether the "less is more" phenomenon extends from l
 
 A minimum of 16 re-runs per condition was conducted to ensure statistical significance of the results.
 
-\begin{table*}[H]
+\begin{table*}[ht]
 \centering
 \label{tab:exp_config}
 \caption{Experimental configurations}
@@ -602,8 +578,11 @@ A minimum of 16 re-runs per condition was conducted to ensure statistical signif
 In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.
 %need to decide if we will test broadcast....
 
+High latencies were observed at the end of the experiments where the error rate was the highest, this is likely due to the longer delay in recieving an ACK from the other peer which has already de-initialised the ESPNOW task and is no longer able to respond to the messages. This would indicate that larger latencies are driven by failed messages pending an ACK. Note that in our base config we set the ESPNOW parameter \texttt{ESPNOW\_MAX\_RETRIES} to 0, which means that the messages are not retried if they fail to be sent.\\
 
-% Add more chapters as needed
+The mean In/Out throughput achieved was X.X kbps and X.X respectively. It is worth noting that the higher In throughput suggests that there is an imbalance in the number of messages being exchanged, this can be confirmed by plot (a) in Figure \ref{fig:base_comm_stats} that shows one agent sending more messages than the other. This is likely due to the fact that the agents are not perfectly synchronised by the RTC, this means they finalise their first local GA at different times (also impacted by the random seed). This means that one agent is able to send its best solution before the other agent has a chance to send its own, this is an artifact of the current implementation and might have to be addressed in future work. Note that the expectation is that the network throughput will increase as the swarm increases in size, where the theoretical max throughput for ESPNOW is 214 kbps by device.\\ 
+
+The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
 
 \newpage
 \printbibliography
