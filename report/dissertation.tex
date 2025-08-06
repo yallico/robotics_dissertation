@@ -9,6 +9,8 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{booktabs}
+\usepackage{float}
+\usepackage{multirow}
 
 % Title page
 \title{Dissertation Title}
@@ -30,13 +32,13 @@ LOREM IPSUM
 
 Swarm engineers draw inspiration from social biological systems such as ants or bees to build decentralised robot collectives that are inherently robust to failure, flexible across tasks and scalable in number \cite{dias_swarm_2021}. In swarm systems, collective intelligence emerges when individual robots trade packets of information among neighbouring robots. Classic ant-colony-optimisation (ACO) work in the early 2000s has already proven that an indirect information exchange "virtual-pheromones" can lead to agents collectively discovering optimal routing behaviours \cite{dorigo_ant_2000}. Highlighting the importance of communication design in swarms and the effect it can have over their behaviour.\\
 
-Moreover, communication remains the least measured layer of swarm robotics. A recent survey by \cite{an_multi-robot_2023} found that the majority of swarm studies focus on coordination and task allocation, with relatively little focus on information exchange. Notwithstanding this, it was reported that bandwidth, latency and energy usage are now the main blockers to real-world swarm deployments. Parallel conclusions have been made by \cite{ding_advancements_2023}, whom suggests that researchers are challenged by the increasing data volume transmitted among swarm peers. As the number of agents grows so does the throughput of the network, which can exceed a single agent's processing capabilities as these tend to be hardware limited.\\
+While coordination and task allocation have been widely studied, recent surveys highlight bandwidth, latency and energy usage as key limitations to real-world swarm deployments \cite{an_multi-robot_2023}\cite{ding_advancements_2023}. These issues become more pronounced as swarm sizes scale, resulting in an increase in data volume being transmitted among swarm peers, often overwhelming individual agents' hardware capabilities.\\
 
-Beyond the swarm's capacity, the architecture of the communication also matters. In many direct communication schemes, broadcasting is a common mode of data transmission across various swarm deployments \cite{an_multi-robot_2023}. For example,\cite{perrin_decentralised_2012} demonstrated that peer-to-peer broadcasts allowed swarms to map unknown environments in disaster zones. However, this type of data flooding is known to scale poorly \cite{an_multi-robot_2023}, this due to increasing Wi-Fi collision rates once swarms grow past a few dozen peers.\\ 
+Beyond the swarm's exchange capacity, the architecture of the communication also matters. In many direct communication schemes, broadcasting is a common mode of data transmission across various swarm deployments \cite{an_multi-robot_2023}. For example,\cite{perrin_decentralised_2012} demonstrated that peer-to-peer broadcasts allowed swarms to map unknown environments in disaster zones. However, this type of data flooding is known to scale poorly \cite{an_multi-robot_2023}, this due to increasing Wi-Fi collision rates once swarms grow past a few dozen peers.\\ 
 
 Furthermore, embodied evolution of swarm controllers heavily relies on communication to tune the controller. Some recent studies explain that less communication can sometimes enhance swarm performance, as trimming neighbourhood size helps populations forget outdated beliefs and re-adapt faster \cite{hiraga_when_2023}\cite{ding_advancements_2023}. Most of these studies were performed in simulation, hence the need for empirical data on how swarm density, rate of data transfer and packet content affects evolution performance. With this in mind, it is possible to think of communication as a dynamic resource that can be manipulated by the swarm to achieve its goals. The ways in which this resource is allocated can have a significant impact on the behaviour of the swarm.\\
 
-This study addresses some of these gaps by exploring different communication protocols in a swarm system. To do this we deploy collective built on the low-cost ESP32 microcontrollers, that to our knowledge have not yet been profiled in swarm literature. Focusing on direct peer to peer ESP-NOW data transfer, we log key performance indicators such as latency, error rates, core usage and evolution metrics while systematically varying density, locomotion, topology awareness, imposed message budgets and stochastic transmission. Our goals are to (i) extend existing communication taxonomies to the ESP32/IoT hardware class, (ii) provide concrete data for the integration challenges flagged by literature, and (iii) translate abstract guidance on swarm communication into tangible design rules.
+This study profiles swarm communication on ESP32 hardware, evaluating performance under varied conditions such as agent density, locomotion, topology inference, imposed message budgets and stochastic transmission. With a focus on direct peer-to-peer communication  we aim to (i) provide empirical data to validate the challenges flagged by literature, and (ii) inform tangible communication design rules for future swarm systems.
 
 \section{Related Work}
 
@@ -50,16 +52,26 @@ This study addresses some of these gaps by exploring different communication pro
 
 \section{Experimental Setting}
 
-In this study, a global optimisation problem known as the Rastrigin function Eq. \ref{eq:rastrigin} is used to benchmark the communication performance in a swarm with up to 13 agents. This task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remained the same.\\ 
+In this study, a global optimisation problem known as the Rastrigin function Eq. \ref{eq:rastrigin} is used to benchmark the communication performance. This task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remaines the same.\\ 
 
-The environment for the experiments was a rectangular arena without obstacles (Figure \ref{fig:arena}), where the initial positions, orientations and number of the robots was determined by the type of experiment being conducted (Section X). All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
+The environment for the experiments was a rectangular arena without obstacles (Figure \ref{fig:arena}), where the initial positions, and number of the robots was determined by the experiment schedule (Table \ref{tab:exp_config}). All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.49\textwidth]{arena.png}
     \caption{Robot Arena: (a) dimensions and (b) example of locomotion experiment with 8 robots.}
     \label{fig:arena}
 \end{figure}
+
+Across the study, we evaluated swarm performance under different communication and system configurations. Each experiment manipulates a specific independent variable while holding all other conditions constant. These include:\\
+
+\begin{itemize}
+  \item \textbf{Swarm density}: The number of agents deployed simultaneously, ranging from 2 to 13.
+  \item \textbf{Locomotion mode}: Robots were either stationary (\emph{static}) or navigated using a \emph{Brownian motion} gait (Section \ref{sec:locomotion}).
+  \item \textbf{Topology inference}: Message transmission priority was governed by either a \emph{STOCHASTIC} shuffle or a \emph{COMM\_AWARE} ranking strategy based on link quality metrics (Section \ref{sec:topology-inference}).
+  \item \textbf{Message budget}: A token-bucket rate limiter controlled how frequently agents could transmit messages (Section \ref{sec:limited-rate}).
+  \item \textbf{Transmission frequency}: Each message was optionally delayed by a random interval derived from the maximum observed peer latency to reduce potential network collisions (Section \ref{sec:transmission-frequency}).
+\end{itemize}
 
 
 \subsection{Rastrigin Function}
@@ -80,38 +92,38 @@ where $n$ is the number of dimensions, in this case the number of genes. Whereas
     \label{fig:B2}
 \end{figure}
 
-Table~\ref{tab:B2-hardware} summarises the core hardware components of the Swarm-B2 platform used in this study REF. The ESP32 microcontroller acts as the I\textsuperscript{2}C master, coordinating an communication board and a Pololu~3Pi+ driver base over a 100kHz bus. Although the IR board can transmit/receive 32-byte frames, the experiments reported here have disabled this feature. The board therefore behaves as a I²C bridge between the M5 master and the Pololu 3Pi+ slave. This guarantees that the communication results discussed in Section REF stem only from the ESP-NOW protocol.\\
+Table~\ref{tab:B2-hardware} summarises the core hardware components of the Swarm-B2 platform used in this study [REF]. Coordination between devices is handled over a $I^2C$ 100kHz bus. Although the IR board can transmit and receive 32-byte frames, we did not conduct experiments with this feature. The board therefore behaves as a $I^2C$ bridge between the M5 and the Pololu 3Pi+. This guarantees that the communication results in this study stem only from a single data link.\\
 
 \begin{table}[h]
   \centering
   \caption{Swarm-B2 hardware stack}
   \label{tab:B2-hardware}
-  \begin{tabular}{p{0.20\linewidth} p{0.22\linewidth} p{0.40\linewidth}}
+  \begin{tabular}{p{0.18\linewidth} p{0.22\linewidth} p{0.42\linewidth}}
     \toprule
     Component & Interface(s) & Function \\
     \midrule
-    M5Stack Core2 (240 MHz) & I\textsuperscript{2}C master and SPI & Solve Rastrigin, ESP-NOW communication, data logging to SD and user interface \\
-    IR board (16 MHz) & I\textsuperscript{2}C slave (0x04) & Bus hub, optional IR feature \\
-    Pololu 3Pi+ (16 MHz) & I\textsuperscript{2}C slave (0x08) & Locomotion, bumper and line following sensors \\
+    M5Stack Core2 (240 MHz) & $I^2C$ master and SPI & Embodied evolution, ESP-NOW communication, data logging to SD and user interface \\
+    IR board (16 MHz) & $I^2C$ slave (0x04) & Bus hub, optional IR feature \\
+    Pololu 3Pi+ (16 MHz) & $I^2C$ slave (0x08) & Locomotion, bumper and line following sensors \\
 
     \bottomrule
   \end{tabular}
 \end{table}
 
-The ESP32 was used as the master device is because of the SD card support which is discussed in Section X and because of its larger flash memory. Furthermore, with 8MB PSRAM and its integrated Wi-Fi support, this microcontroller was capable of running dual-core FreeRTOS tasks (Section X comms on core 0, experiment on core 1) without starving other peripherals. In contrast, the Pololu's board was not able meet the memory bandwidth required for concurrent SD card writes. Making the ESP32 the master also avoided multi master arbitration and simplified bus timing.
+The ESP32 was used for running dual-core FreeRTOS parallel tasks, logging data on the local SD card and handling communication via the ESP-NOW data link (2.4 GHz). The 8MB PSRAM and larger flash memory on the master device allowed for concurrent task execution without peripheral starvation.\\
 
-\subsubsection{Locomotion}
+\subsubsection{Locomotion}\label{sec:locomotion}
 
-The Pololu 3Pi+ is equipped with a line following sensor array and two bump sensors, which can be used to detect obstacles and detect the arena edges. We leverage this components to execute a \emph{Brownian-motion} gait that continuously drives the robot through the arena while producing an unbiased spatial trace. Using Brownian motion avoids any preferential trajectory that could skew communication statistics, and is able to keep all agents in motion throughout the run.\\
+The Pololu 3Pi+ is equipped with a line following sensor array and two bump sensors, which can be used to detect obstacles and detect the arena edges. A \emph{Brownian-motion} gait was selected to maintain unbiased mobility across the arena and ensure constant movement.\\
 
-The gait code exposes the Pololu slave to the ESP32 master node, this interface lets the ESP32 act as a passenger with override, that can set wheel-speed scaling factors or raise \texttt{START}/\texttt{STOP} flags without touching the low-level control loop.  In effect, the Pololu driver handles continuous motion, while the ESP32 decides when to go for each experimental condition (Section X).
+The gait code exposes the Pololu 3pi+ slave to the ESP32 master node, this interface lets the ESP32 act as a passenger with override, that can set wheel-speed scaling factors or raise \texttt{START}/\texttt{STOP} flags without touching the low-level control loop. In effect, the Pololu 3pi+ driver handles continuous motion, while the ESP32 decides when to go for each experimental condition.\\
 
-\subsubsection{Data Capture}
-We implemented local data logging mechanism (Section X) on the ESP32 with a 16GB SD card peripheral. The shared SPI bus (with the LCD) was set at a frequency of 20MHz and configured to use the FAT32 file system for storage. This approach was chosen to emulate a realistic swarm system capable of operating remotely without relying on a stable Wi-Fi connection to a central server. The additional benefit of the local data capture is that it minimizes data transmission loss during the experimental runs.\\
+\subsubsection{Local Data Storage}
+We implemented local data logging mechanism (Section \ref{sec:data-logging}) on the ESP32 with a 16GB SD card peripheral. The shared SPI bus (with the LCD) was set at a frequency of 20MHz and configured to use the FAT32 file system for storage. This approach was chosen to emulate a realistic swarm system capable of operating remotely without relying on a stable Wi-Fi connection to a central server.\\
 
-Upon completing each run, the swarm members switch to a data upload mode and connect to the Wi-Fi, where the locally collected data is securely transmitted to an AWS S3 bucket using HTTPS. This might seem counter intuitive to our original objective, but it was planned to be this way as otherwise we would have to manually read each individual SD card to collect the data, which would be time consuming and error prone. Furthermore, we expect that in a real-world scenarios, the swarm would be deployed in a remote location where manual data collection would be impossible.\\
+% Upon completing each run, the swarm members switch to a data upload mode and connect to the Wi-Fi, where the locally collected data is securely transmitted to an AWS S3 bucket using HTTPS. This might seem counter intuitive to our original objective, but it was planned to be this way as otherwise we would have to manually read each individual SD card to collect the data, which would be time consuming and error prone. Furthermore, we expect that in a real-world scenarios, the swarm would be deployed in a remote location where manual data collection would be impossible.\\
 
-Data logs are saved in the root directory of the SD card in a \.json format. Our system is designed to automatically generate new files upon reaching a specified size limit of 1MB, this enables efficient memory management and preventing heap memory overflow during log file writes.
+% Data logs are saved in the root directory of the SD card in a \.json format. Our system is designed to automatically generate new files upon reaching a specified size limit of 1MB, this enables efficient memory management and preventing heap memory overflow during log file writes.
 
 \subsubsection{User Interface}
 
@@ -126,17 +138,13 @@ Figure \ref{fig:UI} shows the on-board user interface (UI) each Swarm-B2 agent d
 
 \section{Implementation}
 
-In this section we describe the software design and implementation of the swarm firmware. Note that we chose the Espressif IoT development framework (ESP-IDF) for this deployment. This choice was made as first and foremost, it is the official development framework maintained for the ESP32. Unlike the Arduino IDE, which acts as an abstraction layer over ESP-IDF, it provides native and direct access to low level hardware, resulting in greater flexibility for the ESP-NOW communication protocol (discussed Section X).\\
-
-Secondly, ESP-IDF enabled the direct use of FreeRTOS, used for concurrent task creation and multi core processing over the dual-core architecture of the ESP32. This was particularly beneficial in this study as it permits isolating communication specific tasks to an individual core.\\ 
-
-Finally, ESP-IDF is recognized as the industry standard development environment for ESP32 IoT applications. It supports advanced features such as Over-the-Air (OTA) firmware updates (Section \ref{sec:ota}), unit testing and bespoke debugging capabilities. \cite{esp-boards_esp-idf_nodate}.
+This section outlines the software design and implementation of the swarm firmware. The Espressif IoT Development Framework (ESP-IDF) was used as it provides low-level hardware access, offering greater flexibility for ESP-NOW communication (Section \ref{sec:comm-layer}). Unlike the Arduino framework, ESP-IDF provides direct access to FreeRTOS, enabling fine-grained control over concurrent task creation and dual-core processing, such as isolating communication tasks to a specific core. It also supports advanced features like over-the-air (OTA) updates (Section \ref{sec:ota}), unit testing, and custom debugging tools \cite{esp-boards_esp-idf_nodate}.
 
 \subsection{Software Development Environment}\label{sec:SDK}
 
-During the software development and experiment cycles, the Continuous Integration and Continuous Deployment (CI/CD) framework was used, depicted in Figure \ref{fig:cicd-architecture}. This framework enabled automated OTA updates to all agents, eliminating the need for manual flashing of each individual node between experimental runs.\\
+We employed a Continuous Integration and Continuous Deployment (CI/CD) pipeline via GitHub to automate OTA deployment, ensuring synchronized updates and easier debugging across the swarm (Fig. \ref{fig:cicd-architecture}).\\
 
-The CI/CD integration proved especially valuable when expanding the scope of experiments, where consistent updates across multiple agents were necessary. It also facilitated easier rollbacks in the event of unexpected bugs, thereby increasing the reliability of the experimental results. The automated build pipeline in GitHub ensured that only validated firmware versions were propagated to the swarm, catching any environment discrepancies early in the process.\\
+The CI/CD integration proved especially valuable during experiments, where consistent updates across multiple agents were necessary. It also facilitated easier rollbacks in the event of unexpected bugs. The automated build pipeline in GitHub ensured that only validated firmware versions were propagated to the swarm, catching any environment discrepancies early in the process.\\
 
 \begin{figure}[h]
     \centering
@@ -148,16 +156,14 @@ The CI/CD integration proved especially valuable when expanding the scope of exp
 Our software development framework for the swarm is as follows:
 
 \begin{enumerate}
-    \item \textbf{Local environment development}: The ESP32 application development takes place locally using VSCode, our local environment uses version 5.1.4 of ESP-IDF and Python 3.11 to build and flash the code in-situ. This self contained development environment allows for testing new features and updates without affecting previous versions of the application running on the swarm.\\
-    \item \textbf{Version control}: Once we finish working on a feature, we push the codebase to a public repository on GitHub: \url{https://github.com/yallico/robotics_dissertation}, this allows for version control and triggers a custom build and test process. The ESP32 project is then compiled and generates the binary file used for OTA. This process ensures that the codebase is always in a working state and ready for deployment.\\
-    \item \textbf{Cloud storage}: The OTA binary file is uploaded to an AWS S3 public bucket. S3 serves as a reliable and low cost storage solution for the OTA updates. Note that encryption is out of scope for this OTA implementation, yet we acknowledge that this is a non-trivial task for swarms.\\
-    \item \textbf{OTA process}: All agents, run a task that is triggered upon initialisation which compares its current flash version against the latest version available in S3. If the S3 version diverges from the local version, the ESP32 downloads the latest .bin file and installs it locally.
-
+    \item \textbf{Local environment development}: Application development takes place locally using VSCode, our local environment uses version 5.1.4 of ESP-IDF and Python 3.11 to build and flash the code in-situ.\\
+    \item \textbf{Version control}: We push updates of the codebase to a public repository on GitHub: \url{https://github.com/yallico/robotics_dissertation}, this allows for version control and triggers a custom build and test process. The ESP32 project is then compiled remotely and generates the binary file used for OTA.\\
+    \item \textbf{Cloud storage}: The OTA binary file is uploaded to an AWS S3 public bucket making it accesible to the swarm via HTTPS.\\
 \end{enumerate}
 
-\subsubsection{OTA}\label{sec:ota}
+\subsubsection{OTA Process}\label{sec:ota}
 
-Our system uses cloud infrastructure to distribute encrypted update files, this meant that during initialisation we exposed the swarm to the internet via Wi-Fi. It maybe counter-intuitive to rely on a central server to manage swarm firmware updates, however in the future it might be possible to use decentralized storage solutions to avoid having to connect to the internet.\\
+Upon initialization, each agent checks its local firmware version against the latest version stored in S3. If a mismatch is detected, the ESP32 downloads and installs the updated .bin file. While relying on a central server and exposing the swarm to the internet for updates may seem counterintuitive, a similar update mechanism could be implemented in a decentralized manner using consensus protocols. However, this would have introduced additional complexity beyond the scope of this study.\\
 
 \begin{table}[h]
   \centering
@@ -178,7 +184,7 @@ Our system uses cloud infrastructure to distribute encrypted update files, this 
 \end{table}
 
 
-Table \ref{tab:partition_table} shows how each device partitions was configured with a dual-partition OTA scheme with two application slots: \texttt{ota\_0} and \texttt{ota\_1}. During an update, the new firmware is written to the inactive partition. Once the write and integrity checks pass, the bootloader switches to boot from the updated partition on the next reboot. This allows safe rollback in case of update failure. The update binaries ranged from 1 to 1.2 MB, note that update propagation and version control were managed manually through a quick check of the robot's LDC display before the experimental run. Automated consensus mechanisms were left out of scope for this study.
+Table \ref{tab:partition_table} shows how each device partitions was configured with a dual-partition OTA scheme with two application slots: \texttt{ota\_0} and \texttt{ota\_1}. During an update, the new firmware is written to the inactive partition. Once the write and integrity checks pass, the bootloader switches to boot from the updated partition on the next reboot. This allows safe rollback in case of update failure. The update binaries ranged from 1 to 1.2 MB, note that update propagation and version control were managed manually through a quick check of the robot's LDC display before the experimental run.
 
 \subsection{Embodied Evolution}
 
@@ -197,80 +203,86 @@ To avoid stagnation over a local-minimum, a mass extinction event together with 
 
 \subsection{Real Time Operating System}
 
-Each swarm member boots into a FreeRTOS runtime by calling \texttt{app\_main()}, which performs the initialisation of the following components: non-volatile storage, I2C peripherals, RTC, SD card, and ESP-NOW. Figure X illustrates the sequence of these and their relation to the tasks that are spawned during run time. Some of these tasks include:
+Each swarm member boots into a FreeRTOS runtime by calling \texttt{app\_main()}, which performs the initialisation of the following components: non-volatile storage, I2C peripherals, RTC, SD card, and ESP-NOW.
+
+Figure \ref{fig:rtos} illustrates the sequence of these and their relation to the tasks that are spawned during run time. These tasks include:
+
 \begin{itemize}
-  \item \texttt{i2c\_task}: Handles communication with the I2C peripherals, including the AXP192 power supply, the IR board, the display and the Pololu 3pi+.
+  \item \texttt{i2c\_task}: Handles communication with the $I^2C$ peripherals, including the AXP192 power supply, the IR board, the display and the Pololu 3pi+.
   \item \texttt{gui\_task}: Manages the UI on the M5Stack display, used for real-time feedback and debugging.
-  \item \texttt{ota\_task} (conditional): Manages OTA updates if a new version is available in S3 (Section \ref{sec:ota}).
+  \item \texttt{pololu\_heartbeat\_task}: Handles the $I^2C$ signal from the Pololu 3pi+, ensuring that the robot is operational and responsive.
+  \item \texttt{ota\_task}: Manages OTA updates if a new version is available in S3 (Section \ref{sec:ota}).
   \item \texttt{espnow\_task}: Manages ESP-NOW communication between swarm members, handles message sending and receiving.
   \item \texttt{ga\_task}: Runs the local GA and coordinates with other tasks to log and transmit data.
-  \item \texttt{write\_task}: Handles SD card operations, including data logging and managing file storage.
-\end{itemize} 
+  \item \texttt{write\_task}: Handles SD card operations, including data logging, managing file storage and uploading experimental results.
+\end{itemize}
 
-Inter-task coordination is managed by event groups and queues. The event groups are used to signal task completion and synchronise downstream operations, whereas queues are used to pass data between tasks that are operating in parallel. This enables multitasking and real-time processing of events, which differs from traditional SENSE, PLAN, ACT architectures that operate sequentially.\\
+Following initialization, each robot enters the experiment phase explained in Algorithm \ref{alg:swarm-loop}. Using a random seed the initial local population for the GA is generated. The \texttt{ga\_task} then evolves the local population until 60 generations are reached without achieving a 0.01 decrease in population fitness. At which point the genome with the lowest fitness score is transmitted via ESP-NOW to remote peers. The \texttt{espnow\_task} then dequeues and parses all messages from the buffer, updating statistics and evaluating remote genomes with local genomes.\\
 
-Following initialization and the conditional OTA update, each robot enters the experiment phase shown in Algorithm \ref{alg:swarm-loop}. Each robot is assigned a random starting point (seed) within the Rastrigin search space. The random seed is obtained via HTTPS from a server that streams quantum fluctuations in vacuum. This is to ensure that the seed is truly random and not influenced by any external factors. This initial population with its own set of random genes will thereafter undergo selection via a fitness function and genetic operators (mutation and crossover) to evolve the population.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.48\textwidth]{rtos.png}
+    \caption{Task schedule with memory allocation and priority.}
+    \label{fig:rtos}
+\end{figure}
 
-The \texttt{ga\_task} evolves a local population until 30 generations are reached without achieving a 0.01 improvement in population fitness [REF]. At which point the best solution fitness score and genes are sent via ESPNOW to all swarm agents in a random order [NEED TO EXPLAIN WHY THIS WAS DONE]. ESPNOW send/receive callbacks measure per-packet latency (via ACKs), enqueue incoming frames to \texttt{ga\_buffer\_queue}, and count bytes for a throughput timer. The \texttt{espnow\_task} then dequeues and parses all events, updating statistics and evaluating remote genomes to \texttt{ga\_integrate\_remote\_solution}. 
+Inter-task coordination is managed by event groups and queues. The event groups are used to signal task completion and synchronise downstream operations, whereas queues are used to pass data between tasks that are operating in parallel. This enables multitasking and real-time processing of the measurements.\\ 
 
-An experiment is terminated when one of the following criteria is met:
+Note that the local population undergoes evolution until the experiment phase is terminated. The experiment phase is terminated when one of the following criteria is met:
+
 \begin{enumerate}
-  \item \textbf{Global Solution Achieved}: Any robot attains the exact global minimum of the Rastrigin function (fitness\,=\,0).
-  \item \textbf{Time Limit Exceeded}: A configurable maximum duration (e.g., 10 minutes) elapses without global convergence.
+  \item \textbf{Global solution}: Any robot attains the exact global minimum of the Rastrigin function (fitness\,=\,0).
+  \item \textbf{Time limit}: A maximum duration of 60 seconds elapses without global convergence.
 \end{enumerate}
-Upon termination, all ESPNOW tasks drain pending message queues, final fitness and communication metrics are written to the SD card, and log files are uploaded to an Amazon S3 bucket over HTTPS. Finally, the system de‐initializes peripherals (Wi‐Fi stopped, SD card unmounted, IR board halted) to ensure a clean shutdown.
+
+Upon reaching the de-initialisation phase, the \texttt{espnow\_task} drains pending message queues, final fitness and communication metrics are uploaded to an Amazon S3 bucket via HTTPS via the \texttt{write\_task}. Finally, the system peripherals are de-initialised to ensure a clean shutdown.
 
 \begin{algorithm*}[h]
-\caption{Experimental Run Loop\label{alg:swarm-loop}}
+\caption{Experiment Phase Main Loop\label{alg:swarm-loop}}
 \begin{algorithmic}[1]
-  \State \textbf{Init} peripherals, Wi-Fi, ESPNOW, tasks, event groups, queues
-  \State Fetch quantum seed via HTTPS; \Call{init\_ga}{seed}
+  \State Generate random seed and initialise genetic algorithm population: \Call{init\_ga}{seed}
   \Loop
+    \State \textbf{Check experimental phase:} \Call{ESPNOW\_COMPLETED\_BIT}{} \Comment{If set, proceed to de-initialisation phase}
     \State \textbf{Run GA:} \Call{evolve}{}
-    \State Wait until \texttt{ga\_ended} \Comment{set in \texttt{ga\_complete\_callback}}
-    \State \Call{espnow\_push\_best\_solution}{local\_best}
-    \State $ga\_has\_run\_before \gets \mathrm{true}$; $s\_last\_ga\_time \gets \mathrm{now}$
-    \State \Call{drain\_buffered\_messages}{} \Comment{Dequeue all ESPNOW frames}
+    \State Wait for GA completion flag \texttt{ga\_ended} \Comment{set in \texttt{ga\_complete\_callback}}
+    \State \Call{espnow\_push\_best\_solution}{local\_genome}
+    \State $ga\_has\_run\_before \gets \mathrm{true}$; $s\_last\_ga\_time \gets \mathrm{now\_ts}$
+    \State \Call{drain\_buffered\_messages}{} \Comment{Dequeue all ESP-NOW frames}
     \ForAll{msg in \texttt{ga\_buffer\_queue}}
+      \State \Call{parse\_out\_message}{msg} \Comment{Parse raw messages}
       \State \Call{ga\_integrate\_remote\_solution}{msg.genes}
     \EndFor
-    \State \Call{check\_hyper\_mutation}{} \Comment{Adjust mutation if stagnated}
+    \State \Call{check\_hyper\_mutation}{} \Comment{Apply if stagnation is detected}
     \State Reset \texttt{ga\_ended}
   \EndLoop
 \end{algorithmic}
 \end{algorithm*}
 
-\subsection{Communication Layer}
+\subsection{Communication Layer}\label{sec:comm-layer}
 
-For our implementation of ESP-NOW, each swarm robot was pre-configured with the MAC addresses of all peers to facilitate direct communication. One key aspect to point out in this implementation is that connection handling and device pairing, which oversees how swarm members join and leave a connection. In its most basic form, we created a loop that goes over each MAC address and tries to rely a direct message to each other member in the swarm, to server as our benchmark. It is understood that the implications of this can have an impact on data loss and latency of the network. % add the event driven one-way communication
-This communication protocol was designed to avoid having to handle pull type protocols which would involve having to handle requests and responses in a sequential manner.
+We implemented ESP-NOW by pre-registering the MAC addresses for all peers in each agent, enabling direct unicast communication between swarm robots. Our design uses push only event-driven peer-to-peer messaging, where each device transmits data to peers without waiting for requests. Using this scheme avoids the complexity of pull-based communication protocols. Recall that once a local elite genome is found, the best solution is sent to all peers, if there are incoming messages these are queued for later processing, allowing task operations to continue uninterrupted. In this section we describe the specific communication independent variables that were manipulated during experiments.\\
 
-Using the IR board, described previously. We connected the M5Stack via the external I2C port, furthermore we had to use the Arduino library as a component of the ESP-IDF implementation for the this to work, this was due to compatibility issues between ESP-IDF and Arduino libraries. The board itself is running with an Arduino Nano to process the IR signals into messages and then sending this data accross via the SDA/SCL pins. One major implication for this, was the need to change the FreeRTOS clock speed from 100Hz to 1000Hz which improves responsiveness but at the cost of higher CPU load and power consumption. Some key parameters also include the frequency if the I2C itself which was set at 100kHtz and the master/slave configuration (M5 being the master device), this is initialized from the M5 once powered on after the 5V bus is switched on (to power the board). For more details regarding the IR board implementation please see X. 
+% Using the IR board, described previously, the ESP32 was connected via the external $I^2C$ port. We had to use the Arduino library as a component of the ESP-IDF implementation for the this to work, this was due to compatibility issues between ESP-IDF and Arduino libraries. The board itself runs on a Arduino Nano to process the IR signals into messages and then sending this data accross via the SDA/SCL pins. One major implication for this, was the need to change the FreeRTOS clock speed from 100Hz to 1000Hz. Some key parameters also include the frequency if the I2C itself which was set at 100kHtz and the master/slave configuration, this is initialized from the M5 once powered on after the 5V bus is switched on.
 
+\subsubsection{Topology Inference}\label{sec:topology-inference}
 
-We used ESPNOW by pre-registering each swarm member’s MAC address, enabling unicast communication once the local GA finishes. Incoming data is placed on a queue for processing, and latency is measured via ACK callbacks. A periodic timer tracks overall throughput, logging key events as data arrives. This setup ensures efficient message handling without interfering with ongoing local genetic algorithm as it run co-curretly.
+We investigate the impact of different communication schemes on the emergent swarm topology by introducing two distinct message transmission strategies: \textbf{STOCHASTIC} and \textbf{COMM\_AWARE}. Implemented in the communication layer, these were designed to influence the order and priority with which each agent sends data to its peers. The aim is to understand how these strategies affect the connectivity and robustness of the swarm network.\\
 
-\subsubsection{Topology Inference}
-
-Based on the baseline results, we propose to investigate the impact of different communication schemes on the emergent swarm topology by introducing two message sending strategies: \textbf{RANDOM} and \textbf{COMM\_AWARE}. From version 0.4 onwards, these schemes are implemented in the communication layer and are designed to influence the order and priority with which each agent sends its best solution to its peers. The aim is to understand how these strategies affect the connectivity and robustness of the swarm network.\\
-
-The expectation is that both \textbf{RANDOM} and \textbf{COMM\_AWARE} will result in a fully connected network over time, as each agent attempts to send messages to all other agents. However, the \textbf{COMM\_AWARE} scheme is designed to preferentially strengthen links with agents that are either furthest away (as inferred by higher latency and lower RSSI) or have not yet established a reliable connection (null metrics). This should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position.\\
-
-The two communication schemes are implemented as follows:
+These are implemented as follows:
 
 \begin{itemize}
-    \item \textbf{RANDOM}: Each agent shuffles the list of peer MAC addresses using a Fisher-Yates shuffle (with a random seed) before sending its message. This ensures that the order of communication is random for each broadcast cycle, preventing bottlenecks or biases.
-    \item \textbf{COMM\_AWARE}: Each agent ranks its peers based on the most recent measurements of communication quality, specifically the last known latency (measured via ACK round-trip time) and RSSI (received signal strength indicator). Peers with unknown metrics (null latency or RSSI) are prioritized first to ensure all links are measured. Among the rest, peers are scored by normalizing both latency and RSSI, and those with the worst (highest latency, lowest RSSI) are prioritized for message sending.
+    \item \textbf{STOCHASTIC}: Each agent calls a random seed to apply a Fisher-Yates shuffle over the list of peer MAC addresses to sort them before sending its message. This ensures that the order of communication is random for each transmission cycle, preventing biases.
+    \item \textbf{COMM\_AWARE}: Each agent ranks its peers based on the most recent measurements of communication quality, specifically the last known latency and Received Signal Strength Indicator (RSSI). Peers with unknown metrics (during initialisation) are prioritized first to ensure all peer links are measured. Then, peers are scored by normalizing both latency and RSSI, and those only in the worst half (highest latency, lowest RSSI) are prioritized for message transmission.
 \end{itemize}
 
 The following pseudocode outlines the logic for each scheme:
 
-\paragraph{RANDOM Communication Scheme}
+%\paragraph{STOCHASTIC}
 \begin{algorithm}[H]
 \caption{Randomized Peer Selection}
 \begin{algorithmic}[1]
 \State \textbf{Input:} List of peer MAC addresses
-\State Shuffle the list using Fisher-Yates and a random seed
+\State Fisher-Yates shuffle using a random seed
 \For{each peer in shuffled list}
     \If{peer is not self}
         \State Send message to peer
@@ -279,8 +291,7 @@ The following pseudocode outlines the logic for each scheme:
 \end{algorithmic}
 \end{algorithm}
 
-%TODO: UPDATE THIS TO MENTION 50% SCOPE OF NETWORK
-\paragraph{COMM\_AWARE Communication Scheme}
+%\paragraph{COMM\_AWARE}
 \begin{algorithm}[H]
 \caption{Communication-Aware Peer Ranking}
 \begin{algorithmic}[1]
@@ -293,7 +304,7 @@ The following pseudocode outlines the logic for each scheme:
         \State Compute score: $score = norm\_latency + norm\_rssi$
     \EndIf
 \EndFor
-\State Sort peers: null metrics first, then by descending score (worst first)
+\State Sort peers: null metrics first, then by descending score (worst first), only \textbf{50\% scope of network}
 \For{each peer in sorted list}
     \If{peer is not self}
         \State Send message to peer
@@ -302,53 +313,116 @@ The following pseudocode outlines the logic for each scheme:
 \end{algorithmic}
 \end{algorithm}
 
-These communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. Furthermore, this approach is specifically designed for \textbf{UNICAST} communication, where messages are sent directly to individual peers and round-trip latency can be measured via ACKS. In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.
-%need to decide if we will test broadcast....
+Note that these schemes are specifically designed for \textbf{unicast} communication, where messages are sent directly to individual peers and round-trip latency can be measured via acknowledgements (ACKS). Having said that, we can think of the \textbf{STOCHASTIC} algorithm as a pseuso-broadcast communication scheme as the message is sent to all peers with negligible delays between transmissions.\\ 
 
-\subsubsection{Limited-Rate Communication (TOKEN\_BUCKET)}
+\subsubsection{Limited-Rate Communication}\label{sec:limited-rate}
 
-Inspired by the “less-is-more” (LIME) effect reported for Kilobots using infrared links \cite{aust_hidden_2022}, we add a *token-bucket* limiter to the ESP-NOW layer and treat its quota as an **independent variable**.  
-Each agent is given a small budget of $1$ message in a sliding window of length $10000$ milliseconds.  When the bucket is empty the agent must keep silent until the window refreshes, regardless of how often its GA stagnates or improves.  This caps the *total* interaction rate per robot rather than merely spacing individual transmissions, closely matching the physical connectivity ceiling studied in \cite{aust_hidden_2022} but now in a 2.4-GHz ESPNOW setting.
-
-\paragraph{Parameters}
-\begin{itemize}
-  \item $B$ – message budget (tokens) per window
-  \item $W$ – window length in milliseconds
-  \item $t_{\mathrm{last}}$ – start-time of current window (initialised at boot)
-  \item $\mathit{tokens}$ – remaining tokens in the current window
-\end{itemize}
+Inspired by the “less-is-more” effects reported by \cite{aust_hidden_2022} using infrared links, we implemented a token-bucket limiter to the ESP-NOW layer and treat this quota as an independent variable. Each agent is given a small budget of 1 message in a sliding window of length 8 seconds.  When the bucket is empty the agent must keep silent until the window refreshes, regardless of how often its GA stagnates or improves.  This caps the total interaction rate per robot rather than solely spacing individual transmissions.
 
 \begin{algorithm}[H]
 \caption{Token-Bucket Throttled Send}
 \label{alg:token_bucket}
 \begin{algorithmic}[1]
-\State \textbf{procedure} \textsc{MaybeSend}$(\mathit{payload})$
-\State $now \gets$ \Call{CurrentTimeMs}{}
-\If{$now - t_{\mathrm{last}} \ge W$}               \Comment{window refresh}
+\Require 
+  $B$: message budget per window, \quad
+  $W$: window length (ms), \quad
+  $t_{\mathrm{last}}$: window start time, \quad
+  $\mathit{tokens}$: remaining sends
+\Procedure{MaybeSend}{$\mathit{payload}$}
+  \State $now \gets$ \Call{CurrentTimeMs}{}
+  \If{$now - t_{\mathrm{last}} \ge W$} \Comment{Window refresh}
     \State $\mathit{tokens} \gets B$
     \State $t_{\mathrm{last}} \gets now$
-\EndIf
-\If{$\mathit{tokens} = 0$}
-    \State \textbf{return}   \Comment{bucket empty $\rightarrow$ no send}
-\EndIf
-\If{\Call{ImprovedFitness}{}}
+  \EndIf
+  \If{$\mathit{tokens} = 0$}
+    \State \Return \Comment{Bucket empty → no send}
+  \EndIf
+  \If{\Call{ImprovedFitness}{}}
     \State $\mathit{tokens} \gets \mathit{tokens} - 1$
     \State \Call{ESP\_NOW\_Send}{$\mathit{payload}$}
-\EndIf
+  \EndIf
+\EndProcedure
 \end{algorithmic}
 \end{algorithm}
 
-By tightening $B$ (or enlarging $W$) we progressively restrict social signalling. Following the findings in \cite{aust2022hidden}, we hypothesise that:
+\subsubsection{Transmission Frequency}\label{sec:transmission-frequency}
 
-\begin{enumerate}
-  \item \textbf{Convergence speed will decrease}: fewer migrations mean each island explores locally for longer before external influence arrives.
-  \item \textbf{Task performance will improve}: reduced network contention and wider behavioural diversity should help the swarm escape local minima, yielding lower global Rastrigin scores by the termination time.
-\end{enumerate}
+To further explore the communication behaviour of the swarm under flooding conditions, we modulate the transmission frequency. In this communication mode, each message transmission is delayed by a random interval, otherwise no delay is explicitly applied. This random delay, drawn from a range determined by the maximum observed latency among peers, is described by Algorithm \ref{alg:transmission_freq}.\\
 
-Thus, the experiment sweeps $B\in\{1,2,4,8\}$ (with $W=10\,\mathrm{s}$) to test whether the LIME phenomenon extends from low-bandwidth IR to high-bandwidth ESPNOW links.
+\begin{algorithm}[H]
+\caption{Stochastic Transmission Frequency}
+\label{alg:transmission_freq}
+\begin{algorithmic}[1]
+\State \textbf{Input:} List of peer MAC addresses, maximum latency observed ($max\_rand$)
+\For{each peer in the target list}
+    \If{peer is not self}
+        \State Compute a random delay: $delay \gets rand(0, max\_rand)$
+        \State Wait for $delay$ milliseconds
+        \State Send message to peer
+    \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
 
+In the firmware, this is implemented by checking if \texttt{DEFAULT\_MIGRATION\_FREQUENCY} is set to \texttt{FREQUENCY\_RANDOM} and, if so, randomly delaying each call to \texttt{esp\_now\_send} by a value within the range of $[0, max\_rand]$, where $max\_rand$ is derived from the maximum measured latency among peers. The intention of this approach is to control the flooding of messages in a stochastic manner that can help reduce unintended collisions in the swarm network.
 
-\newpage
+\subsection{Data Logging}\label{sec:data-logging}
+
+Reliable and precise data logging is a pre-requisite for evaluating the communication performance and evolution dynamics of the swarm. To achieve this, our firmware implements several mechanisms to capture and record key metrics such as latency, message exchanges, internal state changes, and experiment metadata. These measurements are logged using well-defined data structures and are incrementally written to an SD card.\\
+
+\subsubsection{Messaging Structure}
+
+Table \ref{tab:out_message} summarizes the \texttt{out\_message\_t} structure used for transmitting messages between swarm peers via ESP-NOW. Note that any floating point values in the message content are rounded to $3 d.p.$ to ensure compact representation. The total size of the struct is kept within the raw payload limits (250 bytes) imposed by ESP-NOW to guarantee reliable transmission.
+
+\begin{table}[h]
+  \centering
+  \caption{Message Structure (\texttt{out\_message\_t}) for ESP-NOW Data Transfer}
+  \label{tab:out_message}
+  \begin{tabular}{l l p{4cm}}
+    \toprule
+    \textbf{Field} & \textbf{Type} & \textbf{Description} \\
+    \midrule
+    \texttt{log\_id} & uint32\_t & Unique internal identifier of the event.\\
+    \texttt{robot\_id[5]} & char & MAC identifier for the sender robot plus a null terminator.\\
+    \texttt{created\_datetime} & time\_t & Timestamp based on the internal RTC.\\
+    \texttt{message[128]} & char & Content of the message including the fitness score and genome delimited by "$|$".\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{Data Processing}
+
+The data logging pipeline is designed to ensure that all key experimental metrics are captured and preserved locally by each agent. Log entries are posted to two FreeRTOS queues: \texttt{LogQueue} for internal logging events and \texttt{LogBodyQueue} for detailed message logs. A \texttt{QueueSet} allows the dedicated \texttt{write\_task} to efficiently monitor and process both queues in real time.\\
+
+The core logging framework relies on three primary data structures:
+\begin{itemize}
+    \item \texttt{experiment\_metadata\_t}: Stores overall experiment parameters, including experiment and robot IDs, random seed, GA parameters, migration settings, and application version.
+    \item \texttt{event\_log\_t}: Used for logging system events such as latency measurements, RSSI, CPU usage, and state changes.
+    \item \texttt{event\_log\_message\_t}: Holds the parsed version of the \texttt{out\_message\_t} structure and links it to the internal event ID.
+\end{itemize}
+
+When an entry is retrieved from either queue, it is serialized into a JSON-formatted string (via \texttt{serialize\_log\_to\_json()}) to ensure structured and consistent downstream analysis. The serialized data is then written incrementally to SD card files, with each file capped at 1MB to prevent memory overflow and ensure robust storage. Figure~\ref{fig:data-store} illustrates the internal data logging pipeline, from event generation to SD card storage.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.45\textwidth]{data_store.png}
+    \caption{Internal data logging pipeline}
+    \label{fig:data-store}
+\end{figure}
+
+\subsection{Post-experimental Processing}
+
+After the experimental phase concludes (Fig. \ref{fig:rtos}), the system enters a data upload mode. In this mode, the files stored on each agent's SD cards are uploaded to an AWS S3 bucket via HTTPS. This was done by design as we did not want to stream the data from the peers whilst they were running the experiment, as this could have introduced additional collisions potentially impacting the measurements.\\
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{athena.png}
+    \caption{Data Upload Architecture}
+    \label{fig:athena}
+\end{figure}
+
+As depicted by Figure \ref{fig:athena}, the S3 bucket is structured to store each agent's data in a separate folder, named by the robot's ID. Each file is named with a timestamp and the experiment ID, ensuring that all data is uniquely identifiable and traceable. The data is then processed using AWS Glue to prepare it for analysis in Amazon Athena. This process allowed us to automate the storage and evaluation of data logs from over $500$ experiment runs.\\
+
 \section{Preliminary Sensitivity Analysis}
 
 \begin{figure*}[h]
@@ -358,14 +432,10 @@ Thus, the experiment sweeps $B\in\{1,2,4,8\}$ (with $W=10\,\mathrm{s}$) to test 
     \label{fig:ga_prelim_analysis}
 \end{figure*}
 
-Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). A total of \textbf{136 experiments} were performed, each terminating if fitness failed to improve beyond a \textbf{0.001 threshold} over \textbf{20 consecutive epochs} (patience). %TODO: Include reference for the patience parameter
-If the global optimum (fitness=0) was not reached, the run was considered to have converged into a local minimum. Across all runs, the time taken to converge ranged \textbf{between 0 to 3 seconds}, reflecting the early stopping triggered by the patience setting. As shown in Figure~\ref{fig:ga_prelim_analysis}, larger populations and higher iteration counts generally yielded lower final fitness, consistent with the genetic algorithm’s search properties.\\
+Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). Over 100 experimental runs were performed, each terminating if fitness failed to improve beyond a 0.001 threshold over 20 consecutive epochs. Across all runs, the time taken to converge ranged between 0 to 3 seconds, reflecting the early stopping triggered by the patience setting. As shown in Figure~\ref{fig:ga_prelim_analysis}, larger populations yielded lower final fitness.\\
 
-%include table of parameters kept constant for GA. And all other config parameters that were kept constant.
+The data gathered from these early experiments suggested that using five genes was not sufficiently challenging for a single agent as convergence was achieved too quickly. Due to this we decide to expand the Rastrigin search dimentionality to 10 genes and extend the local population and threshold epochs to 60. Hypermutation parameters are also set at this stage and detertime that the most practical experiment run time of 60 seconds is appropiate for this configuration.
 
-A practical takeaway from the data is that using five genes is sufficiently challenging to extend the runtime into the range of minutes rather than seconds, even though a single robot with fewer genes can solve the function in only a couple of seconds. This configuration will ensure that experiments in a swarm environment will involve cooperation, where the exchange of best solutions between members could enable global convergence for a five-dimensional Rastrigin function.
-
-\newpage
 \section{Base Line Results}
 
 \begin{figure*}[t]
@@ -431,6 +501,106 @@ The mean In/Out throughput achieved was X.X kbps and X.X respectively. It is wor
 
 The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
 
+\section{Hypothesis}
+
+%topology
+The initial expectation is that both \textbf{STOCHASTIC} and \textbf{COMM\_AWARE} will result in a fully connected network over time, as each agent attempts to send messages to all other agents. However, the \textbf{COMM\_AWARE} scheme is designed to preferentially strengthen links with agents that are either furthest away (as inferred by higher latency and lower RSSI) or have not yet established a reliable connection (null metrics).\\ 
+
+%moving bucket
+By enlarging $W$ we progressively restrict social signalling, the following hypothesise are put forward:
+
+%transmission
+should in theory alleviate message collisions that can occur during the default pseudo-broadcasting mode of the swarm. By applying this stochastic delay on a per-peer basis, the system emulates a flooding mechanism with randomised inter-transmission intervals.
+
+\begin{enumerate}
+  \item \textbf{Convergence speed will decrease}: fewer migrations mean each island explores locally for longer before external influence arrives.
+  \item \textbf{Task performance will improve}: reduced network contention and wider behavioural diversity should help the swarm escape local minima, yielding lower global Rastrigin scores by the termination time.
+\end{enumerate}
+
+Thus, the experiments tests whether the "less is more" phenomenon extends from low-bandwidth IR to high-bandwidth ESPNOW links.
+
+\subsection{Experiment Schedule}\label{sec:experiments-schedule}
+
+A minimum of 16 re-runs per condition was conducted to ensure statistical significance of the results.
+
+\begin{table*}[H]
+\centering
+\label{tab:exp_config}
+\caption{Experimental configurations}
+\begin{tabular}{c|c|c|c|c}
+\toprule
+\textbf{Number of Robots} & \textbf{Topology Inference} & \textbf{Locomotion} & \textbf{Message Limit} & \textbf{Transmission Frequency} \\
+\midrule
+\multirow{10}{*}{3}
+  & \multirow{5}{*}{Stochastic}
+    & \multirow{2}{*}{Static}
+                 & Unlimited& None \\
+  &   &          & Unlimited& Random Delay \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{4-5}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{2-5}
+  & \multirow{5}{*}{Comm Aware}
+    & \multirow{2}{*}{Static}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{4-5}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+\midrule
+\multirow{10}{*}{8}
+  & \multirow{5}{*}{Stochastic}
+    & \multirow{2}{*}{Static}
+                 & Unlimited& None \\
+  &   &          & Unlimited& Random Delay \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{4-5}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{2-5}
+  & \multirow{5}{*}{Comm Aware}
+    & \multirow{2}{*}{Static}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{4-5}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+\midrule
+\multirow{10}{*}{13}
+  & \multirow{5}{*}{Stochastic}
+    & \multirow{2}{*}{Static}
+                 & Unlimited& None \\
+  &   &          & Unlimited& Random Delay \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{4-5}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{2-5}
+  & \multirow{5}{*}{Comm Aware}
+    & \multirow{2}{*}{Static}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+  \cmidrule{4-5}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited& None \\
+  &   &          & 1 msg/8s & None \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Results}
+
+\section{Discussion}
+\textbf{COMM\_AWARE} scheme should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position. This communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. \\
+
+In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.
+%need to decide if we will test broadcast....
 
 
 % Add more chapters as needed

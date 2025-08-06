@@ -1,0 +1,73 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.1.1 Chrome/132.0.6834.210 Electron/34.3.3 Safari/537.36" version="26.1.1">
+  <diagram name="Page-1" id="btb9k7ennXGVm7oPU-ji">
+    <mxGraphModel dx="1434" dy="839" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="583" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="9NMMCVd3kOC8opcWcWRm-1" target="9NMMCVd3kOC8opcWcWRm-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-1" value="&lt;b&gt;LogQueue&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="120" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="9NMMCVd3kOC8opcWcWRm-2" target="9NMMCVd3kOC8opcWcWRm-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-2" value="&lt;b&gt;LogBodyQueue&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="230" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="9NMMCVd3kOC8opcWcWRm-3" target="9NMMCVd3kOC8opcWcWRm-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-3" value="&lt;b&gt;QueueSet&lt;/b&gt;&lt;br&gt;Monitored by write_task" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="160" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-6" value="event_log_t" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="90" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-7" value="message_log_t" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="200" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="9NMMCVd3kOC8opcWcWRm-8" target="9NMMCVd3kOC8opcWcWRm-11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="414" y="280" />
+              <mxPoint x="100" y="280" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-13" value="write data" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="9NMMCVd3kOC8opcWcWRm-12">
+          <mxGeometry x="0.0711" y="3" relative="1" as="geometry">
+            <mxPoint x="-3" y="-3" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-8" value="Serialise to JSON" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="354" y="160" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-11" value="SD Card" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
+          <mxGeometry x="70" y="300" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-15" value="logs_0.json&lt;br&gt;msg_0.json" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="140" y="350" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-16" value="incremental file writes" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
+          <mxGeometry x="227" y="300" width="66" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="9NMMCVd3kOC8opcWcWRm-11" target="9NMMCVd3kOC8opcWcWRm-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-20" value="Add metadata.json post experimental run" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="354" y="310" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="9NMMCVd3kOC8opcWcWRm-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;" edge="1" parent="1" source="9NMMCVd3kOC8opcWcWRm-20" target="9NMMCVd3kOC8opcWcWRm-11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="414" y="410" />
+              <mxPoint x="100" y="410" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
