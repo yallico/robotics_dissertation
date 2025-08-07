@@ -33,6 +33,7 @@ logs_meta = logs.merge(
 # 3. Filters
 ###############################################################################
 logs_meta = logs_meta.query("max_genes != 5")
+logs_meta = logs_meta.query("migration_frequency != 1")
 
 ###############################################################################
 # 4. Join:  logs_meta  ←→  messages   on  [device_mac_id, experiment_id, log_id]
@@ -45,7 +46,7 @@ full_df = logs_meta.merge(
 )
 
 ###############################################################################
-# 5. Build SECOND_OFFSET  — faithful to your DAX formula
+# 5. Build SECOND_OFFSET
 ###############################################################################
 EPOCH = datetime(1970, 1, 1)
 
@@ -74,11 +75,61 @@ def second_offset(row) -> int:
 # apply vectorised where practical; fallback to .apply for clarity
 full_df["second_offset"] = full_df.apply(second_offset, axis=1, raw=False)
 
+# create msg_limit_flag
+full_df = full_df.sort_values(["device_mac_id", "experiment_id", "log_id"])
+is_tu = (full_df["status"] == "T") & (full_df["log_type_value"] == "U")
+tu_logs = full_df[is_tu][["device_mac_id", "experiment_id", "log_id"]].copy()
+tu_logs = tu_logs.rename(columns={"log_id": "tu_log_id"})
+tu_logs["next_tu_log_id"] = (
+    tu_logs.groupby(["device_mac_id", "experiment_id"])["tu_log_id"].shift(-1)
+)
+
+full_df = pd.merge_asof(
+    full_df.sort_values("log_id"),
+    tu_logs.sort_values("tu_log_id"),
+    left_on="log_id",
+    right_on="tu_log_id",
+    by=["device_mac_id", "experiment_id"],
+    direction="backward",
+    allow_exact_matches=True
+)
+
+full_df["in_tu_interval"] = (
+    (full_df["log_id"] > full_df["tu_log_id"]) &
+    (full_df["log_id"] < full_df["next_tu_log_id"])
+)
+
+received_mask = full_df["msg_rcv_flag"].notna() & full_df["in_tu_interval"]
+received_counts = (
+    full_df[received_mask]
+    .groupby(["device_mac_id", "experiment_id", "tu_log_id"])
+    .size()
+    .rename("any_received_between")
+    .reset_index()
+)
+
+tu_logs = tu_logs.merge(received_counts, how="left", on=["device_mac_id", "experiment_id", "tu_log_id"])
+tu_logs["any_received_between"] = tu_logs["any_received_between"].fillna(0)
+
+tu_logs["msg_limit_flag"] = np.where(
+    tu_logs["next_tu_log_id"].notna() & (tu_logs["any_received_between"] == 0),
+    1, 0
+)
+
+full_df = full_df.merge(
+    tu_logs[["device_mac_id", "experiment_id", "tu_log_id", "msg_limit_flag"]],
+    left_on=["device_mac_id", "experiment_id", "log_id"],
+    right_on=["device_mac_id", "experiment_id", "tu_log_id"],
+    how="left"
+)
+
+full_df["msg_limit_flag"] = full_df["msg_limit_flag"].astype("Int64")
+full_df["migration_frequency"] = full_df["migration_frequency"].astype("Int64")
+
 ###############################################################################
-# 6. Optional: sanity checks
+# 6. Sanity checks
 ###############################################################################
 print(full_df.columns)
-print(full_df.second_offset.describe())
 
 ###############################################################################
 # 7. Feature Engineering
@@ -179,16 +230,18 @@ rssi_exp = (
 
 ###############################################################################
 # Successful Migration Rate
-#   ▸ Numerator  = # rows with  log_type_value == 'A'
+#   ▸ Numerator  = # rows with  log_type_value == 'A' and not limited by msg_limit_flag
 #   ▸ Denominator = total # messages for that experiment
 ###############################################################################
 
 # 1 . Numerator:  count of success-logs per experiment
 num_success = (
-    full_df.loc[full_df["log_type_value"] == "A"]
-            .groupby("experiment_id")
-            .size()
-            .rename("n_success")
+    full_df.loc[
+        (full_df["log_type_value"] == "A")
+    ]
+    .groupby("experiment_id")
+    .size()
+    .rename("n_success")
 )
 
 # 2 . Denominator:  total messages per experiment
@@ -229,6 +282,36 @@ gene_var_exp = (
 )
 
 ###############################################################################
+# Genetic Spread (Identify local deviations)
+###############################################################################
+
+full_df["bucket_2s"] = (full_df["second_offset"] // 2).astype(int)
+
+min_fitness_per_bucket = (
+    full_df.groupby(["experiment_id", "bucket_2s"])["fitness_score"]
+           .min()
+           .rename("min_fitness")
+           .reset_index()
+)
+
+full_df = full_df.merge(min_fitness_per_bucket, on=["experiment_id", "bucket_2s"], how="left")
+full_df["is_min_fitness"] = full_df["fitness_score"] == full_df["min_fitness"]
+
+min_fitness_counts = (
+    full_df[full_df["is_min_fitness"]]
+      .groupby(["experiment_id", "bucket_2s"])
+      .size()
+      .rename("n_robots_min_fitness")
+      .reset_index()
+)
+
+spread_exp = (
+    min_fitness_counts.groupby("experiment_id")["n_robots_min_fitness"]
+      .agg(["mean", "std"])
+      .rename(columns={"mean": "fitness_spread_mean", "std": "fitness_spread_std"})
+)
+
+###############################################################################
 # Cosine-Similarity between genomes  (gene_1 … gene_10)  per experiment
 ###############################################################################
 
@@ -253,6 +336,28 @@ cos_sim_exp = (
 )
 
 ###############################################################################
+# Message transmission rate accross network
+###############################################################################
+
+sent_msgs = full_df[full_df["msg_limit_flag"] == 0]
+
+device_msg_counts = (
+    sent_msgs.groupby(["experiment_id", "device_mac_id"])
+             .size()
+             .rename("message_count")
+             .reset_index()
+)
+
+#60 experiment duration
+device_msg_counts["device_msg_rate"] = device_msg_counts["message_count"] / 60
+
+msg_rate_exp = (
+    device_msg_counts.groupby("experiment_id")["device_msg_rate"]
+                     .mean()
+                     .rename("msg_rate")
+)
+
+###############################################################################
 # Variance of exchanged-message counts across sender-receiver pairs
 ###############################################################################
 
@@ -262,7 +367,10 @@ exp_col      = "experiment_id"
 
 msg_pairs = (
     full_df
-      .loc[full_df[sender_col].notna(), [exp_col, sender_col, receiver_col]]
+      .loc[
+          (full_df[sender_col].notna()),
+          [exp_col, sender_col, receiver_col]
+      ]
 )
 
 pair_counts = (
@@ -287,8 +395,11 @@ pair_var_exp = (
 flag_col   = "msg_rcv_flag"             # sender’s ACK or status flag
 exp_col    = "experiment_id"
 
-# 1 .  Consider only rows that represent a message (msg_count not null)
-msg_rows = full_df.loc[full_df[flag_col].notna(), [exp_col, flag_col]]
+# 1 .  Consider only rows that represent a message (msg_count not null) and not skipped
+msg_rows = full_df.loc[
+    (full_df[flag_col].notna()),
+    [exp_col, flag_col]
+]
 
 # 2 .  Compute per-experiment counts
 totals  = msg_rows.groupby(exp_col).size().rename("n_messages")
@@ -350,7 +461,7 @@ jitter_exp = (
 )
 
 #MERGE
-exp_tbl = exp_tbl.join([rssi_exp, gene_var_exp, cos_sim_exp, pair_var_exp, jitter_exp], how="left")
+exp_tbl = exp_tbl.join([rssi_exp, gene_var_exp, spread_exp, cos_sim_exp, msg_rate_exp, pair_var_exp, jitter_exp], how="left")
 exp_tbl = exp_tbl.join(success_tbl[["success_migration_rate"]], how="left")
 exp_tbl = exp_tbl.join(err_tbl[["error_rate"]], how="left")
 
@@ -365,10 +476,13 @@ exp_tbl.to_csv(ROOT / "experiment_statistics.csv")
 
 factor_cols = ["topology", "robot_speed", "msg_limit"]
 
+for col in factor_cols:
+    print(f"{col}: {exp_tbl[col].unique()}")
+
 # any *numeric* column that is NOT one of the factors and not the key
 response_cols = [
     c for c in exp_tbl.select_dtypes(include=[np.number]).columns
-    if c not in factor_cols and c not in ["experiment_id", "max_genes", "num_robots"]
+    if c not in factor_cols and c not in ["experiment_id", "max_genes", "num_robots", "migration_frequency"]
 ]
 
 
@@ -376,11 +490,14 @@ response_cols = [
 # 2 .  Helper: run Type-II ANOVA on one response and return a tidy frame
 ###############################################################################
 def anova_for(response):
-    formula = f"{response} ~ C(topology) * C(robot_speed) * C(msg_limit)"
+    factors = [col for col in factor_cols if exp_tbl[col].nunique() > 1]
+    if not factors:
+        return pd.DataFrame()
+    formula = f"{response} ~ " + " * ".join([f"C({f})" for f in factors])
     model   = smf.ols(formula, data=exp_tbl).fit()
-    aov     = sm.stats.anova_lm(model, typ=2)        # DataFrame
+    aov     = sm.stats.anova_lm(model, typ=2)      
     aov = aov.reset_index().rename(columns={
-        "index": "effect",         # e.g. 'C(topology):C(robot_speed)'
+        "index": "effect",
         "F":      "F_value",
         "PR(>F)": "p_value",
         "sum_sq": "sum_sq"
@@ -401,11 +518,5 @@ results.to_csv(ROOT / "anova_all_metrics.csv", index=False)
 sig = results[results["p_value"] < 0.05].sort_values("p_value")
 print(sig)
 
-pivot = (
-    results.pivot_table(index="response", columns="effect",
-                        values="p_value", aggfunc="min")
-)
-
-print(pivot)
 
 print("done")
