@@ -8,9 +8,9 @@ import statsmodels.api as sm
 from statsmodels.stats.multitest import multipletests
 
 ROOT = Path(__file__).parent        # directory where this .py lives
-logs_path     = ROOT / "temp/three_device_results/logs.parquet"
-metadata_path = ROOT / "temp/three_device_results/metadata.parquet"
-messages_path = ROOT / "temp/three_device_results/messages.parquet"
+logs_path     = ROOT / "temp/pre-processed_data/logs/data.parquet"
+metadata_path = ROOT / "temp/pre-processed_data/metadata/data.parquet"
+messages_path = ROOT / "temp/pre-processed_data/messages/data.parquet"
 
 ###############################################################################
 # 1. Load the raw parquet data  (adapt the paths if needed)
@@ -26,7 +26,7 @@ logs_meta = logs.merge(
     metadata,
     on=["device_mac_id", "experiment_id"],
     how="left",
-    validate="many_to_one"           # each (device, experiment) has one meta row
+    validate="many_to_one"
 )
 
 ###############################################################################

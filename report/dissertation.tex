@@ -75,6 +75,18 @@ Across the study, we evaluated swarm performance under different communication a
   \item \textbf{Transmission frequency}: Each message was optionally delayed by a random interval derived from the maximum observed peer latency to reduce potential network collisions (Section \ref{sec:transmission-frequency}).
 \end{itemize}
 
+\subsection{Hypothesis}
+
+Based on prior literature and the experimental design outlined above, the following hypotheses are proposed:
+
+\textbf{H1}: Both \emph{STOCHASTIC} and \emph{COMM\_AWARE} strategies will result in a fully connected network over time. However, the \emph{COMM\_AWARE} mode is expected to be more reliable and reduce packet loss in the network.\\
+
+\textbf{H2}: Restricting social signalling with a message budget, will lead to slower convergence, as fewer migrations mean each agent explores locally for longer before receiving external influence.\\
+
+\textbf{H3}: Modulated transmission with stochastic delays will alleviate message collisions and result is lower latencies across the swarm network.
+
+Thus, the experiments tests whether the "less is more" phenomenon extends from low-bandwidth IR to high-bandwidth ESPNOW links.
+
 
 \subsection{Rastrigin Function}
 
@@ -476,24 +488,6 @@ Using two agents as a baseline, 28 experimental runs were conducted to character
 \end{table}
 
 The mean fitness score after convergence was X.X, and mean In/Out throughput was X.X/X.X kbps, respectively.
-
-\section{Hypothesis}
-
-%topology
-The initial expectation is that both \textbf{STOCHASTIC} and \textbf{COMM\_AWARE} will result in a fully connected network over time, as each agent attempts to send messages to all other agents. However, the \textbf{COMM\_AWARE} scheme is designed to preferentially strengthen links with agents that are either furthest away (as inferred by higher latency and lower RSSI) or have not yet established a reliable connection (null metrics).\\ 
-
-%moving bucket
-By enlarging $W$ we progressively restrict social signalling, the following hypothesise are put forward:
-
-%transmission
-should in theory alleviate message collisions that can occur during the default pseudo-broadcasting mode of the swarm. By applying this stochastic delay on a per-peer basis, the system emulates a flooding mechanism with randomised inter-transmission intervals.
-
-\begin{enumerate}
-  \item \textbf{Convergence speed will decrease}: fewer migrations mean each island explores locally for longer before external influence arrives.
-  \item \textbf{Task performance will improve}: reduced network contention and wider behavioural diversity should help the swarm escape local minima, yielding lower global Rastrigin scores by the termination time.
-\end{enumerate}
-
-Thus, the experiments tests whether the "less is more" phenomenon extends from low-bandwidth IR to high-bandwidth ESPNOW links.
 
 \subsection{Experiment Schedule}\label{sec:experiments-schedule}
 
