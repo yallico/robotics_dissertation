@@ -30,7 +30,7 @@ logs_meta = logs.merge(
 )
 
 ###############################################################################
-# 3. Filter out experiments with  max_gene == 5   (in the metadata)
+# 3. Filters
 ###############################################################################
 logs_meta = logs_meta.query("max_genes != 5")
 
@@ -81,7 +81,7 @@ print(full_df.columns)
 print(full_df.second_offset.describe())
 
 ###############################################################################
-# 7. Statictics
+# 7. Feature Engineering
 ###############################################################################
 
 # “Design” columns that uniquely describe an experiment
@@ -92,6 +92,7 @@ exp_keys = [
     "topology",            # or whatever your column is called
     "robot_speed",
     "msg_limit",
+    "migration_frequency"
 ]
 
 # Spine of the experiment table
@@ -125,6 +126,33 @@ agg_df.columns = [
 # Append to the experiment-level table
 exp_tbl = exp_tbl.join(agg_df, how="left")
 
+# --- Final fitness score and fitness rate of change (first 30 seconds) ---
+fitness_metrics = (
+    full_df.loc[full_df["fitness_score"].notna() & full_df["second_offset"].notna(), 
+                ["experiment_id", "second_offset", "fitness_score"]]
+    .sort_values(["experiment_id", "second_offset"])
+    .groupby("experiment_id")
+)
+
+# Final fitness score: last fitness_score per experiment
+final_fitness = fitness_metrics.tail(1).set_index("experiment_id")["fitness_score"].rename("final_fitness_score")
+
+# Fitness rate of change (slope) for first 30 seconds per experiment
+rate_of_change = []
+for exp_id, group in fitness_metrics:
+    first_30s = group[group["second_offset"] <= 30]
+    if len(first_30s) < 2:
+        rate_of_change.append((exp_id, np.nan))
+    else:
+        x = first_30s["second_offset"].values
+        y = first_30s["fitness_score"].values
+        slope = np.polyfit(x, y, 1)[0]
+        rate_of_change.append((exp_id, slope))
+fitness_rate_change = pd.Series(dict(rate_of_change), name="fitness_rate_change")
+
+# Join these metrics to exp_tbl
+exp_tbl = exp_tbl.join(final_fitness, how="left")
+exp_tbl = exp_tbl.join(fitness_rate_change, how="left")
 
 ###############################################################################
 # RSSI
@@ -137,7 +165,8 @@ n_devices = (
 
 full_df["n_devices"] = full_df["experiment_id"].map(n_devices)
 
-rssi_cols = ["rssi_2004", "rssi_DA8C", "rssi_78C0"]
+rssi_cols = ["rssi_2004", "rssi_DA8C", "rssi_78C0", "rssi_669C", "rssi_9288", "rssi_A984", "rssi_DE9C", "rssi_DF8C", "rssi_B19C", "rssi_A184",
+              "rssi_228C", "rssi_CBAC", "rssi_AC44"]
 
 row_mean = full_df[rssi_cols].mean(axis=1, skipna=True)
 
@@ -319,8 +348,6 @@ jitter_exp = (
               .mean()                          
               .rename("jitter_ms")            
 )
-
-#TODO: Condiser adding, final_fitness_score and fiteness rate of change (for first 30 seconds)
 
 #MERGE
 exp_tbl = exp_tbl.join([rssi_exp, gene_var_exp, cos_sim_exp, pair_var_exp, jitter_exp], how="left")
