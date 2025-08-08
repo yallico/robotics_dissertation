@@ -6,6 +6,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
 from statsmodels.stats.multitest import multipletests
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).parent        # directory where this .py lives
 logs_path     = ROOT / "temp/pre-processed_data/logs/data.parquet"
@@ -33,7 +35,7 @@ logs_meta = logs.merge(
 # 3. Filters
 ###############################################################################
 logs_meta = logs_meta.query("max_genes != 5")
-logs_meta = logs_meta.query("migration_frequency != 1")
+#logs_meta = logs_meta.query("migration_frequency != 1")
 
 ###############################################################################
 # 4. Join:  logs_meta  ←→  messages   on  [device_mac_id, experiment_id, log_id]
@@ -125,6 +127,10 @@ full_df = full_df.merge(
 
 full_df["msg_limit_flag"] = full_df["msg_limit_flag"].astype("Int64")
 full_df["migration_frequency"] = full_df["migration_frequency"].astype("Int64")
+full_df["throughput"] = full_df["kbps_in"].fillna(0) + full_df["kbps_out"].fillna(0)
+
+#save full_df to a parquet file
+full_df.to_parquet(ROOT / "temp/pre-processed_data/full_data.parquet", index=False)
 
 ###############################################################################
 # 6. Sanity checks
@@ -158,8 +164,7 @@ agg_plan = {
     "cpu_util_core0"  : ["mean", "std"],
     "cpu_util_core1"  : ["mean", "std"],
     "latency"         : ["mean", "std"],
-    "kbps_in"         : ["mean", "std"],
-    "kbps_out"        : ["mean", "std"],
+    "throughput"         : ["mean", "std"],
 }
 
 agg_df = (
@@ -229,35 +234,23 @@ rssi_exp = (
 )
 
 ###############################################################################
-# Successful Migration Rate
-#   ▸ Numerator  = # rows with  log_type_value == 'A' and not limited by msg_limit_flag
-#   ▸ Denominator = total # messages for that experiment
+# Successful Migration Ratio
 ###############################################################################
 
-# 1 . Numerator:  count of success-logs per experiment
-num_success = (
-    full_df.loc[
-        (full_df["log_type_value"] == "A")
-    ]
-    .groupby("experiment_id")
-    .size()
-    .rename("n_success")
-)
+# Calculate success and reject masks
+success_mask = full_df["log_type_value"] == "A"
+reject_mask  = full_df["log_type"] == "R"
 
-# 2 . Denominator:  total messages per experiment
-#     (every merged row represents ≤1 message, so we just count rows)
-n_messages = (
-    messages.groupby("experiment_id")
-           .size()
-           .rename("n_messages")
-)
+# Count per experiment
+success_counts = full_df[success_mask].groupby("experiment_id").size().rename("n_success")
+reject_counts  = full_df[reject_mask].groupby("experiment_id").size().rename("n_reject")
 
-# 3 . Combine and compute the rate  (guard against divide-by-zero)
+
+# 3 . Combine and compute the ratio  (guard against divide-by-zero)
 success_tbl = (
-    pd.concat([num_success, n_messages], axis=1)
-      .fillna({"n_success": 0})               # no ‘A’ logs → zero successes
-      .assign(success_migration_rate =
-              lambda df: df.n_success / df.n_messages.replace({0: pd.NA}))
+    pd.concat([success_counts, reject_counts], axis=1)
+      .fillna(0)
+      .assign(success_ratio=lambda df: df.n_success / (df.n_success + df.n_reject))
 )
 
 ###############################################################################
@@ -309,30 +302,6 @@ spread_exp = (
     min_fitness_counts.groupby("experiment_id")["n_robots_min_fitness"]
       .agg(["mean", "std"])
       .rename(columns={"mean": "fitness_spread_mean", "std": "fitness_spread_std"})
-)
-
-###############################################################################
-# Cosine-Similarity between genomes  (gene_1 … gene_10)  per experiment
-###############################################################################
-
-def mean_cosine(g):
-    """
-    g : DataFrame containing *only* the gene columns for one experiment.
-    Returns the mean pair-wise cosine similarity (excluding diagonal).
-    """
-    X = g[gene_cols].to_numpy(dtype=float)
-    if X.shape[0] < 2:          # only 1 genome – similarity undefined → NaN
-        return np.nan
-    C = cosine_similarity(X)    # square (n × n) matrix
-    # take upper triangle without diagonal
-    iu = np.triu_indices_from(C, k=1)
-    return C[iu].mean()
-
-cos_sim_exp = (
-    messages[messages["gene_10"].notna()]  # filter out rows with no genes
-      .groupby("experiment_id")
-      .apply(lambda df: mean_cosine(df[gene_cols]))
-      .rename("gene_cosine_similarity")
 )
 
 ###############################################################################
@@ -461,8 +430,8 @@ jitter_exp = (
 )
 
 #MERGE
-exp_tbl = exp_tbl.join([rssi_exp, gene_var_exp, spread_exp, cos_sim_exp, msg_rate_exp, pair_var_exp, jitter_exp], how="left")
-exp_tbl = exp_tbl.join(success_tbl[["success_migration_rate"]], how="left")
+exp_tbl = exp_tbl.join([rssi_exp, gene_var_exp, spread_exp, msg_rate_exp, pair_var_exp, jitter_exp], how="left")
+exp_tbl = exp_tbl.join(success_tbl[["success_ratio"]], how="left")
 exp_tbl = exp_tbl.join(err_tbl[["error_rate"]], how="left")
 
 print(exp_tbl.columns)
@@ -474,7 +443,7 @@ exp_tbl.to_csv(ROOT / "experiment_statistics.csv")
 # STATISTICS    
 ###############################################################################
 
-factor_cols = ["topology", "robot_speed", "msg_limit"]
+factor_cols = ["topology", "migration_frequency"]
 
 for col in factor_cols:
     print(f"{col}: {exp_tbl[col].unique()}")
@@ -482,7 +451,7 @@ for col in factor_cols:
 # any *numeric* column that is NOT one of the factors and not the key
 response_cols = [
     c for c in exp_tbl.select_dtypes(include=[np.number]).columns
-    if c not in factor_cols and c not in ["experiment_id", "max_genes", "num_robots", "migration_frequency"]
+    if c not in factor_cols and c not in ["experiment_id", "max_genes", "num_robots", "msg_limit", "robot_speed"]
 ]
 
 
@@ -494,16 +463,21 @@ def anova_for(response):
     if not factors:
         return pd.DataFrame()
     formula = f"{response} ~ " + " * ".join([f"C({f})" for f in factors])
-    model   = smf.ols(formula, data=exp_tbl).fit()
-    aov     = sm.stats.anova_lm(model, typ=2)      
-    aov = aov.reset_index().rename(columns={
-        "index": "effect",
-        "F":      "F_value",
-        "PR(>F)": "p_value",
-        "sum_sq": "sum_sq"
-    })
-    aov.insert(0, "response", response)
-    return aov[["response", "effect", "F_value", "p_value", "sum_sq"]]
+    try:
+        model   = smf.ols(formula, data=exp_tbl).fit()
+        aov     = sm.stats.anova_lm(model, typ=2)      
+        aov = aov.reset_index().rename(columns={
+            "index": "effect",
+            "F":      "F_value",
+            "PR(>F)": "p_value",
+            "sum_sq": "sum_sq",
+            "df": "df"
+        })
+        aov.insert(0, "response", response)
+        return aov[["response","effect","df","sum_sq","F_value","p_value"]]
+    except Exception as e:
+        print(f"ANOVA failed for {response}: {e}")
+        return pd.DataFrame()
 
 ###############################################################################
 # 3 .  Loop over every response column and stack the results
@@ -517,6 +491,85 @@ results.to_csv(ROOT / "anova_all_metrics.csv", index=False)
 
 sig = results[results["p_value"] < 0.05].sort_values("p_value")
 print(sig)
+
+#TODO: this needs updating everytime
+keepers = ["C(topology)", "C(msg_limit)", "C(topology):C(msg_limit)", "Residual"]
+res = results[results["effect"].isin(keepers)].copy()
+
+def compute_es(df_one_resp):
+    # split rows
+    if "Residual" not in df_one_resp["effect"].values:
+        return pd.DataFrame()
+    resid = df_one_resp[df_one_resp["effect"]=="Residual"].iloc[0]
+    ss_err, df_err = resid["sum_sq"], resid["df"]
+    ms_err = ss_err / df_err
+    ss_total = df_one_resp["sum_sq"].sum()
+
+    # effect rows only
+    eff = df_one_resp[df_one_resp["effect"]!="Residual"].copy()
+    eff["partial_eta_sq"] = eff["sum_sq"] / (eff["sum_sq"] + ss_err)
+    eff["omega_sq"] = (eff["sum_sq"] - eff["df"]*ms_err) / (ss_total + ms_err)
+    eff["omega_sq"] = eff["omega_sq"].clip(lower=0)  # floor at 0 for readability
+    eff["df_error"] = df_err
+    eff["ms_error"] = ms_err
+    eff["ss_error"] = ss_err
+    eff["ss_total"] = ss_total
+    return eff
+
+effsizes = (
+    res.groupby("response", group_keys=False)
+       .apply(compute_es)
+       .reset_index(drop=True)
+)
+
+mask = ~(
+    effsizes['response'].str.contains('cpu_', case=False, na=False) |
+    effsizes['response'].str.contains('msg_', case=False, na=False) |
+    effsizes['response'].str.contains('_std', case=False, na=False) 
+    )
+
+plot_df = effsizes.loc[mask & (effsizes['p_value'] < 0.05) & (effsizes['partial_eta_sq'] > 0.0125)].copy()
+
+plot_df["effect_pretty"] = plot_df["effect"].replace({
+    "C(topology)":"Topology",
+    "C(msg_limit)":"Msg limit",
+    "C(topology):C(msg_limit)":"Interaction"
+})
+
+plot_df = plot_df[plot_df["effect_pretty"] != "Interaction"]
+
+# order responses by how strong 'Topology' is
+order_resp = (
+    plot_df[plot_df["effect_pretty"]=="Topology"]
+    .sort_values("partial_eta_sq", ascending=False)["response"].tolist()
+)
+
+# one big faceted forest (partial η²)
+g = sns.FacetGrid(
+    plot_df, row="response", hue="effect_pretty", palette='Pastel2', sharex=True, sharey=False,
+    row_order=order_resp, height=1.2, aspect=5
+)
+
+def draw_forest(data, color, **k):
+    y = data["effect_pretty"]
+    x = data["partial_eta_sq"]
+    # draw CIs if present
+    if {"ci_low","ci_high"}.issubset(data.columns):
+        plt.hlines(y, data["ci_low"], data["ci_high"], color="#888", lw=2, alpha=0.7)
+    plt.scatter(x, y, color=color, s=120, edgecolor="white", linewidth=1.5, zorder=3)
+
+g.map_dataframe(draw_forest)
+g.set(xlim=(0, 0.25), xlabel="", ylabel="")
+for i, (ax, resp) in enumerate(zip(g.axes.flat, order_resp)):
+    ax.set_title(resp, loc="left", fontsize=11, fontweight="bold")
+    ax.grid(axis="x", alpha=0.5)
+    if i == len(order_resp) - 1:
+        ax.set_xlabel("Partial $\eta^2$")  # Only bottom facet gets label
+    else:
+        ax.set_xlabel("")   
+
+plt.tight_layout()
+plt.show()
 
 
 print("done")
