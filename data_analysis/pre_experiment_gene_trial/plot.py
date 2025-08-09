@@ -8,21 +8,21 @@ import matplotlib as mpl
 mpl.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],  # fallbacks
-    "font.size": 8,
-    "axes.labelsize": 8,
-    "axes.titlesize": 10,
+    "font.size": 6,
+    "axes.labelsize": 7,
+    "axes.titlesize": 8,
     "axes.linewidth": 1,   # axis border thickness
-    "lines.linewidth": 1.2,
+    "lines.linewidth": 1,
     "lines.markersize": 5,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "legend.fontsize": 8,
-    "legend.title_fontsize": 8,
+    "xtick.labelsize": 6,
+    "ytick.labelsize": 6,
+    "legend.fontsize": 6,
+    "legend.title_fontsize": 7,
     "legend.frameon": False,
     "figure.dpi": 300,
     "axes.grid": True,
-    "grid.linewidth": 0.4,
-    "grid.alpha": 0.7,
+    "grid.linewidth": 0.3,
+    "grid.alpha": 0.5,
     "axes.grid.which": 'both',
     "axes.edgecolor": "black",
     "savefig.dpi": 300,
@@ -86,14 +86,13 @@ sns.boxplot(
     palette='Pastel1',    
 )
 
-ax.set_xlabel('Population Size', labelpad=2)
-ax.set_ylabel('Mean Fitness Score', labelpad=2)
+ax.set_xlabel('Population Size')
+ax.set_ylabel('Mean Fitness Value')
 #ax.set_title('(b)')
 
 # IEEE styling
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-ax.grid(True, axis='y', linewidth=0.4, alpha=0.7)
 
 # Legend outside or below, no frame, small font
 handles, labels = ax.get_legend_handles_labels()
@@ -101,14 +100,12 @@ ax.legend(
     handles,
     labels,
     title='Genes',
-    title_fontsize=8,
-    fontsize=8,
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.08),
+    bbox_to_anchor=(0.5, 1.20),  
     ncol=len(labels),
     frameon=False
 )
 
 plt.tight_layout(rect=[0, 0.05, 1, 1])
-plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/ga_prelim_analysis_v2.pdf', bbox_inches='tight') 
+plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/ga_prelim_analysis_v2.pdf', bbox_inches='tight')
 
