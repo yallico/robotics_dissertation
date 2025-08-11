@@ -566,7 +566,54 @@ A minimum of 16 re-runs per condition was conducted to ensure statistical signif
 
 \section{Results}
 
+As shown in Figure \ref{fig:topology}(a), latency and jitter differ significantly between communication schemes. Across experiments 
+the \emph{COMM AWARE} topology strategy generally achieves lower latency and more stable delivery compared agaisnt the \emph{STOCHASTIC} mode. Figures \ref{fig:topology}(b) and \ref{fig:topology}(c) show that throughput is highest in unconstrained conditions, and drops with the introduction of a message budget. \emph{STOCHASTIC} communication yields higher raw throughput but also introduces more variability.
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{topology_impact.pdf}
+    \caption{(a) Large topology variances in jitter and latency, with the \emph{COMM AWARE} scheme bound to lower values, (b)(c) throughput is influenced by both topology inference and message limit factors}
+    \label{fig:topology}
+\end{figure*}
+
+Figure \ref{fig:performance}(a) shows that larger swarms converge to lower mean fitness scores, indicating improved global convergence as agent density increases. Figure \ref{fig:performance}(b) presents the adaptation rate over time. Swarms using the \emph{STOCHASTIC} communication scheme tend to converge more rapidly, with approximately $80\%$ of the agents reaching the best-known solution roughly 20 seconds earlier than those using the \emph{COMM AWARE} strategy. Here, adaptation rate is defined as the proportion of agents that share the current lowest fitness score, averaged over 2-second windows.
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{performance_impact.pdf}
+    \caption{(a) Mean device fitness values across different swarm sizes, (b) mean cumulative percentage of agents converging to the lowest fitness value across $2s$ windows}
+    \label{fig:performance}
+\end{figure*}
+
+Figure \ref{fig:error-rates}(a) shows the mean packet error rate across different swarm densities. The error rates remain low overall but increase with the swarm size, and it is particularly impacted in \emph{STOCHASTIC} schemes (Figure \ref{fig:error-rates}(b)).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.47\textwidth]{reliability_impact.pdf}
+    \caption{(a) Mean error rates by different swarm sizes, (b) mean error rate for different topology inference schemes}
+    \label{fig:error-rates}
+\end{figure}
+
+With regards to locomotion Figure \ref{fig:rssi}(a) shows that Brownian motion results in slightly improved RSSI values, indicating more stable connections compared to static swarms. Whereas \ref{fig:rssi}(b) suggests no statistical difference between RSSI values across topology inference schemes.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.47\textwidth]{speed_impact.pdf}
+    \caption{(a) Mean RSSI values across different locomotion modes, (b) mean RSSI values accross different topology inference schemes}
+    \label{fig:rssi}
+\end{figure}
+
+
+
+
 \section{Discussion}
+
+
+%add that the performance is mainly driven by agent density rather than topology inference scheme
+
+ %mention small impact of final fitness value, but take longer to reach the local minimun for the same given exerimental time, this suggests that the tradeoff for lower latency/jitter is the time it takes to reach the same value in ters of fitness values. Local pockets with different information happen more oftern in COMM AWARE scheme
+
+
 \textbf{COMM\_AWARE} scheme should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position. This communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. \\
 
 In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.

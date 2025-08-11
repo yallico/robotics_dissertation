@@ -59,9 +59,9 @@ topology_palette = dict(zip(topology_order, sns.color_palette("Pastel2", n_color
 ### Determine which plot to make
 ################################
 is_one = False
-is_two = True
-is_three = True
-is_four = False
+is_two = False
+is_three = False
+is_four = True
 
 if is_one:
     ################################
@@ -580,6 +580,7 @@ elif is_four:
     speed_col = "robot_speed"
     num_col = "num_robots"
     exp_col = "experiment_id"
+    top_col = "topology"
 
     rssi_rows = full_df[full_df[num_col] != 2]
 
@@ -603,20 +604,47 @@ elif is_four:
         n_samples=("avg_rssi_row", "count")
     ).reset_index()
 
-    fig, ax = plt.subplots(figsize=(6.4, 4.6))
+    rssi_top = rssi_rows.groupby([exp_col, top_col]).agg(
+        mean_rssi=("avg_rssi_row", "mean"),
+        std_rssi=("avg_rssi_row", "std"),
+        n_samples=("avg_rssi_row", "count")
+    ).reset_index()
+
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 4.6), gridspec_kw={'width_ratios': [1, 1]})
 
     sns.boxplot(
         data=rssi_groups,
         x=speed_col,
         y="mean_rssi",
-        ax=ax,
+        ax=axes[0],
         palette="Paired",
         width=0.4
     )
-    ax.set_xlabel("Robot Speed")
-    ax.set_ylabel("Mean RSSI (dBm)")
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+
+    sns.boxplot(
+        data=rssi_top,
+        x=top_col,
+        y="mean_rssi",
+        ax=axes[1],
+        hue=top_col,
+        hue_order=topology_order,
+        palette=topology_palette,
+        width=0.4
+    )
+
+
+    axes[0].sharey(axes[1])
+    axes[0].set_title("(a)")
+    axes[0].set_xlabel("Locomotion")
+    axes[0].set_ylabel("Mean RSSI (dBm)")
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
+
+    axes[1].set_title("(b)")
+    axes[1].set_xlabel("Topology")
+    axes[1].set_ylabel("")
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
     plt.savefig(ROOT / '../report/speed_impact.pdf', bbox_inches='tight')
