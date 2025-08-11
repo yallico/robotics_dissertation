@@ -45,10 +45,14 @@ full_df    = full_df.query("migration_frequency != 1")
 
 topology_map = {0: "Stochastic", 1: "Comm Aware"}
 msg_limit_map = {0: "Unlimited", 1: "Limited"}
+locomotion_map = {0: "Static", 1: "Brownian"}
 
 full_df["topology"] = full_df["topology"].replace(topology_map)
 full_df["msg_limit"] = full_df["msg_limit"].replace(msg_limit_map)
+full_df["robot_speed"] = full_df["robot_speed"].replace(locomotion_map)
 
+topology_order = ["Stochastic", "Comm Aware"]
+topology_palette = dict(zip(topology_order, sns.color_palette("Pastel2", n_colors=len(topology_order))))
 
 
 ################################
@@ -56,7 +60,8 @@ full_df["msg_limit"] = full_df["msg_limit"].replace(msg_limit_map)
 ################################
 is_one = False
 is_two = True
-
+is_three = True
+is_four = False
 
 if is_one:
     ################################
@@ -119,7 +124,7 @@ if is_one:
     )
 
 
-    fig, axes = plt.subplots(1, 3, figsize=(12.8, 4), gridspec_kw={'width_ratios': [2, 1, 1]})
+    fig, axes = plt.subplots(1, 3, figsize=(12.8, 4.6), gridspec_kw={'width_ratios': [2, 1, 1]})
     #axes 1 and 2 to share y axis
 
     sns.scatterplot(
@@ -127,11 +132,12 @@ if is_one:
         x="mean_latency",
         y="mean_jitter",
         hue="topology",
+        hue_order=topology_order,
         ax=axes[0],
         s=12,
         alpha=0.6,
         edgecolor=None,
-        palette="Pastel2",
+        palette=topology_palette,
         legend="full",
     )
 
@@ -141,7 +147,7 @@ if is_one:
         x="topology",
         y="mean_throughput",
         ax=axes[1],
-        palette="Pastel2",
+        palette=topology_palette,
         width=0.4,  # make boxplot narrower
     )
 
@@ -200,7 +206,7 @@ if is_one:
 
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
-    plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/topology_impact.pdf', bbox_inches='tight')
+    plt.savefig(ROOT / '../report/topology_impact.pdf', bbox_inches='tight')
 
 elif is_two:
     ################################
@@ -233,8 +239,7 @@ elif is_two:
         bin_seconds=2,
         threshold=0.70,
         sustain_seconds=6,
-        tol = 1e-3,
-        exclude_first_bucket=True
+        tol = 1e-3
     ):
         """
         Compute adaptation rate over time per (experiment_id, topology).
@@ -279,13 +284,6 @@ elif is_two:
         # 1) Bucket time (left edge integer seconds, e.g., 0,2,4,...)
         work["time_bin"] = (work[time_col] // bin_seconds) * bin_seconds
 
-        if exclude_first_bucket:
-            # Find first bucket per group and drop it
-            first_bins = (
-                work.groupby([exp_col, top_col])["time_bin"].transform("min")
-            )
-            work = work[work["time_bin"] != first_bins]
-
         # 2) Within each (group, time_bin, device), take the *min* fitness in that bin
         grp_keys = [exp_col, top_col, "time_bin", dev_col]
         dev_bin = (
@@ -293,6 +291,32 @@ elif is_two:
             .groupby(grp_keys, as_index=False)[per_col]
             .min()
             .rename(columns={per_col: "dev_bin_fitness"})
+        )
+
+        # === Handle missing device rows in the FIRST bucket ===
+        dev_first = (
+            work.groupby([exp_col, dev_col], as_index=False)[per_col]
+            .max()
+            .rename(columns={per_col: "device_first_fitness"})
+        )
+
+        first_bins = (
+            work.groupby([exp_col, top_col], as_index=False)["time_bin"]
+                .min()
+                .rename(columns={"time_bin": "first_time_bin"})
+        )
+        dev_bin = dev_bin.merge(first_bins, on=[exp_col, top_col], how="left")
+        dev_bin = dev_bin.merge(dev_first, on=[exp_col, dev_col], how="left")
+
+        mask = (dev_bin["time_bin"] == dev_bin["first_time_bin"]) & dev_bin["dev_bin_fitness"].isna()
+        dev_bin.loc[mask, "dev_bin_fitness"] = dev_bin.loc[mask, "device_first_fitness"]
+        dev_bin = dev_bin.drop(columns=["first_time_bin", "device_first_fitness"])
+
+        dev_bin = dev_bin.sort_values([exp_col, top_col, dev_col, "time_bin"])
+        dev_bin["dev_bin_fitness"] = (
+            dev_bin
+            .groupby([exp_col, top_col, dev_col])["dev_bin_fitness"]
+            .ffill()   # propagate previous value forward
         )
 
         # 3) Bucket best (overall) per (group, time_bin)
@@ -342,6 +366,7 @@ elif is_two:
         )
 
         rates["rate"] = rates["at_global_best"] / rates["n_devices"].where(rates["n_devices"] > 0, np.nan)
+        #rates.loc[(rates["at_global_best"] <= 1) & (rates["time_bin"] < 8), "rate"] = 0.0
         # An optional monotone version (useful for plotting "cumulative adoption")
         rates = rates.sort_values(grp_tb)
         rates["cum_rate"] = rates.groupby([exp_col, top_col])["rate"].cummax()
@@ -387,44 +412,213 @@ elif is_two:
     rates, summary = calculate_adaptation_rate(
         df_rate,
         bin_seconds=2,
-        threshold=0.70,
-        sustain_seconds=6,
-        tol = 1e-3,
-        exclude_first_bucket=True
+        threshold=0.80,
+        sustain_seconds=4,
+        tol=1e-3
     )
 
+    agg_rates = (
+    rates.groupby([top_col, "time_bin"], as_index=False)
+         .agg(mean_rate=("cum_rate", "mean"),
+              std_rate=("cum_rate", "std"))
+    )
 
     #I want a violin plot with num_col as x axis desc, fitness_score as y-axis and each violin split into two halves by topology
-    fig, ax = plt.subplots(figsize=(12.8, 4))
+    fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.6), gridspec_kw={'width_ratios': [2, 1]})
 
     sns.violinplot(
         data=per_rows,
         x=num_col,
         y=per_col,
         hue=top_col,
+        hue_order=topology_order,
         split=True,
-        ax=ax,
+        ax=axes[0],
         gap=.05,
-        palette="Pastel2",
+        palette=topology_palette,
         inner="quartile",
-        linewidth=0.5
+        linewidth=0.5,
+        legend=False
 
     )
-    ax.set_title("(a)")
-    ax.set_xlabel("Number of Robots")
-    ax.set_ylabel("Fitness Value")
+
+    sns.lineplot(
+        data=agg_rates,
+        x="time_bin",
+        y="mean_rate",
+        hue=top_col,
+        hue_order=topology_order,
+        ax=axes[1],
+        palette=topology_palette,
+        linewidth=2
+    )
+
+    axes[0].set_title("(a)")
+    axes[0].set_xlabel("Number of Robots")
+    axes[0].set_ylabel("Fitness Value")
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
+
+    axes[1].set_title("(b)")
+    axes[1].set_xlabel("Time (s)")
+    axes[1].set_ylabel("Adaptation Rate")
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
+    axes[1].set_xlim(left=0)
+    axes[1].set_ylim(bottom=0, top=1)
+    for name, group in agg_rates.groupby(top_col):
+        axes[1].fill_between(
+            group["time_bin"],
+            group["mean_rate"] - group["std_rate"],
+            group["mean_rate"] + group["std_rate"],
+            alpha=0.2,
+            color= topology_palette[name]
+        )
+    legend = axes[1].get_legend()
+    if legend is not None:
+        legend.set_title("Topology")
+
+    plt.tight_layout(rect=[0, 0.05, 1, 1])
+    plt.savefig(ROOT / '../report/performance_impact.pdf', bbox_inches='tight')
+
+elif is_three:
+
+    #calculate error rates by experiment, topology and num_robots
+    flag_col   = "msg_rcv_flag"  
+    num_col    = "num_robots" 
+    top_col    = "topology"         
+    exp_col    = "experiment_id"
+    dev_col    = "device_mac_id"
+
+
+    msg_rows = full_df[(full_df[num_col] != 2)].loc[
+    (full_df[flag_col].notna()),
+    [exp_col, dev_col, flag_col, num_col, top_col, "second_offset"]
+    ]
+
+    # 2 .  Compute per-experiment counts
+    totals = (
+        msg_rows
+        .groupby([exp_col, dev_col, "second_offset"])
+        .size()
+        .rename("n_messages")
+    )
+
+    fails = (
+        msg_rows.loc[msg_rows[flag_col] != "O"]
+        .groupby([exp_col, dev_col, "second_offset"])
+        .size()
+        .rename("n_failed")
+    )
+
+    # 3 .  Combine and calculate the error rate
+    err_tbl = (
+        totals.to_frame()
+        .join(fails, how="left")
+        .fillna({"n_failed": 0})
+        .assign(dev_error_rate=lambda d: d.n_failed / d.n_messages.replace({0: pd.NA}))
+        .reset_index()
+    )
+
+    err_tbl = err_tbl.merge(
+        msg_rows[[exp_col, dev_col, "second_offset", top_col, num_col]].drop_duplicates(),
+        on=[exp_col, dev_col, "second_offset"],
+        how="left"
+    )
+
+    # 4 .  Aggregate to per-experiment, topology, num_robots
+    err_rates = (
+        err_tbl
+        .groupby([exp_col, top_col, num_col], as_index=False)
+        .agg(error_rate=("dev_error_rate", "mean"),
+             n_messages=("n_messages", "sum"),
+             n_failed=("n_failed", "sum"))
+        .reset_index()
+    )
+
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 4.6), gridspec_kw={'width_ratios': [1, 1]})
+
+    #print(sns.color_palette("Pastel1").as_hex())
+
+    sns.boxplot(
+        data=err_rates,
+        x="num_robots",
+        y="error_rate",
+        ax=axes[0],
+        width=0.4,  # make boxplot narrower
+        color = sns.color_palette("Pastel1")[0]
+    )
+
+    sns.boxplot(
+        data=err_rates,
+        x="topology",
+        y="error_rate",
+        ax=axes[1],
+        palette=topology_palette,
+        width=0.3,  # make boxplot narrower
+    )    
+
+    axes[0].sharey(axes[1])
+    axes[0].set_title("(a)")
+    axes[0].set_xlabel("Number of Robots")
+    axes[0].set_ylabel("Mean Error Rate")
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
+
+    axes[1].set_title("(b)")
+    axes[1].set_xlabel("Topology")
+    axes[1].set_ylabel("")
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
+
+    plt.tight_layout(rect=[0, 0.05, 1, 1])
+    plt.savefig(ROOT / '../report/reliability_impact.pdf', bbox_inches='tight')
+
+elif is_four:
+
+    #take rows that have rssi and group them by experiment and robot_speed
+    speed_col = "robot_speed"
+    num_col = "num_robots"
+    exp_col = "experiment_id"
+
+    rssi_rows = full_df[full_df[num_col] != 2]
+
+    n_devices = (
+    rssi_rows.groupby("experiment_id")["device_mac_id"]
+           .nunique()                          
+    )
+
+    rssi_rows["n_devices"] = rssi_rows["experiment_id"].map(n_devices)
+
+    rssi_cols = ["rssi_2004", "rssi_DA8C", "rssi_78C0", "rssi_669C", "rssi_9288", "rssi_A984", "rssi_DE9C", "rssi_DF8C", "rssi_B19C", "rssi_A184",
+              "rssi_228C", "rssi_CBAC", "rssi_AC44"]
+
+    row_mean = rssi_rows[rssi_cols].mean(axis=1, skipna=True)
+
+    rssi_rows["avg_rssi_row"] = row_mean / (rssi_rows["n_devices"] - 1)
+
+    rssi_groups = rssi_rows.groupby([exp_col, speed_col]).agg(
+        mean_rssi=("avg_rssi_row", "mean"),
+        std_rssi=("avg_rssi_row", "std"),
+        n_samples=("avg_rssi_row", "count")
+    ).reset_index()
+
+    fig, ax = plt.subplots(figsize=(6.4, 4.6))
+
+    sns.boxplot(
+        data=rssi_groups,
+        x=speed_col,
+        y="mean_rssi",
+        ax=ax,
+        palette="Paired",
+        width=0.4
+    )
+    ax.set_xlabel("Robot Speed")
+    ax.set_ylabel("Mean RSSI (dBm)")
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-
     plt.tight_layout(rect=[0, 0.05, 1, 1])
-    plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/performance_impact.pdf', bbox_inches='tight')
-
-
-
-
-
-
-    
+    plt.savefig(ROOT / '../report/speed_impact.pdf', bbox_inches='tight')
 
 print("done")
