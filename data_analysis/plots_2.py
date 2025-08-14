@@ -6,6 +6,9 @@ import matplotlib.gridspec as gridspec
 import seaborn as sns  # added import
 import matplotlib as mpl
 from sklearn.preprocessing import MinMaxScaler
+import networkx as nx
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 
 
 
@@ -50,7 +53,7 @@ frequency_map = {0: "None", 1: "Modulated"}
 full_df["topology"] = full_df["topology"].replace(topology_map)
 full_df["msg_limit"] = full_df["msg_limit"].replace(msg_limit_map)
 full_df["robot_speed"] = full_df["robot_speed"].replace(locomotion_map)
-full_df["migration_frequency"] = full_df["migration_frequency"].astype(int) .replace(frequency_map)
+full_df["migration_frequency"] = full_df["migration_frequency"].astype(int).replace(frequency_map)
 
 topology_order = ["Stochastic", "Comm Aware"]
 topology_palette = dict(zip(topology_order, sns.color_palette("Pastel2", n_colors=len(topology_order))))
@@ -77,6 +80,7 @@ frequency_palette = dict(zip(frequency_order, pastel3_alt[:len(frequency_order)]
 ################################
 is_seven = False
 is_eight = True
+is_nine = False
 
 
 if is_seven:
@@ -340,9 +344,162 @@ if is_seven:
 
 if is_eight:
 
+    df = full_df[
+        (full_df['num_robots'] == 13) & 
+        (full_df['msg_rcv_flag'] == 'O') & 
+        (full_df['migration_frequency'] != 'Modulated') &
+        (full_df['msg_limit'] == 'Unlimited')
+    ].dropna(subset=['device_mac_id', 'rcv_robot_id', 'second_offset'])
+
+    # Count messages per device-to-robot pair
+    bucket_count = 60  # Change this to control the number of buckets
+    bucket_edges = np.linspace(0, 60, bucket_count + 1)
+
+    df['time_bucket'] = pd.cut(df['second_offset'], bins=bucket_edges, include_lowest=True, right=False)
+
+    edges = (
+        df.groupby(['experiment_id', 'device_mac_id', 'rcv_robot_id', 'time_bucket'])
+        .size()
+        .reset_index(name='weight')
+        .sort_values(['experiment_id', 'time_bucket'])
+    )
+    edges = edges[edges['device_mac_id'] != edges['rcv_robot_id']]
+
+    # Calculate cumulative sum of messages per device-to-robot pair across buckets
+    edges['cumu_weight'] = (
+        edges.groupby(['experiment_id','device_mac_id', 'rcv_robot_id'])['weight']
+            .cumsum()
+    )
+
+    edges = edges.merge(df[['experiment_id', 'topology']].drop_duplicates(), on='experiment_id', how='left')
+
+    # Calculate mean cumulative weight per topology and time bucket
+    mean_cumu_weight = (
+        edges.groupby(['topology', 'device_mac_id', 'rcv_robot_id', 'time_bucket'])['cumu_weight']
+            .mean()
+            .reset_index()
+    )
+    #drop na
+    mean_cumu_weight = mean_cumu_weight.dropna()
+
+    selected_buckets = df['time_bucket'].cat.categories[[5, 6, 7, 8, 9]]
+    max_bucket = max(selected_buckets, key=lambda b: b.left)
+    max_cumu = mean_cumu_weight[mean_cumu_weight['time_bucket'] == max_bucket]['cumu_weight'].max()
+    all_nodes = sorted(set(mean_cumu_weight['device_mac_id']).union(set(mean_cumu_weight['rcv_robot_id'])))
     
+    viridis = cm.get_cmap("viridis")
+    global_max_weight = max_cumu if not np.isnan(max_cumu) else 1 
+
+    fig, axes = plt.subplots(2, 5, figsize=(12.8, 4.6))
+
+    for row_idx, topology in enumerate(topology_order):
+        for col_idx, bucket in enumerate(selected_buckets):
+            ax = axes[row_idx, col_idx]
+            sub_edges = mean_cumu_weight[(mean_cumu_weight['topology'] == topology) & (mean_cumu_weight['time_bucket'] == bucket)]
+            print(f"Topology: {topology}, Bucket: {bucket}, Edges: {len(sub_edges)}")
+
+            # Create directed graph
+            G = nx.DiGraph()
+            for _, row in sub_edges.iterrows():
+                G.add_edge(row['device_mac_id'], row['rcv_robot_id'], weight=row['cumu_weight'])
+
+            pos = nx.shell_layout(G, nlist=[all_nodes])
+            nodes = list(G.nodes())
+            node_colors = cm.get_cmap('Accent', len(nodes))
+            node_color_map = {node: node_colors(i) for i, node in enumerate(nodes)}
+            node_color_list = [node_color_map[n] for n in nodes]
+            weights = [G[u][v]['weight'] for u, v in G.edges()]
+
+            # Draw nodes with unique colors
+            nx.draw_networkx_nodes(G, pos, node_size=50, node_color=node_color_list, ax=ax)
+
+            # Draw curved edges with thickness based on message count
+            if global_max_weight > 0 and weights:
+                norm_weights = [w / global_max_weight for w in weights]
+                edge_colors = [viridis(w) for w in norm_weights]
+                for (u, v), color in zip(G.edges(), edge_colors):
+                    weight = G[u][v]['weight']
+                    if weight > 0:
+                        nx.draw_networkx_edges(
+                            G,
+                            pos,
+                            edgelist=[(u, v)],
+                            width=1.5, #/ global_max_weight,
+                            edge_color=[color],
+                            alpha=0.7,
+                            connectionstyle='arc3,rad=0.2', ax=ax
+                        )
+            
+            ax.set_title(f"t={bucket.left:.0f}s")
+            ax.axis('off')
+
+    sm = mpl.cm.ScalarMappable(cmap=viridis, norm=plt.Normalize(vmin=0, vmax=global_max_weight))
+    sm.set_array([])
+    cbar = plt.colorbar(
+        sm,
+        ax=axes,
+        orientation='vertical',
+        fraction=0.025,
+        pad=0.08
+    )
+    cbar.set_label("Mean Cumulative Transmissions", rotation=90, labelpad=20, va='center')
+
+
+    fig.text(
+        0.01, 0.75, "Stochastic", va='center', ha='center', rotation=90, fontsize=12#, fontweight='bold'
+    )
+    fig.text(
+        0.01, 0.28, "Comm Aware", va='center', ha='center', rotation=90, fontsize=12#, fontweight='bold'
+    )
+
+    plt.tight_layout(rect=[0, 0.05, 0.88, 1])
+    plt.savefig(ROOT / '../report/convergence_impact.pdf', bbox_inches='tight')
+
+elif is_nine:
+
+    df = full_df[
+        (full_df['num_robots'] == 13) & 
+        (full_df['msg_rcv_flag'] == 'O') & 
+        (full_df['migration_frequency'] != 'Modulated') &
+        (full_df['msg_limit'] == 'Unlimited')
+    ].dropna(subset=['device_mac_id', 'rcv_robot_id', 'second_offset'])
+
+    # Count messages per device-to-robot pair
+    bucket_count = 60  # Change this to control the number of buckets
+    bucket_edges = np.linspace(0, 60, bucket_count + 1)
+
+    df['time_bucket'] = pd.cut(df['second_offset'], bins=bucket_edges, include_lowest=True, right=False)
+    df = df[df['device_mac_id'] != df['rcv_robot_id']]
+
+    edges = (
+        df.groupby(['experiment_id', 'time_bucket'])
+        .size()
+        .reset_index(name='weight')
+        .sort_values(['experiment_id', 'time_bucket'])
+    )
+    edges = edges.merge(df[['experiment_id', 'topology']].drop_duplicates(), on='experiment_id', how='left')
+    edges = edges[edges['weight'] > 0]  
+
+    #New fig only one subplot which is a distibution kde for mean_cumu_weight hue by topology
+    fig, ax = plt.subplots(figsize=(6.4, 4.6))
+    sns.histplot(
+        data=edges,
+        x="weight",
+        hue="topology",
+        palette=topology_palette,
+        element="step",      # or "bars" for filled bars
+        stat="density",      # or "count" for raw counts
+        common_norm=False,
+        alpha=0.5,
+        linewidth=2,
+        bins=8  
+    )
+    
+    ax.set_title("")
+    ax.set_xlabel("Transmissions per second")
+    ax.set_ylabel("Density")
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
-    plt.savefig(ROOT / '../report/convergence_impact.pdf', bbox_inches='tight')
+    plt.savefig(ROOT / '../report/transmissions_per_second.pdf', bbox_inches='tight')
 
 print("done")
