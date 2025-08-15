@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 import networkx as nx
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
 
 
 
@@ -512,18 +513,40 @@ elif is_ten:
         (full_df['msg_limit'] == 'Unlimited')
     ].dropna(subset=['device_mac_id', 'rcv_robot_id', 'second_offset'])
 
+    valid_ids = (
+        df.groupby(['experiment_id', 'num_robots'])['device_mac_id']
+        .unique()
+        .reset_index()
+        .rename(columns={'device_mac_id': 'valid_ids'})
+    )
+
     # Count messages per device-to-robot pair
     bucket_count = 6  # Change this to control the number of buckets
     bucket_edges = np.linspace(0, 60, bucket_count + 1)
 
     df['time_bucket'] = pd.cut(df['second_offset'], bins=bucket_edges, include_lowest=True, right=False)
 
+    expanded = (
+        valid_ids
+        .explode('valid_ids')
+        .merge(df[['experiment_id', 'time_bucket']].drop_duplicates(), on='experiment_id')
+    )
+    expanded = expanded.rename(columns={'valid_ids': 'device_mac_id'})
+    expanded.dropna(subset=['time_bucket'], inplace=True)
+
     distinct_connections = (
         df[df['device_mac_id'] != df['rcv_robot_id']]
-        .groupby(['experiment_id', 'time_bucket', 'device_mac_id'])['rcv_robot_id']
+        .groupby(['experiment_id', 'num_robots', 'time_bucket', 'device_mac_id'])['rcv_robot_id']
         .nunique()
         .reset_index(name='distinct_connections')
     )
+
+    # Merge, filling missing values with 0
+    distinct_connections = expanded.merge(
+        distinct_connections,
+        on=['experiment_id', 'num_robots', 'time_bucket', 'device_mac_id'],
+        how='left'
+    ).fillna({'distinct_connections': 0})
 
     avg_connections = (
         distinct_connections
@@ -543,7 +566,7 @@ elif is_ten:
         return scaler.fit_transform(series.values.reshape(-1, 1)).flatten()
 
     edges["norm_avg_distinct_connections"] = (
-        edges.groupby(['experiment_id', 'topology'])["avg_distinct_connections"]
+        edges.groupby(['num_robots'])["avg_distinct_connections"]
         .transform(group_minmax)
     )
 
@@ -554,26 +577,66 @@ elif is_ten:
     edges["num_robots"] = pd.Categorical(edges["num_robots"], categories=desired_order, ordered=True)
 
 
-    fig, ax = plt.subplots(figsize=(6.4, 3.6))
+    fig, ax = plt.subplots(2, 1, figsize=(6.4, 6.2), sharex=True)
 
     sns.boxplot(
-        data=edges,
+        data=edges[edges['topology'] == 'Stochastic'],
         x="bucket_right",
-        y="norm_avg_distinct_connections",
-        ax=ax,
+        y="avg_distinct_connections",
+        ax=ax[0],
         hue = "num_robots",
         hue_order=desired_order,
         palette='PiYG',
         width=0.3,
-        fliersize=3, 
-        showmeans=True,
-        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
+        legend=False,
+        showmeans=False,
+        showfliers=False,
+        #meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
     )
 
-    ax.set_xlabel("Time Bucket (s)")
-    ax.set_ylabel("Mean Normalised Unique Connections")
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
+    sns.boxplot(
+        data=edges[edges['topology'] == 'Comm Aware'],
+        x="bucket_right",
+        y="avg_distinct_connections",
+        ax=ax[1],
+        hue = "num_robots",
+        hue_order=desired_order,
+        palette='PiYG',
+        width=0.3,
+        legend=False,
+        showmeans=False,
+        showfliers=False,
+        #meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
+    )
+
+    ax[1].set_xlabel("Time Bucket (s)")
+    ax[0].set_title("Stochastic")
+    ax[0].set_ylabel("Mean Unique Connections")
+    ax[0].spines['top'].set_visible(False)
+    ax[0].spines['right'].set_visible(False)
+
+    ax[1].set_title("Comm Aware")
+    ax[1].set_ylabel("Mean Unique Connections")
+    ax[1].spines['top'].set_visible(False)
+    ax[1].spines['right'].set_visible(False)
+
+    robot_colors = sns.color_palette('PiYG', n_colors=len(desired_order))
+    handles_num_robots = [
+        Line2D([0], [0], marker='s', color=color, label=str(num), linestyle='None')
+        for num, color in zip(desired_order, robot_colors)
+    ]
+
+    fig.legend(
+        handles=handles_num_robots,
+        labels=[str(num) for num in desired_order],
+        loc='lower center',
+        bbox_to_anchor=(0.5, -0.05),
+        ncol=len(desired_order),
+        title="Number of Robots",
+        frameon=False
+    )
+
+
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
     plt.savefig(ROOT / '../report/unique_connections.pdf', bbox_inches='tight')
