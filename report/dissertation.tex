@@ -498,12 +498,7 @@ With regards to locomotion Figure \ref{fig:rssi}(a) shows that Brownian motion r
     \label{fig:rssi}
 \end{figure}
 
-\begin{figure*}[h]
-    \centering
-    \includegraphics[width=1\textwidth]{convergence_impact.pdf}
-    \caption{Temporal snapshots of inferred communication topologies for a 13-agent swarm. Rows: inference scheme, columns: time samples. Nodes are on a fixed circular layout, edges show inferred links and its colour indicates mean cumulative transmissions per node.}
-    \label{fig:convergence}
-\end{figure*}
+Considering the impact of transmission frequency for experiments under the STOCHASTIC scheme, Figure \ref{fig:frequency}(a) shows that modulated transmission policies also restrict the network to lower latency and jitter though not to the same degree. Figure \ref{fig:frequency}(b) illustrates how latency varies over time under different transmission settings, with modulated policies achieving lower more stable latencies. Figure \ref{fig:frequency}(c) shows that throughput is generally similar between policies, a contrast compared to the topology inference schemes. Similar to performance under varying topology inference conditions, the performance for alternating transmission policies remains impacted mainly by the increase in swarm density Figure \ref{fig:f-performance}(a). Moreover, the adaptation rate between transmission policies remains similar Figure \ref{fig:f-performance}.\\
 
 \begin{figure*}[h]
     \centering
@@ -519,13 +514,14 @@ With regards to locomotion Figure \ref{fig:rssi}(a) shows that Brownian motion r
     \label{fig:f-performance}
 \end{figure*}
 
+An evaluation of the characteristics of the QoS metrics for the 13-agent swarm is shown in Figure \ref{fig:qos}. Key observations include, (i) COMM AWARE topology inference achieves high QoS metrics, (ii) modulated transmission also scores high in QoS but tends to score higher in $QoS_s$, (iii) message limits do not have a clear effect on QoS, both kernel densities overlap each other.
+
 \begin{figure*}[h]
     \centering
     \includegraphics[width=1\textwidth]{qos_impact.pdf}
     \caption{Kernel-density contours showing the joint distribution of two QoS metrics (x: $QoS_c$, y: $QoS_s$) for a 13-agent swarm. (a) pooled across all experimental factors, (b) split by communication topology, (c) split by transmission frequency policy, (d) split by message limit setting}
     \label{fig:qos}
 \end{figure*}
-
 
 \renewcommand{\arraystretch}{0.9}  
 \begin{table*}[ht]
@@ -608,22 +604,21 @@ With regards to locomotion Figure \ref{fig:rssi}(a) shows that Brownian motion r
 
 \section{Discussion}
 
+The results suggest that using \emph{textbf}{COMM AWARE} achieve high QoS as jitter and latency remain low whilst error rates are also abated, with the main trade off for this being a reduction in overall throughput. From a task perspective the optimisation between schemes achieved similar values, however the lower throughputs correlate with a reduction in adaptation rates. We explore the convergence phenomenon in Figures \ref{fig:convergence} and X, which show the flooding effect of \emph{STOCHASTIC} scheme, over a similar time period yields in more agents connecting to another whereas on the \emph{COMM AWARE} regime the formation of local pockets of information is possible. The effect of having slower adaption rates in an elitist island model such as this one supports the idea that avoiding premature convergence between agents is beneficial from a task perspective, as it allows for more diverse genome to be explored for longer time spans. Conversely, overall fitness values for Rastrigin are mainly influenced by an increasing number of agents, supporting the theory that under more genetic variation results in an improved search.
 
-%add that the performance is mainly driven by agent density rather than topology inference scheme
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{convergence_impact.pdf}
+    \caption{Temporal snapshots of inferred communication topologies for a 13-agent swarm. Rows: inference scheme, columns: time samples. Nodes are on a fixed circular layout, edges show inferred links and its colour indicates mean cumulative transmissions per node.}
+    \label{fig:convergence}
+\end{figure*}
 
- %mention small impact of final fitness value, but take longer to reach the local minimun for the same given exerimental time, this suggests that the tradeoff for lower latency/jitter is the time it takes to reach the same value in ters of fitness values. Local pockets with different information happen more oftern in COMM AWARE scheme
 
+\textbf{COMM\_AWARE} scheme should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position. This communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
 
-\textbf{COMM\_AWARE} scheme should result in a network where communication is dynamically biased towards improving weak or unmeasured links, using latency and RSSI as psuedo-metrics for distance allows the swarm to adapt to the percieved communication quality without having to know the exact positition of each member relative to itself. This is particularly useful in scenarios where the deployment is remote or there is no infrastructure available to track position. This communication schemes are only meaningful in swarms with more than two robots, as the benefits of dynamic peer selection and ranking emerge only in larger networks. \\
+High latencies were observed at the end of the experiments where the error rate was the highest, this is likely due to the longer delay in recieving an ACK from the other peer which has already de-initialised the ESPNOW task and is no longer able to respond to the messages. This would indicate that larger latencies are driven by failed messages pending an ACK. Note that in our base config we set the ESPNOW parameter \texttt{ESPNOW\_MAX\_RETRIES} to 0, which means that the messages are not retried if they fail to be sent. 
 
-In the case of \textbf{BROADCAST} communication, it is not practical to measure per-peer latency, although RSSI can still be estimated by the receiver for each incoming message.
-%need to decide if we will test broadcast....
-
-High latencies were observed at the end of the experiments where the error rate was the highest, this is likely due to the longer delay in recieving an ACK from the other peer which has already de-initialised the ESPNOW task and is no longer able to respond to the messages. This would indicate that larger latencies are driven by failed messages pending an ACK. Note that in our base config we set the ESPNOW parameter \texttt{ESPNOW\_MAX\_RETRIES} to 0, which means that the messages are not retried if they fail to be sent.\\
-
-The mean In/Out throughput achieved was X.X kbps and X.X respectively. It is worth noting that the higher In throughput suggests that there is an imbalance in the number of messages being exchanged, this can be confirmed by plot (a) in Figure \ref{fig:base_comm_stats} that shows one agent sending more messages than the other. This is likely due to the fact that the agents are not perfectly synchronised by the RTC, this means they finalise their first local GA at different times (also impacted by the random seed). This means that one agent is able to send its best solution before the other agent has a chance to send its own, this is an artifact of the current implementation and might have to be addressed in future work. Note that the expectation is that the network throughput will increase as the swarm increases in size, where the theoretical max throughput for ESPNOW is 214 kbps by device.\\ 
-
-The mean RSSI accross all devices was X.X dBm, which in in a range that indicates that the communication link is stable and reliable REF. It is worth noting that the RSSI is measured between peers and therefore it can be used as an indicative measure of the distance between agents though we also expect that the RSSI will be affected by the environment and obstacles in between the agents. This influence will be explored in Section X where the topology of the swarm is varied to see how this affects the communication performance.\\
+This is likely due to the fact that the agents are not perfectly synchronised by the RTC, this means they finalise their first local GA at different times (also impacted by the random seed). This means that one agent is able to send its best solution before the other agent has a chance to send its own, this is an artifact of the current implementation and might have to be addressed in future work. Note that the expectation is that the network throughput will increase as the swarm increases in size, where the theoretical max throughput for ESPNOW is 214 kbps by device.\\
 
 \newpage
 \printbibliography

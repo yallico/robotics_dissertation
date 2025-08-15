@@ -79,8 +79,9 @@ frequency_palette = dict(zip(frequency_order, pastel3_alt[:len(frequency_order)]
 ### Determine which plot to make
 ################################
 is_seven = False
-is_eight = True
+is_eight = False
 is_nine = False
+is_ten = True
 
 
 if is_seven:
@@ -501,5 +502,81 @@ elif is_nine:
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
     plt.savefig(ROOT / '../report/transmissions_per_second.pdf', bbox_inches='tight')
+
+elif is_ten:
+
+    df = full_df[
+        (full_df['num_robots'] != 2) & 
+        (full_df['msg_rcv_flag'] == 'O') & 
+        (full_df['migration_frequency'] != 'Modulated') &
+        (full_df['msg_limit'] == 'Unlimited')
+    ].dropna(subset=['device_mac_id', 'rcv_robot_id', 'second_offset'])
+
+    # Count messages per device-to-robot pair
+    bucket_count = 6  # Change this to control the number of buckets
+    bucket_edges = np.linspace(0, 60, bucket_count + 1)
+
+    df['time_bucket'] = pd.cut(df['second_offset'], bins=bucket_edges, include_lowest=True, right=False)
+
+    distinct_connections = (
+        df[df['device_mac_id'] != df['rcv_robot_id']]
+        .groupby(['experiment_id', 'time_bucket', 'device_mac_id'])['rcv_robot_id']
+        .nunique()
+        .reset_index(name='distinct_connections')
+    )
+
+    avg_connections = (
+        distinct_connections
+        .groupby(['experiment_id', 'time_bucket'])['distinct_connections']
+        .mean()
+        .reset_index(name='avg_distinct_connections')
+    )
+
+    edges = avg_connections.merge(
+        df[['experiment_id', 'topology', 'num_robots']].drop_duplicates(),
+        on='experiment_id',
+        how='left'
+    )
+
+    def group_minmax(series):
+        scaler = MinMaxScaler()
+        return scaler.fit_transform(series.values.reshape(-1, 1)).flatten()
+
+    edges["norm_avg_distinct_connections"] = (
+        edges.groupby(['experiment_id', 'topology'])["avg_distinct_connections"]
+        .transform(group_minmax)
+    )
+
+    edges["bucket_right"] = edges["time_bucket"].apply(lambda x: int(x.right))
+
+
+    desired_order = sorted(edges["num_robots"].unique(), reverse=True)  # or specify manually
+    edges["num_robots"] = pd.Categorical(edges["num_robots"], categories=desired_order, ordered=True)
+
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.6))
+
+    sns.boxplot(
+        data=edges,
+        x="bucket_right",
+        y="norm_avg_distinct_connections",
+        ax=ax,
+        hue = "num_robots",
+        hue_order=desired_order,
+        palette='PiYG',
+        width=0.3,
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
+    )
+
+    ax.set_xlabel("Time Bucket (s)")
+    ax.set_ylabel("Mean Normalised Unique Connections")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    plt.tight_layout(rect=[0, 0.05, 1, 1])
+    plt.savefig(ROOT / '../report/unique_connections.pdf', bbox_inches='tight')
+
 
 print("done")
