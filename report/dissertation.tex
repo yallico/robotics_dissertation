@@ -392,25 +392,16 @@ The core logging framework relies on three primary data structures:
 
 When an entry is retrieved from either queue, it is serialized into a JSON-formatted string (via \texttt{serialize\_log\_to\_json()}) to ensure structured and consistent downstream analysis. The serialized data is then written incrementally to SD card files, with each file capped at 1MB to prevent memory overflow and ensure robust storage. Figure~\ref{fig:data-store} illustrates the internal data logging pipeline, from event generation to SD card storage.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.45\textwidth]{data_store.png}
     \caption{Internal data logging pipeline}
     \label{fig:data-store}
 \end{figure}
 
-\subsection{Post-experimental Processing}
+After the experimental phase concludes, the system enters a data upload mode. In this mode, the files stored on each agent's SD cards are uploaded to an AWS S3 bucket via HTTPS. This was done by design as we did not want to stream the data from the peers whilst they were running the experiment, as this could have introduced additional collisions potentially impacting the measurements.\\
 
-After the experimental phase concludes (Fig. \ref{fig:rtos}), the system enters a data upload mode. In this mode, the files stored on each agent's SD cards are uploaded to an AWS S3 bucket via HTTPS. This was done by design as we did not want to stream the data from the peers whilst they were running the experiment, as this could have introduced additional collisions potentially impacting the measurements.\\
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.45\textwidth]{athena.png}
-    \caption{Data Upload Architecture}
-    \label{fig:athena}
-\end{figure}
-
-As depicted by Figure \ref{fig:athena}, the S3 bucket is structured to store each agent's data in a separate folder, named by the robot's ID. Each file is named with a timestamp and the experiment ID, ensuring that all data is uniquely identifiable and traceable. The data is then processed using AWS Glue to prepare it for analysis in Amazon Athena. This process allowed us to automate the storage and evaluation of data logs from over $500$ experiment runs.
+As depicted by Figure \ref{fig:data-store}, the S3 bucket is structured to store each agent's data in a separate folder, named by the robot's ID. Each file is named with a timestamp and the experiment ID, ensuring that all data is uniquely identifiable and traceable. The data is then processed using AWS Glue to prepare it for analysis using Amazon Athena. This process allowed us to automate the storage and evaluation of data logs from over $500$ experiment runs.
 
 \subsection{Communication Performance Metrics}
 
@@ -440,11 +431,11 @@ Here, each metric is normalized to the range [0,1] and the weights $w_i$ are def
 
 \section{Preliminary Analysis}
 
-Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). Over 100 experimental runs were performed, each terminating if fitness failed to improve beyond a 0.001 threshold over 20 consecutive epochs. As shown in Figure \ref{fig:ga_prelim_analysis}, larger populations yielded lower median fitness scores.\\
+Using a single robot, a preliminary analysis was conducted to identify suitable parameters for solving the Rastrigin function under varying population sizes (10, 20) and gene dimensions (2, 3, 4, 5). Over 100 experimental runs were performed, each terminating if fitness failed to improve beyond a 0.001 threshold over 20 consecutive epochs. As shown in Figure \ref{fig:ga_prelim_analysis}, larger populations yielded lower median fitness scores.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.50\textwidth]{ga_prelim_analysis_v2.pdf}
+    \includegraphics[width=0.47\textwidth]{ga_prelim_analysis_v2.pdf}
     \caption{Fitness distribution by population size and gene dimensionality}
     \label{fig:ga_prelim_analysis}
 \end{figure}
@@ -459,7 +450,7 @@ The time taken to converge ranged between 0 to 3 seconds, reflecting the early s
 \textbf{Version} & \textbf{Notes} \\
 \midrule
 v0.3 & Single agent experiments, GA parameter tuning. \\
-v0.4 & Improved late message queue handling. Increased number of genes to 10 from 5.\\
+v0.4 & Improved late message queue handling. Use 10 Genes.\\
 v0.5 & Reduced experiment time from 120 seconds to 60 seconds. \\
 v0.6 & Increased queue size to 40 (previously 25), to ensure no messages are lost.\\
 \bottomrule
@@ -467,112 +458,16 @@ v0.6 & Increased queue size to 40 (previously 25), to ensure no messages are los
 \label{tab:firmware_versions}
 \end{table}
 
-\subsection{Baseline Results}
-
-Using two agents as a baseline, 28 experimental runs were conducted to characterize system performance. The network did not reach the global minimum in these trials, but consistently converged to a local minimum within the first 10 seconds.
-
-\begin{table}[H]
-  \centering
-  \caption{Baseline Network Performance Metrics}
-  \label{tab:baseline_network_metrics}
-  \begin{tabular}{ll}
-  \toprule
-  \textbf{Metric} & \textbf{Mean Value} \\
-  \midrule
-  Network Jitter (ms)      & 8.80  \\
-  Max Bandwidth (kbps)     & 1.41  \\
-  Network Error Rate (\%)  & 0.01  \\
-  QoS (0--1)               & 0.7   \\
-  \bottomrule
-  \end{tabular}
-\end{table}
-
-The mean fitness score after convergence was X.X, and mean In/Out throughput was X.X/X.X kbps, respectively.
-
-\subsection{Experiment Schedule}\label{sec:experiments-schedule}
-
-A minimum of 16 re-runs per condition was conducted to ensure statistical significance of the results.
-
-\begin{table*}[ht]
-\centering
-\label{tab:exp_config}
-\caption{Experimental configurations}
-\begin{tabular}{c|c|c|c|c}
-\toprule
-\textbf{Number of Robots} & \textbf{Topology Inference} & \textbf{Locomotion} & \textbf{Message Limit} & \textbf{Transmission Frequency} \\
-\midrule
-\multirow{10}{*}{3}
-  & \multirow{5}{*}{Stochastic}
-    & \multirow{2}{*}{Static}
-                 & Unlimited& None \\
-  &   &          & Unlimited& Random Delay \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{4-5}
-  &   & \multirow{2}{*}{Brownian}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{2-5}
-  & \multirow{5}{*}{Comm Aware}
-    & \multirow{2}{*}{Static}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{4-5}
-  &   & \multirow{2}{*}{Brownian}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-\midrule
-\multirow{10}{*}{8}
-  & \multirow{5}{*}{Stochastic}
-    & \multirow{2}{*}{Static}
-                 & Unlimited& None \\
-  &   &          & Unlimited& Random Delay \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{4-5}
-  &   & \multirow{2}{*}{Brownian}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{2-5}
-  & \multirow{5}{*}{Comm Aware}
-    & \multirow{2}{*}{Static}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{4-5}
-  &   & \multirow{2}{*}{Brownian}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-\midrule
-\multirow{10}{*}{13}
-  & \multirow{5}{*}{Stochastic}
-    & \multirow{2}{*}{Static}
-                 & Unlimited& None \\
-  &   &          & Unlimited& Random Delay \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{4-5}
-  &   & \multirow{2}{*}{Brownian}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{2-5}
-  & \multirow{5}{*}{Comm Aware}
-    & \multirow{2}{*}{Static}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-  \cmidrule{4-5}
-  &   & \multirow{2}{*}{Brownian}
-                 & Unlimited& None \\
-  &   &          & 1 msg/8s & None \\
-\bottomrule
-\end{tabular}
-\end{table*}
+With two agents, we built a baseline shown in Table \ref{tab:exp_config}. The dual agents did not reach the global minimum in these trials, but consistently converged to a local minimum within the first 20 seconds of the experimental phase.
 
 \section{Results}
 
-As shown in Figure \ref{fig:topology}(a), latency and jitter differ significantly between communication schemes. Across experiments 
-the \emph{COMM AWARE} topology strategy generally achieves lower latency and more stable delivery compared agaisnt the \emph{STOCHASTIC} mode. Figures \ref{fig:topology}(b) and \ref{fig:topology}(c) show that throughput is highest in unconstrained conditions, and drops with the introduction of a message budget. \emph{STOCHASTIC} communication yields higher raw throughput but also introduces more variability.
+As shown in Figure \ref{fig:topology}(a), the latency and jitter of the swarm network differ significantly between topology inference schemes. Across experiments the \emph{COMM AWARE} topology strategy generally achieves lower latency and more stable delivery compared to the \emph{STOCHASTIC} mode. Figures \ref{fig:topology}(b) and \ref{fig:topology}(c) show that throughput is highest in unconstrained conditions, and drops with the introduction of message budgets. \emph{STOCHASTIC} communication yields higher raw throughput but also has a wider range of variability.
 
 \begin{figure*}[h]
     \centering
     \includegraphics[width=1\textwidth]{topology_impact.pdf}
-    \caption{(a) Large topology variances in jitter and latency, with the \emph{COMM AWARE} scheme bound to lower values, (b)(c) throughput is influenced by both topology inference and message limit factors}
+    \caption{(a) Latency and Jitter relationship under varying topology schemes, (b)(c) throughput distribution under topology and message limit variables}
     \label{fig:topology}
 \end{figure*}
 
@@ -585,25 +480,130 @@ Figure \ref{fig:performance}(a) shows that larger swarms converge to lower mean 
     \label{fig:performance}
 \end{figure*}
 
-Figure \ref{fig:error-rates}(a) shows the mean packet error rate across different swarm densities. The error rates remain low overall but increase with the swarm size, and it is particularly impacted in \emph{STOCHASTIC} schemes (Figure \ref{fig:error-rates}(b)).
+Figure \ref{fig:error-rates}(a) shows the mean packet error rate across different swarm densities. The error rates remain low overall but increase with the swarm size, and it is particularly impacted by the \emph{STOCHASTIC} scheme (Figure \ref{fig:error-rates}(b)).
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.47\textwidth]{reliability_impact.pdf}
-    \caption{(a) Mean error rates by different swarm sizes, (b) mean error rate for different topology inference schemes}
+    \caption{(a) Mean error rates by device across varying swarm sizes, (b) mean error rate for different topology inference schemes}
     \label{fig:error-rates}
 \end{figure}
 
 With regards to locomotion Figure \ref{fig:rssi}(a) shows that Brownian motion results in slightly improved RSSI values, indicating more stable connections compared to static swarms. Whereas \ref{fig:rssi}(b) suggests no statistical difference between RSSI values across topology inference schemes.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.47\textwidth]{speed_impact.pdf}
     \caption{(a) Mean RSSI values across different locomotion modes, (b) mean RSSI values accross different topology inference schemes}
     \label{fig:rssi}
 \end{figure}
 
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{convergence_impact.pdf}
+    \caption{Temporal snapshots of inferred communication topologies for a 13-agent swarm. Rows: inference scheme, columns: time samples. Nodes are on a fixed circular layout, edges show inferred links and its colour indicates mean cumulative transmissions per node.}
+    \label{fig:convergence}
+\end{figure*}
 
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{frequency_impact.pdf}
+    \caption{(a) Latency and Jitter relationship under varying transmission policies, (b) latency across time by transmission setting, (c) throughput distribution by transmission setting}
+    \label{fig:frequency}
+\end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{f_performance_impact.pdf}
+    \caption{(a) Mean device fitness values across different swarm sizes, (b) mean cumulative percentage of agents converging to the lowest fitness value across $2s$ windows}
+    \label{fig:f-performance}
+\end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=1\textwidth]{qos_impact.pdf}
+    \caption{Kernel-density contours showing the joint distribution of two QoS metrics (x: $QoS_c$, y: $QoS_s$) for a 13-agent swarm. (a) pooled across all experimental factors, (b) split by communication topology, (c) split by transmission frequency policy, (d) split by message limit setting}
+    \label{fig:qos}
+\end{figure*}
+
+
+\renewcommand{\arraystretch}{0.9}  
+\begin{table*}[ht]
+\scriptsize
+\centering
+\caption{Experimental configurations}
+\label{tab:exp_config}
+\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c}
+\toprule
+\textbf{Robots} & \textbf{Topology} & \textbf{Locomotion} & \textbf{Message Limit} & \textbf{Transmission} & \textbf{Latency (ms)} & \textbf{Jitter (ms)} & \textbf{Error Rate (\%)} & \textbf{Throughput} & \textbf{QoS\_c} & \textbf{QoS\_s} \\
+\midrule
+2 (Baseline) & Stochastic & Static & Unlimited & None & -- & -- & -- & -- & -- & -- \\
+\midrule
+\multirow{10}{*}{3}
+  & \multirow{5}{*}{Stochastic}
+    & \multirow{2}{*}{Static}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{3-11}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{2-11}
+  & \multirow{5}{*}{Comm Aware}
+    & \multirow{2}{*}{Static}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{3-11}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+\midrule
+\multirow{10}{*}{8}
+  & \multirow{5}{*}{Stochastic}
+    & \multirow{2}{*}{Static}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{3-11}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{2-11}
+  & \multirow{5}{*}{Comm Aware}
+    & \multirow{2}{*}{Static}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{3-11}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+\midrule
+\multirow{10}{*}{13}
+  & \multirow{5}{*}{Stochastic}
+    & \multirow{2}{*}{Static}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{3-11}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{2-11}
+  & \multirow{5}{*}{Comm Aware}
+    & \multirow{2}{*}{Static}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+  \cmidrule{3-11}
+  &   & \multirow{2}{*}{Brownian}
+                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
+  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 
 \section{Discussion}

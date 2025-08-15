@@ -42,8 +42,8 @@ data       = ROOT / "temp/pre-processed_data/full_data.parquet"
 full_df    = pd.read_parquet(data, engine="pyarrow")
 
 #Change depending on graph
-full_df    = full_df.query("migration_frequency != 1")
-#full_df    = full_df.query("topology != 1 and msg_limit != 1")
+#full_df    = full_df.query("migration_frequency != 1")
+full_df    = full_df.query("topology != 1 and msg_limit != 1")
 
 topology_map = {0: "Stochastic", 1: "Comm Aware"}
 msg_limit_map = {0: "Unlimited", 1: "Limited"}
@@ -83,7 +83,7 @@ is_two = False
 is_three = False
 is_four = False
 is_five = False
-is_six = False
+is_six = True
 
 if is_one:
     ################################
@@ -146,7 +146,7 @@ if is_one:
     )
 
 
-    fig, axes = plt.subplots(1, 3, figsize=(12.8, 4.6), gridspec_kw={'width_ratios': [2, 1, 1]})
+    fig, axes = plt.subplots(1, 3, figsize=(12.8, 3.6), gridspec_kw={'width_ratios': [2, 1, 1]})
     #axes 1 and 2 to share y axis
 
     sns.scatterplot(
@@ -171,6 +171,9 @@ if is_one:
         ax=axes[1],
         palette=topology_palette,
         width=0.4,  # make boxplot narrower
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
     )
 
     #third plot boxplot 
@@ -181,6 +184,9 @@ if is_one:
         ax=axes[2],
         palette="Pastel1",
         width=0.4,  # make boxplot narrower
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
     )
 
     axes[0].set_title("(a)")
@@ -215,7 +221,7 @@ if is_one:
 
     axes[1].set_title("(b)")
     axes[1].set_xlabel("Topology")
-    axes[1].set_ylabel("Mean Throughput (Kbps/s)")
+    axes[1].set_ylabel("Mean Throughput (Kbps)")
     axes[1].spines['top'].set_visible(False)
     axes[1].spines['right'].set_visible(False)
 
@@ -446,7 +452,7 @@ elif is_two:
     )
 
     #I want a violin plot with num_col as x axis desc, fitness_score as y-axis and each violin split into two halves by topology
-    fig, axes = plt.subplots(1, 2, figsize=(12.8, 4.6), gridspec_kw={'width_ratios': [2, 1]})
+    fig, axes = plt.subplots(1, 2, figsize=(12.8, 3.6), gridspec_kw={'width_ratios': [2, 1]})
 
     sns.violinplot(
         data=per_rows,
@@ -558,7 +564,7 @@ elif is_three:
         .reset_index()
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(6.4, 4.6), gridspec_kw={'width_ratios': [1, 1]})
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.6), gridspec_kw={'width_ratios': [1, 1]})
 
     #print(sns.color_palette("Pastel1").as_hex())
 
@@ -568,6 +574,9 @@ elif is_three:
         y="error_rate",
         ax=axes[0],
         width=0.4,  # make boxplot narrower
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3},
         color = sns.color_palette("Pastel1")[0]
     )
 
@@ -578,6 +587,9 @@ elif is_three:
         ax=axes[1],
         palette=topology_palette,
         width=0.3,  # make boxplot narrower
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3},
     )    
 
     axes[0].sharey(axes[1])
@@ -632,7 +644,7 @@ elif is_four:
         n_samples=("avg_rssi_row", "count")
     ).reset_index()
 
-    fig, axes = plt.subplots(1, 2, figsize=(6.4, 4.6), gridspec_kw={'width_ratios': [1, 1]})
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.6), gridspec_kw={'width_ratios': [1, 1]})
 
     sns.boxplot(
         data=rssi_groups,
@@ -640,6 +652,9 @@ elif is_four:
         y="mean_rssi",
         ax=axes[0],
         palette="Paired",
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3},
         width=0.4
     )
 
@@ -651,6 +666,9 @@ elif is_four:
         hue=top_col,
         hue_order=topology_order,
         palette=topology_palette,
+        fliersize=3, 
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3},
         width=0.4
     )
 
@@ -736,7 +754,7 @@ elif is_five:
         .reset_index()
     )
 
-    fig, axes = plt.subplots(1, 3, figsize=(12.8, 4), gridspec_kw={'width_ratios': [2, 1, 1]})
+    fig, axes = plt.subplots(1, 3, figsize=(12.8, 3.6), gridspec_kw={'width_ratios': [2, 1, 1]})
 
     sns.scatterplot(
         data=exp_stats,
@@ -772,7 +790,10 @@ elif is_five:
         y="mean_throughput",
         ax=axes[2],
         palette=frequency_palette,
-        width=0.4, 
+        width=0.4,
+        fliersize=3,
+        showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}
     )
 
     handles = [
@@ -818,7 +839,7 @@ elif is_five:
 
     axes[2].set_title("(c)")
     axes[2].set_xlabel("Transmission Frequency")
-    axes[2].set_ylabel("Mean Throughput (Kbps/s)")
+    axes[2].set_ylabel("Mean Throughput (Kbps)")
     axes[2].spines['top'].set_visible(False)
     axes[2].spines['right'].set_visible(False)
 
@@ -1042,7 +1063,7 @@ elif is_six:
     )
 
     #I want a violin plot with num_col as x axis desc, fitness_score as y-axis and each violin split into two halves by topology
-    fig, axes = plt.subplots(1, 2, figsize=(12.8, 4), gridspec_kw={'width_ratios': [2, 1]})
+    fig, axes = plt.subplots(1, 2, figsize=(12.8, 3.6), gridspec_kw={'width_ratios': [2, 1]})
 
     sns.violinplot(
         data=per_rows,

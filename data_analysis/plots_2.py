@@ -390,7 +390,7 @@ if is_eight:
     viridis = cm.get_cmap("viridis")
     global_max_weight = max_cumu if not np.isnan(max_cumu) else 1 
 
-    fig, axes = plt.subplots(2, 5, figsize=(12.8, 4.6))
+    fig, axes = plt.subplots(2, 5, figsize=(12.8, 4))
 
     for row_idx, topology in enumerate(topology_order):
         for col_idx, bucket in enumerate(selected_buckets):
@@ -411,7 +411,7 @@ if is_eight:
             weights = [G[u][v]['weight'] for u, v in G.edges()]
 
             # Draw nodes with unique colors
-            nx.draw_networkx_nodes(G, pos, node_size=50, node_color=node_color_list, ax=ax)
+            nx.draw_networkx_nodes(G, pos, node_size=40, node_color=node_color_list, ax=ax)
 
             # Draw curved edges with thickness based on message count
             if global_max_weight > 0 and weights:
@@ -424,7 +424,7 @@ if is_eight:
                             G,
                             pos,
                             edgelist=[(u, v)],
-                            width=1.5, #/ global_max_weight,
+                            width=1, #/ global_max_weight,
                             edge_color=[color],
                             alpha=0.7,
                             connectionstyle='arc3,rad=0.2', ax=ax

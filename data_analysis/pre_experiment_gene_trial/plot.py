@@ -73,7 +73,7 @@ grouped_df = df.groupby(['log_id', 'max_genes'])['fitness_score'].mean().reset_i
 #plt.tight_layout(rect=[0, 0.05, 1, 1])
 #plt.savefig('/home/yallicol/Documents/robotics_dissertation/report/ga_prelim_analysis_v2.pdf', bbox_inches='tight') 
 
-fig, ax = plt.subplots(figsize=(6.4, 4.6))
+fig, ax = plt.subplots(figsize=(6.4, 3.6))
 
 sns.boxplot(
     x='pop_size',
@@ -82,8 +82,10 @@ sns.boxplot(
     data=df,
     ax=ax,
     linewidth=1,       
-    fliersize=2,       
-    palette='Pastel1',    
+    fliersize=3,       
+    palette='Pastel1',
+    showmeans=True,
+    meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}    
 )
 
 ax.set_xlabel('Population Size')
@@ -101,7 +103,7 @@ ax.legend(
     labels,
     title='Genes',
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.20),  
+    bbox_to_anchor=(0.5, 1.25),  
     ncol=len(labels),
     frameon=False
 )
