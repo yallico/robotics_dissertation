@@ -82,7 +82,8 @@ frequency_palette = dict(zip(frequency_order, pastel3_alt[:len(frequency_order)]
 is_seven = False
 is_eight = False
 is_nine = False
-is_ten = True
+is_ten = False
+is_eleven = True
 
 
 if is_seven:
@@ -510,7 +511,8 @@ elif is_ten:
         (full_df['num_robots'] != 2) & 
         (full_df['msg_rcv_flag'] == 'O') & 
         (full_df['migration_frequency'] != 'Modulated') &
-        (full_df['msg_limit'] == 'Unlimited')
+        (full_df['msg_limit'] == 'Unlimited') &
+        (full_df['second_offset'] <= 30)
     ].dropna(subset=['device_mac_id', 'rcv_robot_id', 'second_offset'])
 
     valid_ids = (
@@ -522,7 +524,7 @@ elif is_ten:
 
     # Count messages per device-to-robot pair
     bucket_count = 6  # Change this to control the number of buckets
-    bucket_edges = np.linspace(0, 60, bucket_count + 1)
+    bucket_edges = np.linspace(0, 30, bucket_count + 1)
 
     df['time_bucket'] = pd.cut(df['second_offset'], bins=bucket_edges, include_lowest=True, right=False)
 
@@ -573,11 +575,13 @@ elif is_ten:
     edges["bucket_right"] = edges["time_bucket"].apply(lambda x: int(x.right))
 
 
-    desired_order = sorted(edges["num_robots"].unique(), reverse=True)  # or specify manually
+    desired_order = sorted(edges["num_robots"].unique(), reverse=False)  # or specify manually
     edges["num_robots"] = pd.Categorical(edges["num_robots"], categories=desired_order, ordered=True)
 
 
-    fig, ax = plt.subplots(2, 1, figsize=(6.4, 6.2), sharex=True)
+    fig, ax = plt.subplots(2, 1, figsize=(6.4, 5.5), sharex=True)
+
+    robot_colors = sns.color_palette('PiYG', n_colors=len(desired_order))[::-1]  # Invert the palette
 
     sns.boxplot(
         data=edges[edges['topology'] == 'Stochastic'],
@@ -585,13 +589,12 @@ elif is_ten:
         y="avg_distinct_connections",
         ax=ax[0],
         hue = "num_robots",
-        hue_order=desired_order,
-        palette='PiYG',
-        width=0.3,
+        #hue_order=desired_order,
+        palette=robot_colors,
+        width=0.4,
         legend=False,
         showmeans=False,
         showfliers=False,
-        #meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
     )
 
     sns.boxplot(
@@ -600,27 +603,32 @@ elif is_ten:
         y="avg_distinct_connections",
         ax=ax[1],
         hue = "num_robots",
-        hue_order=desired_order,
-        palette='PiYG',
-        width=0.3,
+        #hue_order=desired_order,
+        palette=robot_colors,
+        width=0.4,
         legend=False,
         showmeans=False,
-        showfliers=False,
-        #meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3}  
+        showfliers=False, 
     )
 
-    ax[1].set_xlabel("Time Bucket (s)")
+    ax[1].set_xlabel("Time Snapshot (s)")
     ax[0].set_title("Stochastic")
-    ax[0].set_ylabel("Mean Unique Connections")
+    ax[0].set_ylabel("")
     ax[0].spines['top'].set_visible(False)
     ax[0].spines['right'].set_visible(False)
 
+    fig.text(
+    0.04, 0.5, "Mean Unique Connections", va='center', ha='center', rotation='vertical', fontsize=12.5
+    )
+
     ax[1].set_title("Comm Aware")
-    ax[1].set_ylabel("Mean Unique Connections")
+    ax[1].set_ylabel("")
     ax[1].spines['top'].set_visible(False)
     ax[1].spines['right'].set_visible(False)
 
-    robot_colors = sns.color_palette('PiYG', n_colors=len(desired_order))
+    ax[0].set_ylim(0, 12)
+    ax[1].set_ylim(0, 12)
+
     handles_num_robots = [
         Line2D([0], [0], marker='s', color=color, label=str(num), linestyle='None')
         for num, color in zip(desired_order, robot_colors)
@@ -630,7 +638,7 @@ elif is_ten:
         handles=handles_num_robots,
         labels=[str(num) for num in desired_order],
         loc='lower center',
-        bbox_to_anchor=(0.5, -0.05),
+        bbox_to_anchor=(0.545, -0.05),
         ncol=len(desired_order),
         title="Number of Robots",
         frameon=False
@@ -638,8 +646,79 @@ elif is_ten:
 
 
 
-    plt.tight_layout(rect=[0, 0.05, 1, 1])
+    plt.tight_layout(rect=[0.04, 0.05, 1, 1])
     plt.savefig(ROOT / '../report/unique_connections.pdf', bbox_inches='tight')
+
+elif is_eleven:
+
+       # Filter out experiments with num_robots != 2
+    df = full_df[(full_df['num_robots'] != 2) & (full_df['msg_limit'] == 'Unlimited')]
+
+    # 1. Get mean device cpu_util_core_0 by device and experiment_id
+    device_means = (
+        df.groupby(['experiment_id', 'device_mac_id'])['cpu_util_core0']
+        .mean()
+        .reset_index(name='mean_cpu_util_core_0')
+    )
+
+    # 2. Get mean cpu_util_core_0 for experiment
+    exp_means = (
+        device_means.groupby('experiment_id')['mean_cpu_util_core_0']
+        .mean()
+        .reset_index(name='exp_mean_cpu_util_core_0')
+    )
+
+    # 3. Merge back topology and migration_frequency
+    exp_means = exp_means.merge(
+        df[['experiment_id', 'topology', 'migration_frequency']].drop_duplicates(),
+        on='experiment_id',
+        how='left'
+    )
+
+    # 4. Plot: two boxplots, left hue=topology, right hue=migration_frequency, share y axis
+    fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.5), sharey=True)
+
+    sns.boxplot(
+        data=exp_means,
+        x='topology',
+        y='exp_mean_cpu_util_core_0',
+        ax=axes[0],
+        palette=topology_palette,
+        showmeans=True,
+        fliersize=3,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 3},
+        width=0.4,
+        legend=False,
+        showfliers=True, 
+    )
+    axes[0].set_title("(a)")
+    axes[0].set_xlabel("Topology")
+    axes[0].set_ylabel("Mean CPU Utilisation % (C0)")
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
+
+    sns.boxplot(
+        data=exp_means,
+        x='migration_frequency',
+        y='exp_mean_cpu_util_core_0',
+        ax=axes[1],
+        palette=frequency_palette,
+        showmeans=True,
+        fliersize=3,
+        meanprops={"marker": "o", "markerfacecolor": "none", "markeredgecolor": "gray", "markersize": 4},
+        width=0.4,
+        legend=False,
+        showfliers=True, 
+    )
+    axes[1].set_title("(b)")
+    axes[1].set_xlabel("Transmission")
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
+
+    plt.tight_layout(rect=[0.0, 0.05, 1, 1])
+    plt.savefig(ROOT / '../report/cpu_util.pdf', bbox_inches='tight')
+
+
 
 
 print("done")
