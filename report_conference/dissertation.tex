@@ -10,6 +10,8 @@
 \usepackage{booktabs}
 \usepackage{float}
 \usepackage{multirow}
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=*, itemsep=2pt}
 
 % Title page
 \title{Swarm Dialogues: 
@@ -32,56 +34,52 @@ LOREM IPSUM
 
 \section{Introduction}
 
-This study profiles swarm communication on ESP32 hardware, evaluating embodied evolution performance under varied conditions such as agent density, locomotion, topology inference, imposed message budgets and stochastic transmission policies. By focusing on direct peer-to-peer communication links we provide (i) empirical data that probes bottlenecks flagged in recent surveys, and (ii) extract tangible design rules for swarm networks.\\
+This study profiles swarm communication on ESP32 hardware and demonstrates how agent density, locomotion, topology inference, imposed message budgets, and stochastic transmission policies shape both network quality of service ($QoS$) and embedded evolution performance. Focusing on direct peer-to-peer links, we contribute with an empirical mapping that probes communication bottlenecks flagged in recent surveys, and evidence for extracting tangible design rules for swarm networks. \\
 
-Swarm engineers draw inspiration from social biological systems such as ants, bees or termites to build decentralised robot collectives that are inherently robust to failure, flexible across tasks and scalable in number \cite{hamann_swarm_2018}. In swarm systems, collective intelligence emerges when individual robots trade packets of information among neighbouring robots. Classic ant-colony-optimisation work in the early 2000s has already proven that an indirect information exchange "virtual-pheromones" can lead to agents collectively discovering optimal routing behaviours \cite{dorigo_ant_2000}. Thus, highlighting the importance of communication design in swarms and the impact it can have over behaviour emergence.\\
+Swarm engineers draw inspiration from social biological systems such as ants, bees or termites to build decentralised robot collectives that are inherently robust to failure, flexible across tasks and scalable in number \cite{hamann_swarm_2018}. In swarm systems, collective intelligence emerges when individual robots trade packets of information among neighbouring robots. Classic ant-colony-optimisation work in the early 2000s has already proven that an indirect information exchange of "virtual-pheromones" can lead to agents collectively discovering optimal routing formations \cite{dorigo_ant_2000}. Hence, communication design is a first-order determinant of emergent behavior in swarms. \\
 
-While coordination and task allocation have been widely studied in swarm robotics, two recent surveys agree that bandwidth, latency and energy usage are the main blockers to real-world swarm deployments \cite{ding_advancements_2023}\cite{an_multi-robot_2023}. These issues become more pronounced as swarms sizes scale, resulting in an increase in data volumes being transmitted among peers, often overwhelming individual agents' limited compute capabilities. Beyond sheer capacity, the architecture of the communication also matters. Many swarms rely on blind broadcast communication schemes that scale poorly, with collision rates rising sharply beyond a few dozen peers which tend to reduce the reliability of the network \cite{an_multi-robot_2023}.\\
+While coordination and task allocation have been widely studied in swarm robotics, two recent surveys agree that communication bandwidth, latency and energy usage are the main blockers to real-world swarm deployments \cite{ding_advancements_2023}\cite{an_multi-robot_2023}. These issues become more pronounced as swarms sizes scale, resulting in an increase in data volumes being transmitted among peers, often overwhelming individual agents' limited compute capabilities. Beyond sheer capacity, the architecture of the communication also matters. Many swarms rely on blind broadcast communication schemes that scale poorly, with collision rates rising sharply beyond a few dozen peers which tend to reduce the reliability of the network \cite{an_multi-robot_2023}. \\
 
-Communication is equally critical when controllers evolve on-line. Recent embodied evolution studies explain that less communication can enhance swarm performance, as trimming neighbourhood size helps populations forget outdated beliefs and re-adapt faster \cite{hiraga_when_2023}\cite{ding_advancements_2023}. Because most of these results stem from simulations,  empirical evidence is still needed to further understand how agent density, throughput and packet content jointly affect evolutionary dynamics and adaptation performance.\\
+Communication is equally critical when controllers evolve on-line. Recent embodied evolution studies explain that less communication can enhance swarm performance, as trimming neighbourhood size helps populations forget outdated beliefs and re-adapt faster \cite{hiraga_when_2023}\cite{ding_advancements_2023}. While our context is controller evolution, we instantiate it as a distributed global optimisation problem. Fixing behaviours and evolving solutions to a known objective, isolates the communication effects and makes adaptation dynamics comparable across conditions. \\
 
-Viewing communication as a dynamic resource that swarms must actively manage, we present a testing framework that integrates an island-model genetic algorithm (GA) with three distinct communication strategies. These experiments expand our understanding of how communication choices shape embodied evolution performance and supply data needed to tackle the integration challenges outlined above. Accordingly, the following three hypotheses are put forward:\\
-
-\textbf{H1}: Ranking nearby peers by link quality before deciding where to send packets should form a sturdier network with fewer packets being lost.
-
-\textbf{H2}: Even if each robot is allowed to transmit only a fixed number of messages, the group should still reach a common solution over time, the cap is expected to slow premature convergence, not prevent it.
-
-\textbf{H3}: Inserting a brief randomly chosen delay before every transmission should reduce radio collisions and latency, as spreading out broadcasts should address interference in a congested channel.
-
-\section{Related Work}
-
-In \cite{hauert_evolved_2009}, controllers are evolved for ad-hoc aerial relays without positional information, using periodic single-hop broadcasts to neighbours. This concept is leveraged on our experimental setting where the agents exploit link-quality proxies to bias their connections. In non-local communication schemes such as \cite{perrin_decentralised_2012}, network-wide broadcasting is used due to the accelerated diffusion of information, with benefits in search and rescue applications. In contrast, our study uses \emph{unicast} peer-to-peer links at the data-link layer, enabling direct round-trip time measurements.\\
-
-Constrained connectivity repeatedly appears beneficial. The \emph{"less is more"} effect in \cite{talamali_when_2021}, demonstrates that fewer links and lower swarm densities improve adaptation in swarm consensus tasks, by helping robots discard stale beliefs. A similar effect is also observed by \cite{hiraga_when_2023} over embodied evolution, where limiting the genome-exchange range can support the evolutionary search maintain higher diversity for longer and escape local optima. The expectation is that by imposing message quotas and prioritising “distant” islands, the swarm could avoid premature convergence.\\
-
-Transmission timing also matters. Experiments from \cite{aust_hidden_2022} show that limiting the frequency of communication stabilises swarm behavior, while \cite{tsianos_impact_2012} explains that the speed of consensus among peers tolerates random transmission delays even when agents receive multiple out-of-order messages. Furthermore, non-radio data links have also been explored by \cite{trenkwalder_swarmcom_2020}, which shows that infra-red (IR) line-of-sight local communication can be used with benefits such as lower energy requirements per bit and reduced 2.4GHz interference information exchanges albeit with limits on bandwidth and communication range. Complementary work by \cite{rabbah_real_2021} examines real-time, decentralised peer-to-peer middleware at the application layer, addressing IP protocols. It provides a contrast for where to place communication control in swarm systems, whereas we implement this at the MAC layer via ESP-NOW to keep timing and load directly measurable.\\
-
-Over-the-air (OTA) mechanisms tailored to swarms have been explored by \cite{varadharajan_over--air_2018}, where updates are distributed as compact patches using gossip-style communication protocols to ensure version uniformity across large robot groups. We adapt this concept in Section-\ref{sec:ota} to support synchronised firmware across our deployment.\\
-
-%add This is based on the Island model [ref], where different subpopulations (islands) evolve in parallel and occasionally exchange individuals (migration) with other islands, thus enabling the swarm to converge to a solution. 
-
-
-\section{Experimental Setting}
-
-In this study, a global optimisation problem known as the Rastrigin function Eq. \ref{eq:rastrigin} is used to benchmark the communication performance. This task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remaines the same.\\ 
-
-The environment for the experiments was a rectangular arena without obstacles (Figure \ref{fig:arena}), where the initial positions, and number of the robots was determined by the experiment schedule (Table \ref{tab:exp_config}). All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
+To support our investigation, we implement a hardware-in-the-loop framework by leveraging over-the-air (OTA) updates. For embedded evolution we use ESP-NOW with an island-model genetic algorithm (GA). Moving beyond simulation-heavy work, we experiment with Pololu 3Pi+ robots, as shown in Fig. \ref{fig:arena}b, and adopt a state-of-the-art cloud enabled system that captures granular packet and evolution data in real-time, yielding reproducible datasets and enabling controlled parameter sweeps.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.49\textwidth]{arena.png}
-    \caption{Robot Arena: (a) dimensions and (b) example of a Brownian locomotion experiment with 8 robots.}
+    \caption{Experimental setup: (a) arena dimensions and (b) example of a Brownian locomotion experiment with 8 robots.}
     \label{fig:arena}
 \end{figure}
 
-Across the study, we evaluated swarm under different communication and system configurations. Each experiment manipulates a specific independent variable while holding all other conditions constant. These include:\\
+We explore three communication factors and their measurable effects (i) peer ordering, (ii) fixed per-robot message budgets, and (iii) per-packet stochastic transmission delays. We ask, \textbf{RQ1}: whether communication-aware peer ordering using \emph{link-quality} as a lightweight proxy for topology (see Section~\ref{sec:topology-inference}) changes network $QoS$, connection formation patterns, and time-to-consensus relative to stochastic ordering; \textbf{RQ2}: whether these factors influence information diffusion or convergence speed compared with one another; and \textbf{RQ3}: whether adding a short random delay before each send reduces collisions by measuring proxies such as latency and throughput.
+
+\section{Related Work}
+Island-model evolutionary algorithms in \cite{rucinski_impact_2010}, show that migration topology and connectivity structure govern convergence dynamics not just the migration rate (information exchange rate between peers), with the Rastrigin function Eq. \ref{eq:rastrigin}, used to benchmark the performance of different asynchronous evolutionary algorithms. \\
+
+In \cite{hauert_evolved_2009}, controllers are evolved for ad-hoc aerial relays without positional information, using periodic single-hop broadcasts to neighbours. This concept is leveraged on our experimental setting where the agents exploit link-quality proxies to bias their connections. In non-local communication schemes such as \cite{perrin_decentralised_2012}, network-wide broadcasting is used to accelerate the diffusion of information, with benefits in search and rescue applications. In contrast, our study uses \emph{unicast} peer-to-peer links at the data-link layer, enabling direct round-trip time measurements. \\
+
+Constrained connectivity repeatedly appears beneficial. The \emph{"less is more"} effect in \cite{talamali_when_2021}, demonstrates that fewer links and lower swarm densities improve adaptation in swarm consensus tasks, by helping robots discard stale beliefs. A similar effect is also observed by \cite{hiraga_when_2023} over embodied evolution, where limiting the genome-exchange range can support the evolutionary search maintain higher diversity for longer and escape local optima. We explore similar properties which are discussed in Section-\ref{sec:discussion}, the main difference being the data-links used and our message prioritisation algorithm.  \\
+
+Transmission timing also matters. Experiments from \cite{aust_hidden_2022} show that limiting the frequency of communication stabilises swarm behavior, while \cite{tsianos_impact_2012} explains that the speed of consensus among peers tolerates random transmission delays even when agents receive multiple out-of-order messages. Furthermore, non-radio data links have also been explored by \cite{trenkwalder_swarmcom_2020}, which shows that infra-red (IR) line-of-sight local communication can be used in swarms, some benefits include lower energy requirements per bit, moreover we note that IR has limits on bandwidth and bit error probability that scales with range. \\ 
+
+Complementary work by \cite{rabbah_real_2021} examines real-time communication middleware for swarms at the application layer, addressing peer-to-peer IP protocols. In contrast we explore direct peer-to-peer exchange managed without any middleware. \\
+
+% Over-the-air (OTA) mechanisms tailored to swarms have been explored by \cite{varadharajan_over--air_2018}, where updates are distributed as compact patches using gossip-style communication protocols to ensure version uniformity across large robot groups. We adapt this concept in Section-\ref{sec:ota} to support synchronised firmware across our deployment. \\
+
+
+\section{Experimental Setting}
+
+In this study, we use Eq. \ref{eq:rastrigin} to benchmark the evolutionary performance of the swarm. This global optimisation task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remains the same. \\
+
+The environment for the experiments was a rectangular arena measuring 80x90cm without obstacles (Fig. \ref{fig:arena}a), where the initial positions, and number of the robots was determined by the experiment schedule (Table \ref{tab:exp_config}). Across the study, we evaluated swarm under different communication and system configurations. Each experiment manipulates a specific independent variable while holding all other conditions constant. These include:\\
+% All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
 
 \begin{itemize}
   \item \textbf{Swarm density}: The number of agents deployed simultaneously, ranging from 3 to 13.
   \item \textbf{Locomotion}: Robots were either \emph{stationary} or navigated using a \emph{Brownian motion} gait (Section \ref{sec:locomotion}).
   \item \textbf{Topology inference}: Transmission priority was governed by either a \emph{stochastic} shuffle or a \emph{comm aware} ranking strategy based on link quality metrics (Section \ref{sec:topology-inference}).
   \item \textbf{Message limits}: A token-bucket rate limiter controlled how frequently agents could transmit messages (Section \ref{sec:limited-rate}).
-  \item \textbf{Transmission frequency}: Each message was optionally delayed by a random interval derived from the maximum observed peer latency to reduce potential network collisions (Section \ref{sec:transmission-frequency}).
+  \item \textbf{Transmission frequency}: Each message was optionally delayed by a random interval derived from the maximum observed peer latency (Section \ref{sec:transmission-frequency}).
 \end{itemize}
 
 \subsection{Rastrigin Function}
@@ -92,43 +90,37 @@ The Rastrigin function is defined as follows:
 f_R(\mathbf{x}) = 10n + \sum_{i=1}^{n} \left(x_i^2 - 10\cos(2\pi x_i)\right)
 \end{equation}
 
-where $n$ is the number of dimensions, in this case the number of genes. Whereas, $x$ is the individual genome being evaluated. The function has a global minimum at \( f_R(\mathbf{x}) = 0 \) when $x = [0, 0, ..., 0]$ for all dimensions \cite{rucinski_impact_2010}. For the purpose of this study we used $n = 10$ and a solution bounded at $-5.12<=x_i<=5.12$.
+where $n$ is the number of dimensions, in this case the number of genes being exchanged which was set to 10. Whereas, $x$ is the individual genome being evaluated. The function has a global minimum at \( f_R(\mathbf{x}) = 0 \) when $x = [0, 0, ..., 0]$ for all dimensions, with a solution bounded at $-5.12<=x_i<=5.12$. \cite{rucinski_impact_2010}.
 
 \subsection{Robot Platform}\label{sec:robot_platform}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.45\textwidth]{B2.pdf}
-    \caption{The Swarm-B2 platform: M5Stack Core2, IR Communication board, and Pololu 3Pi+}
+    \caption{The Swarm-B2 platform: M5Stack Core2 and Pololu 3Pi+}
     \label{fig:B2}
 \end{figure}
 
-Table~\ref{tab:B2-hardware} summarises the core hardware components of the Swarm-B2 platform used in this study [REF]. Coordination between devices is handled over a $I^2C$ 100kHz bus. Although the IR board can transmit and receive 32-byte frames, we did not conduct experiments with this feature. The board therefore behaves as a $I^2C$ bridge between the M5 and the Pololu 3Pi+. This guarantees that the communication results in this study stem only from a single data link.\\
+Table~\ref{tab:B2-hardware} summarizes the main hardware components of the Swarm-B2 platform used in this study. Devices coordinate via a $I^2C$ 100kHz bus. The ESP32 microcontroller runs dual-core FreeRTOS tasks, that logs real-time data to the local SD card, and manages communication using the ESP-NOW data link (2.4 GHz). The master device's 8MB PSRAM and larger flash memory enable concurrent task execution without peripheral starvation. \\
 
 \begin{table}[h]
   \centering
   \caption{Swarm-B2 hardware stack}
   \label{tab:B2-hardware}
-  \begin{tabular}{p{0.18\linewidth} p{0.22\linewidth} p{0.42\linewidth}}
+  \begin{tabular}{p{0.20\linewidth} p{0.15\linewidth} p{0.47\linewidth}}
     \toprule
-    Component & Interface(s) & Function \\
+    Component & Interface & Function \\
     \midrule
-    M5Stack Core2 (240 MHz) & $I^2C$ master and SPI & Embodied evolution, ESP-NOW communication, data logging to SD and user interface \\
-    IR board (16 MHz) & $I^2C$ slave (0x04) & Bus hub, optional IR feature \\
-    Pololu 3Pi+ (16 MHz) & $I^2C$ slave (0x08) & Locomotion, bumper and line following sensors \\
-
+    M5Stack Core2 (240 MHz) & $I^2C$ Master       & Embedded evolution, ESP-NOW communication, data logging to SD and user interface \\
+    Pololu 3Pi+ (16 MHz)    & $I^2C$ Slave        & Locomotion using bumper and line following sensors \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The ESP32 was used for running dual-core FreeRTOS parallel tasks, logging data on the local SD card and handling communication via the ESP-NOW data link (2.4 GHz). The 8MB PSRAM and larger flash memory on the master device allowed for concurrent task execution without peripheral starvation.\\
-
 \subsubsection{Locomotion}\label{sec:locomotion}
 
-The Pololu 3Pi+ is equipped with a line following sensor array and two bump sensors, which can be used to detect obstacles and detect the arena edges. A \emph{Brownian-motion} gait was selected to maintain unbiased mobility across the arena and ensure constant movement.\\
+The Pololu 3Pi+ is equipped with a line following sensor array and two bump sensors, which can be used to detect obstacles and detect the arena edges. A \emph{Brownian-motion} gait was selected to maintain unbiased mobility across the arena and ensure constant movement. The gait code exposes the Pololu 3pi+ slave to the ESP32 master node, this interface lets the ESP32 act as a passenger with override, that can set speed scaling factors or raise \texttt{START}/\texttt{STOP} flags without touching the low-level control loop. In effect, the Pololu 3pi+ driver handles continuous motion, while the ESP32 decides when to go for each experimental condition. \\
 
-The gait code exposes the Pololu 3pi+ slave to the ESP32 master node, this interface lets the ESP32 act as a passenger with override, that can set wheel-speed scaling factors or raise \texttt{START}/\texttt{STOP} flags without touching the low-level control loop. In effect, the Pololu 3pi+ driver handles continuous motion, while the ESP32 decides when to go for each experimental condition.\\
-
-\subsubsection{Local Data Storage}
+\subsubsection{Local Real-Time Data Storage}
 We implemented local data logging mechanism (Section \ref{sec:data-logging}) on the ESP32 with a 16GB SD card peripheral. The shared SPI bus (with the LCD) was set at a frequency of 20MHz and configured to use the FAT32 file system for storage. This approach was chosen to emulate a realistic swarm system capable of operating remotely without relying on a stable Wi-Fi connection to a central server.\\
 
 \subsubsection{User Interface}
@@ -244,6 +236,8 @@ Upon reaching the de-initialisation phase, the \texttt{espnow\_task} drains pend
 \subsection{Communication Layer}\label{sec:comm-layer}
 
 We implemented ESP-NOW by pre-registering the MAC addresses for all peers in each agent, enabling direct unicast communication between swarm robots. Our design uses push only event-driven peer-to-peer messaging, where each device transmits data to peers without waiting for requests. Using this scheme avoids the complexity of pull-based communication protocols. Recall that once a local elite genome is found, the best solution is sent to all peers, if there are incoming messages these are queued for later processing, allowing task operations to continue uninterrupted. In this section we describe the specific communication independent variables that were manipulated during experiments.\\
+
+%this at the MAC layer via ESP-NOW to keep timing and load directly measurable.
 
 \subsubsection{Topology Inference}\label{sec:topology-inference}
 
@@ -596,7 +590,7 @@ An evaluation of the characteristics of the QoS metrics for the 13-agent swarm i
 \end{table*}
 
 
-\section{Discussion}
+\section{Discussion}\label{sec:discussion}
 Results for our hypotheses are as follows. \textbf{H1} is supported: \emph{COMM AWARE} achieves lower median latency ($\delta$ XX ms) and tighter jitter than \emph{STOCHASTIC}. \textbf{H2} is partially supported: message budgets slow diffusion and curb collisions yet do not prevent convergence, however the effect size is modest compared with topology choice. \textbf{H3} is supported: a delay capped by recent peer latency reduces contention, stabilises latency (jitter $YY\%$), and maintains throughput relative to pure flooding.\\
 
 Across conditions, reductions in end-to-end latency are explained mainly by the number of links the swarm forms rather than by capping the number of transmissions, achieving below $50ms$ comparable to simulation conditions in \cite{hauert_evolved_2009}. Under \emph{STOCHASTIC} scheduling the pseudo-broadcasting behaviour of the swarm rapidly increases unique connections, which raises contention. In \emph{COMM AWARE}, reduced link formation avoids bursts of transmission, producing lower median latency and jitter at the cost of throughput. The time-snapshots of inferred topologies in Fig. \ref{fig:convergence} illustrate this mechanism directly, with \emph{STOCHASTIC} creating denser transient link sets than \emph{COMM AWARE} over comparable intervals. In this elitist island-model, slower mixing between islands can be useful. Limiting link formation in \emph{COMM AWARE} reduces premature convergence, allowing for a more diverse genome to persist and be explored longer. This aligns with the observation that overall fitness improves primarily with agent count (Fig. \ref{fig:performance}a), while the fastest adaptation rates arise under the \emph{STOCHASTIC} scheme where information diffuses quickly (Fig. \ref{fig:f-performance}b).\\

@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.1.1 Chrome/132.0.6834.210 Electron/34.3.3 Safari/537.36" version="26.1.1">
   <diagram name="Page-1" id="d77bD9jL6P1BY8TLcZud">
-    <mxGraphModel dx="1390" dy="795" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="583" math="0" shadow="0">
+    <mxGraphModel dx="1434" dy="839" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="583" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -14,15 +14,6 @@
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="260.0113000000001" y="45" as="sourcePoint" />
             <mxPoint x="378.02" y="41.870000000000005" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="4M9Ys-ZdPEdBSEFQHoPD-9" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;font style=&quot;&quot;&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;IR Communication Board&lt;/span&gt;&lt;br&gt;&lt;font style=&quot;font-weight: normal; font-size: 14px;&quot;&gt;Nano (ATmega238)&lt;/font&gt;&lt;/font&gt;&lt;/h1&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" parent="1" vertex="1">
-          <mxGeometry x="378.98" y="150" width="202.02" height="70" as="geometry" />
-        </mxCell>
-        <mxCell id="4M9Ys-ZdPEdBSEFQHoPD-10" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endSize=4;startSize=4;" parent="1" target="4M9Ys-ZdPEdBSEFQHoPD-9" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="313" y="185" as="sourcePoint" />
-            <mxPoint x="378.02" y="181.87" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="4M9Ys-ZdPEdBSEFQHoPD-11" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;font style=&quot;&quot;&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;Pololu 3pi+&lt;br&gt;&lt;/font&gt;&lt;/font&gt;&lt;span style=&quot;font-size: 14px; font-weight: normal; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;ATmega32U4&lt;/span&gt;&lt;/h1&gt;" style="text;html=1;overflow=hidden;rounded=0;whiteSpace=wrap;spacing=2;" parent="1" vertex="1">
