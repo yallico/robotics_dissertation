@@ -71,7 +71,7 @@ Complementary work by \cite{rabbah_real_2021} examines real-time communication m
 
 \section{Experimental Setting}
 
-In this study, we use Eq. \ref{eq:rastrigin} to benchmark the evolutionary performance of the swarm. This global optimisation task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remains the same. \\
+In this study, we use Eq. \ref{eq:rastrigin} to benchmark the evolutionary performance of the swarm. This global optimisation task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remains the same. Making swarm behaviour a control variable. \\
 
 The environment for the experiments was a rectangular arena measuring 80x90cm without obstacles (Fig. \ref{fig:arena}a), where the initial positions, and number of the robots was determined by the experiment schedule (Table \ref{tab:exp_config}). Across the study, we evaluated swarm under different communication and system configurations. Each experiment manipulates a specific independent variable while holding all other conditions constant. These include:\\
 % All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
@@ -79,7 +79,7 @@ The environment for the experiments was a rectangular arena measuring 80x90cm wi
 \begin{itemize}
   \item \textbf{Swarm density}: The number of agents deployed simultaneously, ranging from 3 to 13.
   \item \textbf{Locomotion}: Robots were either \emph{stationary} or navigated using a \emph{Brownian motion} gait.
-  \item \textbf{Topology inference}: Peer transmission priority was governed by either a \emph{stochastic} shuffle or a \emph{comm aware} ranking strategy based on link quality metrics.
+  \item \textbf{Topology inference}: Peer transmission priority was governed by either a \emph{stochastic} shuffle or a \emph{comm-aware} ranking strategy based on link quality metrics.
   \item \textbf{Message limits}: A \emph{message budget} controlled how frequently agents could communicate with one another.
   \item \textbf{Transmission frequency}: Each transmission was optionally delayed by a random interval derived from the maximum observed peer latency.
 \end{itemize}
@@ -196,7 +196,7 @@ We investigate the impact of two communication schemes, based on the social evid
 
 \begin{itemize}
     \item \emph{Stochastic}: Each agent calls a random seed to apply a Fisher-Yates shuffle \cite{fisher_statistical_1963} over the list of peer MAC addresses, sorting them before sending messages to \emph{all peers}. No social evidence bias is used, every order permutation is equally likely.
-    \item \emph{Comm aware}: Each agent ranks its peers based on the most recent measurements of latency and RSSI. Peers with unknown metrics (at initialisation) are prioritised first to ensure social evidence is available. Then, peers are scored by normalizing both latency and RSSI, and those only in the \emph{worst half} (highest latency, lowest RSSI) are messaged.
+    \item \emph{comm-aware}: Each agent ranks its peers based on the most recent measurements of latency and RSSI. Peers with unknown metrics (at initialisation) are prioritised first to ensure social evidence is available. Then, peers are scored by normalizing both latency and RSSI, and those only in the \emph{worst half} (highest latency, lowest RSSI) are messaged.
 \end{itemize}
 
 For \emph{stochaistic}, the shuffle is defined in Eq.~\ref{eq:fy-shuffle}, where ($j_i$) is a random index drawn from a uniform distribution. $\sigma$ is the random permutation of MAC addresses for each $i$ peer. We can think of this scheme as a \emph{pseuso-broadcast} using unicast communication, as the genome is sent to all peers with negligible delays between transmissions.
@@ -206,7 +206,7 @@ For \emph{stochaistic}, the shuffle is defined in Eq.~\ref{eq:fy-shuffle}, where
 \qquad j_i \sim \mathrm{Uniform}\{1,\dots,i\}
 \end{equation}
 
-Whereas for \emph{comm aware}, the scoring for peer $i$ ranking is defined in Eq.~\ref{eq:comm-aware}. Here, the round-trip latency $l$ can be measured via acknowledgements (ACKS). The RSSI $r$ is reported by the ESP-NOW send callback after each successful transmission. If multiple messages have been sent, only the most recent metrics stay in memory. Note that both RSSI and latency are scored equally.
+Whereas for \emph{comm-aware}, the scoring for peer $i$ ranking is defined in Eq.~\ref{eq:comm-aware}. Here, the round-trip latency $l$ can be measured via acknowledgements (ACKS). The RSSI $r$ is reported by the ESP-NOW send callback after each successful transmission. If multiple messages have been sent, only the most recent metrics stay in memory. Note that both RSSI and latency are scored equally.
 
 \begin{equation}\label{eq:comm-aware}
 Score_i =
@@ -244,7 +244,7 @@ To evaluate the quality of the communication in the swarm, each robot records gr
 \mathrm{QoS} = w_0 \cdot (1 - \hat{L}) + w_1 \cdot (1 - \hat{J}) + w_2 \cdot (1 - \hat{P}) + w_3 \cdot \hat{T}
 \end{equation}
 
-Where, $\hat{L}$, $\hat{J}$, $\hat{E}$, $\hat{T}$ are the normalised global metrics aggregated at the experiment-level in the range of $[0,1]$ and the weights $w_i$ are defined in Table \ref{tab:qos}. A higher QoS value indicates better overall network communication performance.
+Where, $\hat{L}$, $\hat{J}$, $\hat{E}$, $\hat{T}$ are the normalised global metrics aggregated at the experiment-level in the range of $[0,1]$ and the weights $w_i$ are defined in Table \ref{tab:qos}. A higher QoS value indicates better overall network communication performance. % add performance metrics, adaptation rate is defined as the proportion of agents that share the current lowest fitness score, averaged over 2-second windows.
 
 \begin{table}[H]
 \centering
@@ -262,7 +262,7 @@ Where, $\hat{L}$, $\hat{J}$, $\hat{E}$, $\hat{T}$ are the normalised global metr
 
 \section{Results}\label{sec:results}
 
-As shown in Figure \ref{fig:topology}(a), the latency and jitter of the swarm network differ significantly between topology inference schemes. Across experiments the \emph{COMM AWARE} topology strategy generally achieves lower latency and more stable delivery compared to the \emph{STOCHASTIC} mode. Figures \ref{fig:topology}(b) and \ref{fig:topology}(c) show that throughput is highest in unconstrained conditions, and drops with the introduction of message budgets. \emph{STOCHASTIC} communication yields higher raw throughput but also has a wider range of variability.
+As shown in Fig.~\ref{fig:topology}a, the latency and jitter of the swarm network differ significantly between topology inference schemes. Across experiments, \emph{comm-aware} generally achieves lower latency and more stable delivery compared to the \emph{stochastic} mode. Fig.~\ref{fig:topology}b-c show throughput vs topology/message limits. \emph{Stochastic} yields higher raw throughput with wider variability. \\
 
 \begin{figure*}[h]
     \centering
@@ -271,7 +271,7 @@ As shown in Figure \ref{fig:topology}(a), the latency and jitter of the swarm ne
     \label{fig:topology}
 \end{figure*}
 
-Figure \ref{fig:performance}(a) shows that larger swarms converge to lower mean fitness scores, indicating improved global convergence as agent density increases. Figure \ref{fig:performance}(b) presents the adaptation rate over time. Swarms using the \emph{STOCHASTIC} communication scheme tend to converge more rapidly, with approximately $80\%$ of the agents reaching the best-known solution roughly 20 seconds earlier than those using the \emph{COMM AWARE} strategy. Here, adaptation rate is defined as the proportion of agents that share the current lowest fitness score, averaged over 2-second windows.
+Larger swarms reach lower mean fitness scores. \emph{Stochastic} schemes accelerate information diffusion, where $\approx$80\% of agents share the temporal "best" solution 20 seconds earlier than under \emph{comm-aware}. Fig.~\ref{fig:performance}a-b. The degree of connectivity per-peer across time shows that \emph{stochastic} forms more links compared to \emph{comm-aware}, both increasing over time. Fig.~\ref{fig:unique-connections}. \\
 
 \begin{figure*}[h]
     \centering
@@ -280,25 +280,30 @@ Figure \ref{fig:performance}(a) shows that larger swarms converge to lower mean 
     \label{fig:performance}
 \end{figure*}
 
-Figure \ref{fig:error-rates}(a) shows the mean packet error rate across different swarm densities. The error rates remain low overall but increase with the swarm size, and it is particularly impacted by the \emph{STOCHASTIC} scheme (Figure \ref{fig:error-rates}(b)).
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.46\textwidth]{unique_connections.pdf}
+    \caption{Per-peer number of mean connections formed by time snapshot up to 30 seconds for both topology inference schemes}
+    \label{fig:unique-connections}
+\end{figure}
 
-\begin{figure}[H]
+Error rates are small and comparable for smaller density swarms, rising during 13-agent swarm experiments and when the network operates under the \emph{stochastic} scheme. Fig.~\ref{fig:error-rates}a-b. With regards to locomotion Fig.~\ref{fig:rssi}a shows that Brownian motion results in slightly improved RSSI values, indicating more stable connections compared to static swarms. Whereas \ref{fig:rssi}b suggests no statistical significance between RSSI and topology inference schemes. \\
+
+\begin{figure}[h]
     \centering
     \includegraphics[width=0.47\textwidth]{reliability_impact.pdf}
     \caption{(a) Mean error rates by device across varying swarm sizes, (b) mean error rate for different topology inference schemes}
     \label{fig:error-rates}
 \end{figure}
 
-With regards to locomotion Figure \ref{fig:rssi}(a) shows that Brownian motion results in slightly improved RSSI values, indicating more stable connections compared to static swarms. Whereas \ref{fig:rssi}(b) suggests no statistical difference between RSSI values across topology inference schemes.
-
-\begin{figure}[H]
+\begin{figure}[h]
     \centering
     \includegraphics[width=0.47\textwidth]{speed_impact.pdf}
     \caption{(a) Mean RSSI values across different locomotion modes, (b) mean RSSI values accross different topology inference schemes}
     \label{fig:rssi}
 \end{figure}
 
-Considering the impact of transmission frequency for experiments under the STOCHASTIC scheme, Figure \ref{fig:frequency}(a) shows that modulated transmission policies also restrict the network to lower latency and jitter though not to the same degree. Figure \ref{fig:frequency}(b) illustrates how latency varies over time under different transmission settings, with modulated policies achieving lower more stable latencies. Figure \ref{fig:frequency}(c) shows that throughput is generally similar between policies, a contrast compared to the topology inference schemes. Similar to performance under varying topology inference conditions, the performance for alternating transmission policies remains impacted mainly by the increase in swarm density Figure \ref{fig:f-performance}(a). Moreover, the adaptation rate between transmission policies remains similar Figure \ref{fig:f-performance}.\\
+Random micro-delays during transmission stabilise latency over time with negligible throughput loss, albeit mean jitter and latency values increase compared to the \emph{comm-aware} scheme (Fig.~\ref{fig:frequency}a-c). The transmissions delays do not block convergence and achieve comparable adaptation rates compared to the \emph{stochastic} scheme (Fig.~\ref{fig:f-performance}a-b). \\
 
 \begin{figure*}[h]
     \centering
@@ -314,7 +319,7 @@ Considering the impact of transmission frequency for experiments under the STOCH
     \label{fig:f-performance}
 \end{figure*}
 
-An evaluation of the characteristics of the QoS metrics for the 13-agent swarm is shown in Figure \ref{fig:qos}. Key observations include, (i) COMM AWARE topology inference achieves high QoS metrics, (ii) modulated transmission also scores high in QoS but tends to score higher in $QoS_s$, (iii) message limits do not have a clear effect on QoS, both kernel densities overlap each other.
+An evaluation of the characteristics of the $QoS$ metrics for the 13-agent swarm, show that (i) \emph{comm-aware} achieves high $QoS_c$ scores, (ii) modulated transmission shifts toward $QoS_s$ but scores less in $QoS_c$, (iii) message limits do not have a clear effect on QoS, both kernel densities overlap each other. Fig.~\ref{fig:qos}a-d. \\
 
 \begin{figure*}[h]
     \centering
@@ -347,7 +352,7 @@ An evaluation of the characteristics of the QoS metrics for the 13-agent swarm i
   &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
   &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
   \cmidrule{2-11}
-  & \multirow{5}{*}{Comm Aware}
+  & \multirow{5}{*}{comm-aware}
     & \multirow{2}{*}{Static}
                  & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
   &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
@@ -368,7 +373,7 @@ An evaluation of the characteristics of the QoS metrics for the 13-agent swarm i
   &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
   &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
   \cmidrule{2-11}
-  & \multirow{5}{*}{Comm Aware}
+  & \multirow{5}{*}{comm-aware}
     & \multirow{2}{*}{Static}
                  & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
   &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
@@ -389,7 +394,7 @@ An evaluation of the characteristics of the QoS metrics for the 13-agent swarm i
   &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
   &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
   \cmidrule{2-11}
-  & \multirow{5}{*}{Comm Aware}
+  & \multirow{5}{*}{comm-aware}
     & \multirow{2}{*}{Static}
                  & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
   &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
@@ -403,10 +408,7 @@ An evaluation of the characteristics of the QoS metrics for the 13-agent swarm i
 
 
 \section{Discussion}\label{sec:discussion}
-%need to rewrite this and remove flooding.
-Results for our hypotheses are as follows. \textbf{H1} is supported: \emph{COMM AWARE} achieves lower median latency ($\delta$ XX ms) and tighter jitter than \emph{STOCHASTIC}. \textbf{H2} is partially supported: message budgets slow diffusion and curb collisions yet do not prevent convergence, however the effect size is modest compared with topology choice. \textbf{H3} is supported: a delay capped by recent peer latency reduces contention, stabilises latency (jitter $YY\%$), and maintains throughput relative to pure flooding.\\
-
-Across conditions, reductions in end-to-end latency are explained mainly by the number of links the swarm forms rather than by capping the number of transmissions, achieving below $50ms$ comparable to simulation conditions in \cite{hauert_evolved_2009}. Under \emph{STOCHASTIC} scheduling the pseudo-broadcasting behaviour of the swarm rapidly increases unique connections, which raises contention. In \emph{COMM AWARE}, reduced link formation avoids bursts of transmission, producing lower median latency and jitter at the cost of throughput. The time-snapshots of inferred topologies in Fig. \ref{fig:convergence} illustrate this mechanism directly, with \emph{STOCHASTIC} creating denser transient link sets than \emph{COMM AWARE} over comparable intervals. In this elitist island-model, slower mixing between islands can be useful. Limiting link formation in \emph{COMM AWARE} reduces premature convergence, allowing for a more diverse genome to persist and be explored longer. This aligns with the observation that overall fitness improves primarily with agent count (Fig. \ref{fig:performance}a), while the fastest adaptation rates arise under the \emph{STOCHASTIC} scheme where information diffuses quickly (Fig. \ref{fig:f-performance}b).\\
+Across conditions, lower end-to-end latency is driven primarily by limiting concurrent links, not by message limits, achieving sub-50ms comparable to \cite{hauert_evolved_2009} for swarm communication relay scenarios. Under \emph{stochastic} scheduling, pseudo-broadcast rapidly increases unique connections, raising contention. \emph{Comm-aware} limits link formation, avoiding burst traffic and yielding lower median latency and jitter at throughput cost. Time-snapshots of inferred topologies in Fig.~\ref{fig:convergence} illustrate this mechanism, with \emph{stochastic} creating denser transient link sets than \emph{comm-aware} over comparable intervals. In this elitist island-model setup, slower mixing between islands can be useful. Limiting link formation in \emph{comm-aware} reduces premature convergence, allowing for a more diverse genome to persist and be explored longer. This aligns with the observation that overall fitness improves primarily with agent count (Fig. \ref{fig:performance}a), while the fastest adaptation rates arise under the \emph{stochastic} scheme where information diffuses quickly (Fig. \ref{fig:f-performance}b). \\
 
 \begin{figure*}[h]
     \centering
@@ -415,30 +417,24 @@ Across conditions, reductions in end-to-end latency are explained mainly by the 
     \label{fig:convergence}
 \end{figure*}
 
-\emph{COMM AWARE} attains consistently high $QoS$ values by suppressing jitter and keeping low latencies, while \emph{STOCHASTIC} achieves higher raw throughput but with wider variability and higher error rates as agent density grows. Kernel-density plots of $QoS_c$ against $QoS_cs$ in Fig. \ref{fig:qos} show \emph{COMM AWARE} achieving an overall improved service relative to the overall distribution, whereas frequency modulated \emph{STOCHASTIC} shifts mass toward $QoS_s$, reflecting higher throughputs with smoother latency over time.
-Error rate increases with swarm size (Fig. \ref{fig:error-rates}), independent of locomotion, and becomes most pronounced under \emph{STOCHASTIC} at 13 robots—consistent with more concurrent transmissions and higher collision probability as unique links accumulate over time (Fig. \ref{fig:unique-connections}). This could explain why differences between policies are less pronounced at lower densities (3 to 8 robots) and widen at 13.\\
+\emph{Comm-aware} attains consistently high $QoS$ values by suppressing jitter and keeping low latencies, while \emph{stochastic} achieves higher raw throughput but with higher error rates as agent density grows. Kernel-density plots of $QoS_c$ against $QoS_cs$ in Fig. \ref{fig:qos} show \emph{comm-aware} achieving an overall improved service relative to the overall distribution, whereas frequency modulated \emph{stochastic} shifts the distribution toward $QoS_s$. Message limits show no clear effect. \\
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.46\textwidth]{unique_connections.pdf}
-    \caption{Per-peer number of mean connections formed by time snapshot up to 30 seconds for both topology inference schemes}
-    \label{fig:unique-connections}
-\end{figure}
+Error rate increases with swarm size, consistent with higher collision probability (Fig. \ref{fig:error-rates}a-b). This effect is independent of locomotion, and becomes most pronounced under \emph{stochastic} at 13-robot swarms. RSSI does not identify topology schemes in this arena, which means that the \emph{comm-aware} scheme is effectively ranking peers by latency. Brownian motion yields slightly lower RSSI than static (Fig.~\ref{fig:rssi}a-b), plausibly by incidental repositioning into stronger links. Verifying this, would require sparser layouts in larger arenas. \\
 
-Results shown in Fig. \ref{fig:rssi}, indicate that RSSI does not meaningfully distinguish topology schemes in the arena used for the experiments, which means that the \emph{COMM AWARE} scheme is effectively ranking by latency. Brownian motion yields a slight RSSI improvement relative to static trials, plausibly by incidental repositioning into stronger links though verifying this would require sparser layouts or larger arenas.
+Introducing frequency modulation under the \emph{stochastic} scheme smooths latency over time (Fig. \ref{fig:frequency}b) without impacting throughput, and preserves fast adaptation rates relative to \emph{comm-aware}. Validating the findings of \cite{tsianos_impact_2012}, the swarm can tolerate transmission delays and attain similar fitness scores compared to having no modulation. For tasks where rapid environmental updates matter such as search and rescue \cite{perrin_decentralised_2012}, this policy provides a low complexity alternative to flooding. \\
 
-Introducing frequency modulation under the \emph{STOCHASTIC} scheme smooths latency trajectories (Fig. \ref{fig:frequency}(b)) without sacrificing throughput, and preserves fast adaptation relative to \emph{COMM AWARE}. Validating the findings of \cite{tsianos_impact_2012}, the swarm can tolerate transmission delays and attain similar fitness relation compared to have no modulation. For tasks where rapid environment updates matter such as in \cite{perrin_decentralised_2012}, this policy provides a low complexity alternative to flooding, supported with a gentler latency profile.
+Using the fixed genome structure (Table~\ref{tab:out_message}) in a single-channel setup, we observed no detectable effects of mean swarm throughput on GA performance. However, we have not tested whether alternative payload schemas (e.g., partial-genome transfer or non-elitist migration) could change this relationship. The generality beyond the ESP-NOW 250-byte packet limit also remains unverified, larger messages that require fragmentation would likely complicate asynchronous processing, requiring deeper local buffers to avoid packet loss, and also increase compute overhead. \\
 
-Using the fixed ~145-byte genome structure (\texttt{OUT\_MESSAGE\_T}) in a single channel operation, we observe that GA performance is not capped by the aggregate throughput of the swarm. Having said that, we cannot ruleout the impact of a varying payload structure and single channel with respect to the GA without further experiments (e.g. partial genomes transfer, non-elitist migrants). Aditionally, more data would be needed to test whether the results gathered in this study remains the same as the messages grow closer to or beyond ESP-NOW 250-byte payload. We suspect that increasing the message size beyond the payload limits will introduce introduce challenges in asynchronous message processing as the local buffer would need to grow to prevent information loss and the subsequent compute requirements will increase as well.\\
-
-Energy consumption matters. Broadcast-heavy policies increased CPU utilisation (Fig. \ref{fig:cpu-util}) and correlated with faster battery depletion during testing, whereas policies that constrain link formation (\emph{COMM AWARE}) reduced contention and processing load, extending runtime. For context, ESP-NOW transmit currents on ESP32 are typically an order of magnitude higher than BLE ($\approx100mA$ vs $\approx15mA$ during TX), so depending on the application, swarms may need to prioritise message budgets and partial link formation over peak performance. This trade-off is not abstract, in the author's current role at Unilode Aviation Solutions the operator of the largest globally distributed aviation IoT gateway network—battery longevity outranks other $QoS$ metrics because asset maintenance for sparsely distributed assets (agents) is measured in years rather than days.\\
+Energy consumption matters. Broadcast-heavy policies raise CPU utilisation, whereas link-constraining policies lower processing load (Fig.~\ref{fig:cpu-util}). Energy budgets therefore favour selective link formation and moderated transmissions. For context, ESP-NOW transmit currents are typically an order of magnitude higher than Bluetooth, so depending on the application swarms may need to prioritise partial link formation over fast information diffusion. This trade-off is not abstract, in the author's current role at Unilode Aviation Solutions (the operator of the largest globally distributed aviation IoT network), battery longevity outranks other $QoS$ metrics due to the economics of battery replacement. \\
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.46\textwidth]{cpu_util.pdf}
     \caption{Core 0 utilisation by communication policy, excluding message limited experiments}
-    \label{fig:cpu_util}
+    \label{fig:cpu-util}
 \end{figure}
+
+\emph{Answers to the research questions:} \textbf{RQ1}: Link-aware peer ordering reduces latency and jitter by constraining link formation, at a small throughput cost (Fig.~\ref{fig:topology}a-c; Fig.~\ref{fig:convergence}). \textbf{RQ2}: \emph{Stochastic} ordering accelerates diffusion and earlier convergence, larger swarms achieve lower mean fitness throughout (Fig.~\ref{fig:performance}a-b). \textbf{RQ3}: Latency-bounded random micro-delays smooth latency with negligible throughput loss and preserve adaptation rates (Fig.~\ref{fig:frequency}b-c; Fig.~\ref{fig:f-performance}b).
 
 \subsection{Limitations}
 
@@ -446,13 +442,13 @@ Time resolution is bounded by device RTC drift (roughly $\pm1s$), so message tim
 
 \section{Conclusion}
 
-This work profiled peer-to-peer communication for robot swarms on ESP32 hardware and quantified how topology inference, transmission modulation, and message budgets shape both network $QoS$ and embodied evolution dynamics. Across 3 to 13 robots, we found that a simple link-quality aware unicast strategy consistently reduced contention, delivering lower latency and jitter and therefore improved $QoS$, at the cost of slower throughputs compared to a pseudo-broadcast scheduling scheme. Biased link formation schemes such as this, reduced adaptation rates and information diffusion but did not prevent convergence of the elitist island-model GA. Conversely, Introducing a small, randomized per-packet transmission delay bounded by the recent peer latency to pseudo-broadcast transmissions, stabilised latency without materially hurting throughput. Together, these results show that link formation and send timing, not throughput volume drive communication performance on this platform. 
+This work profiled peer-to-peer communication for robot swarms on ESP32 hardware. Across 3 to 13 robot swarms, we found that link formation and transmission timing, drive $QoS$ and adaptation rates on this platform, with throughput volume being secondary. Link formation schemes based on latency social evidence, reduced adaptation rates and information diffusion but did not prevent convergence. Conversely, introducing a small, randomized per-packet transmission delay bounded by the recent peer latency, stabilised network latency without materially impacting throughput.
 
-These findings translate into pragmatic design rules. When rapid network-wide diffusion and high throughput are the priority (e.g., environmental updates or concensus), prioritise stochastic scheduling with randomized transmission delays. When preventing premature convergence and achieving low latencies is of concern, favor limiting effective link formation that will lower contention and support diversity in the evolutionary search. Supporting the \emph{“less-is-more"} effects observed in prior swarm studies, where well-scoped constraints can be a feature rather than a bug in decentralized decision making.
+These findings translate into pragmatic design rules. When rapid network-wide diffusion and high throughput are the priority (e.g., environmental updates or consensus), prioritise stochastic scheduling with randomized transmission micro-delays. When preventing premature convergence and achieving low latencies is of concern, favor limiting effective link formation that will lower contention and support diversity in evolutionary search. This study supports the \emph{“less-is-more"} effects observed in prior swarm studies, where well-scoped constraints can be a feature in decentralized decision making.
 
 \subsection{Future Work}
 
-Future work will stress-test larger and dynamic payloads to probe the limits of our conclusions. By leveraging the OTA framework, it could also be possible to explore the meta-evolution (e.g., \emph{alpha-evolve}) of the communication policies at the firmware level, enabling task-conditioned tuning which could be useful for long-term IoT deployments where energy efficiency is critical. Finally, we aim to explore how these findings translate to other hardware platforms and combination of protocols, such as IR and BLE.
+Future work will stress-test larger and dynamic payloads to probe the limits of our conclusions. We aim to explore how these findings translate to other hardware platforms and combination of protocols, such as IR and Bluetooth. By leveraging the OTA framework, it could also be possible to explore the meta-evolution (e.g., \emph{alpha-evolve}) of the communication policies at the firmware level, enabling task-conditioned tuning for applications in long-term swarm deployments where energy efficiency is critical.
 
 \printbibliography
 \section{Appendix}
