@@ -15,7 +15,7 @@
 \setlist[itemize]{leftmargin=*, itemsep=2pt}
 
 % Title page
-\title{Swarm Dialogues: Communication policies that Shape Embedded Evolution in ESP32 Collectives}
+\title{Swarm Dialogues: Communication policies that shape Embedded Evolution in ESP32 Collectives}
 \author{Luis Yallico Ylquimiche}
 \date{\today}
 
@@ -28,13 +28,13 @@
 
 % Abstract
 \begin{abstract}
-We contribute a hardware-in-the-loop swarm that enables peer-to-peer ESP-NOW transmissions and quantifies the impact of communication policies in ESP32 swarms (3-13 robots). We compare stochastic peer ordering with link-aware scheduling and test two contention controls: per-agent message budgets and latency-bounded random micro-delays. Link-aware scheduling lowers latency and jitter by X\%, stochastic ordering spreads information faster by Y\% but increases collision errors by Z\% as density rises. Micro-delays stabilize latency with minimal throughput cost. Design rule: use stochastic scheduling with micro-delays for rapid diffusion, use link-aware scheduling when latency/jitter robustness is a priority.
+We contribute a hardware-in-the-loop swarm that enables peer-to-peer ESP-NOW transmissions and quantifies the impact of communication policies in swarms (3-13 robots). We compare stochastic peer ordering with link-aware scheduling and test two contention controls: per-agent message limits and latency-bounded stochastic delays. Link-aware scheduling lowers latency by 60\%, stochastic ordering spreads information faster but increases collision errors by 72\% at 13 agents across schemes. Bounded micro-delays stabilize latency with minimal throughput cost. Design rule: use stochastic scheduling with micro-delays for rapid diffusion, use link-aware scheduling when latency/jitter robustness is a priority.
 \end{abstract}
 
 
 \section{Introduction}
 
-This study profiles swarm communication on ESP32 hardware and demonstrates how agent density, locomotion, topology inference, imposed message budgets, and stochastic transmission policies shape both network quality of service ($QoS$) and embedded evolution performance. Focusing on direct peer-to-peer links, we contribute with an empirical mapping that probes communication bottlenecks flagged in recent surveys, and evidence for extracting tangible design rules for swarm networks. \\
+This study profiles swarm communication on ESP32 hardware and demonstrates how agent density, locomotion, topology inference, imposed message limits, and stochastic transmission policies shape both network quality of service ($QoS$) and embedded evolution performance. Focusing on direct peer-to-peer links, we contribute with an empirical mapping that probes communication bottlenecks flagged in recent surveys, and evidence for extracting tangible design rules for swarm networks. \\
 
 Swarm engineers draw inspiration from social biological systems such as ants, bees or termites to build decentralised robot collectives that are inherently robust to failure, flexible across tasks and scalable in number \cite{hamann_swarm_2018}. In swarm systems, collective intelligence emerges when individual robots trade packets of information among neighbouring robots. Classic ant-colony-optimisation work in the early 2000s has already proven that an indirect information exchange of "virtual-pheromones" can lead to agents collectively discovering optimal routing formations \cite{dorigo_ant_2000}. Hence, communication design is a first-order determinant of emergent behavior in swarms. \\
 
@@ -74,7 +74,6 @@ Complementary work by \cite{rabbah_real_2021} examines real-time communication m
 In this study, we use Eq. \ref{eq:rastrigin} to benchmark the evolutionary performance of the swarm. This global optimisation task was chosen to emulate evolutionary controller optimisation, while no controller was actually evolved the concept of robots sending and receiving genomes from their peers remains the same. Making swarm behaviour a control variable. \\
 
 The environment for the experiments was a rectangular arena measuring 80x90cm without obstacles (Fig. \ref{fig:arena}a), where the initial positions, and number of the robots was determined by the experiment schedule (Table \ref{tab:exp_config}). Across the study, we evaluated swarm under different communication and system configurations. Each experiment manipulates a specific independent variable while holding all other conditions constant. These include:\\
-% All of the experiments were conducted in the same room environment within the department of Engineering Mathematics at the University of Bristol.
 
 \begin{itemize}
   \item \textbf{Swarm density}: The number of agents deployed simultaneously, ranging from 3 to 13.
@@ -87,7 +86,6 @@ The environment for the experiments was a rectangular arena measuring 80x90cm wi
 Note that a detailed description of the communication independent variables is available in Section~\ref{sec:comm-layer}.
 
 \subsection{Rastrigin Function}
-
 The Rastrigin function is defined as follows:
 
 \begin{equation}\label{eq:rastrigin}
@@ -104,7 +102,7 @@ Where $n$ is the number genes migrating between islands (robots). Whereas, $x$ i
     \label{fig:B2}
 \end{figure}
 
-Table~\ref{tab:B2-hardware} summarizes the main hardware components of the Swarm-B2 platform used in this study [REF]. Devices coordinate via a $I^2C$ 100kHz bus. The ESP32 microcontroller runs dual-core FreeRTOS tasks, that logs real-time data to the local SD card, and manages communication using the ESP-NOW data link (2.4 GHz). \\
+Table~\ref{tab:B2-hardware} summarizes the main hardware components of the Swarm-B2 platform used in this study \cite{odowd_university_2025}. Devices coordinate via an $I^2C$ bus. The ESP32 microcontroller runs dual-core FreeRTOS tasks, that logs real-time data to the local SD card, and manages communication using the ESP-NOW data link (2.4 GHz). \\
 
 \begin{table}[h]
   \centering
@@ -147,7 +145,7 @@ Experiment schedules ran in batches. During execution, time-stamped messages and
 
 \subsection{Embedded Evolution}\label{sec:embedded-evo}
 
-The swarm uses a distributed genetic algorithm to find the global minimum for Eq. \ref{eq:rastrigin}. A visual representation of this is shown in Fig. \ref{fig:ga}. As the local population in each agent evolves, the swarm begins to communicate their local fitness and corresponding genome to their peers. \\
+The swarm uses a distributed genetic algorithm \cite{odowd_university_2025}, to find the global minimum for Eq. \ref{eq:rastrigin}. A visual representation of this is shown in Fig. \ref{fig:ga}. As the local population in each agent evolves, the swarm begins to communicate their local fitness and corresponding genome to their peers. \\
 
 \begin{figure*}[t]
     \centering
@@ -163,7 +161,6 @@ To avoid stagnation over a local-minima and promote exploration across the swarm
 Evolution continues locally until the experiment ends, triggered either by (i) discovering the global optimum (fitness = 0) or (ii) a 60 s timeout with no convergence. Two FreeRTOS tasks run in parallel, one executes the GA and the other handles ESP-NOW messaging. During shutdown, the \texttt{espnow\_task} flushes any queued packets. Then evolutionary and communication files are uploaded to the telemetry S3 over HTTPS.
 
 \subsection{Message Structure}
-
 We evaluate robot-to-robot communication with a fixed ESP-NOW message schema (Table \ref{tab:out_message}), floats are rounded to $3d.p.$ to send the message in a single transmission. Implications of this design choice are discussed in Section~\ref{sec:discussion}.
 
 \begin{table}[H]
@@ -184,11 +181,11 @@ We evaluate robot-to-robot communication with a fixed ESP-NOW message schema (Ta
 
 \subsection{Communication Layer}\label{sec:comm-layer}
 
-In contrast to previous work by \cite{rabbah_real_2021} that explored decentrilised IP communication protocols using middleware in swarms, we exploit the ESP32s Medium Access Control (MAC) layer to keep  packet timing and load directly measurable.To do this, we had to implement ESP-NOW by pre-registering the MAC addresses of all peers in each agent's firmware, enabling direct unicast communication between robots. We do not view this as a hard scalability limit in the swarm paradigm, as \cite{varadharajan_over--air_2018} explains that gossip-style OTA propagation can disseminate firmware across the swarm, allowing MAC registers to scale without central coordination. \\
+In contrast to previous work by \cite{rabbah_real_2021} that explored decentralised communication protocols using middleware, we exploit the ESP32's Medium Access Control (MAC) layer to keep  packet timing and load directly measurable. To do this, we implement ESP-NOW by pre-registering the MAC addresses of all peers in each agent's firmware. We do not view this as a hard scalability limit in the swarm paradigm, as \cite{varadharajan_over--air_2018} explains that gossip-style OTA propagation can disseminate firmware across the swarm, allowing MAC registers to scale without central coordination. \\
 
-Our design uses push only event-driven peer-to-peer messaging, where each device transmits data to peers (migration) without waiting for requests. Using this scheme avoids the complexity of pull-based communication protocols. Recall from Section~\ref{sec:embedded-evo} that only local elite genomes migrate, this takes place asynchronously between islands as each robot's GA reaches migration thresholds at different times. Because of this, incoming messages are handled by a first-in/first-out queue and buffered locally for later processing. This allowed internal task operations to continue uninterrupted, at the cost of internal memory, from pilot experiment we set the queue size to 40 (~8KB). \\
+Our design uses push only event-driven peer-to-peer messaging, where each device transmits data to peers (migration) without waiting for requests. Using this scheme avoids the complexity of pull-based communication protocols. Incoming messages are handled by a first-in/first-out queue and buffered locally for evaluation. This allowed internal task operations to continue uninterrupted, at the cost of internal memory, from pilot experiments we set the queue size to 40 ($\approx$8KB). \\
 
-Social evidence, in our case is present in the form of the communication quality that arises from migration. Specifically from the latency and Received Signal Strength Indicator (RSSI) that a peer perceives relative to other peers. We use this social evidence to inform our communication strategy and adapt the following policies. \\
+Social evidence, in our case is present in the form of the link-quality that arises from migration. Specifically from the latency and Received Signal Strength Indicator (RSSI) that a peer perceives relative to other peers. We use this social evidence to inform our communication strategy and adapt the following policies. \\
 
 \subsubsection{Topology Inference}\label{sec:topology-inference}
 
@@ -196,10 +193,10 @@ We investigate the impact of two communication schemes, based on the social evid
 
 \begin{itemize}
     \item \emph{Stochastic}: Each agent calls a random seed to apply a Fisher-Yates shuffle \cite{fisher_statistical_1963} over the list of peer MAC addresses, sorting them before sending messages to \emph{all peers}. No social evidence bias is used, every order permutation is equally likely.
-    \item \emph{comm-aware}: Each agent ranks its peers based on the most recent measurements of latency and RSSI. Peers with unknown metrics (at initialisation) are prioritised first to ensure social evidence is available. Then, peers are scored by normalizing both latency and RSSI, and those only in the \emph{worst half} (highest latency, lowest RSSI) are messaged.
+    \item \emph{Comm-aware}: Each agent ranks its peers based on the most recent measurements of latency and RSSI. Peers with unknown metrics (at initialisation) are prioritised first to ensure social evidence is available. Then, peers are scored by normalizing both latency and RSSI, and those only in the \emph{worst half} (highest latency, lowest RSSI) are messaged.
 \end{itemize}
 
-For \emph{stochaistic}, the shuffle is defined in Eq.~\ref{eq:fy-shuffle}, where ($j_i$) is a random index drawn from a uniform distribution. $\sigma$ is the random permutation of MAC addresses for each $i$ peer. We can think of this scheme as a \emph{pseuso-broadcast} using unicast communication, as the genome is sent to all peers with negligible delays between transmissions.
+For \emph{stochastic}, the shuffle is defined in Eq.~\ref{eq:fy-shuffle}, where ($j_i$) is a random index drawn from a uniform distribution. $\sigma$ is the random permutation of MAC addresses for each $i$ peer. We can think of this scheme as a \emph{pseudo-broadcast} using unicast communication, as the genome is sent to all peers with negligible delays between transmissions.
 
 \begin{equation}\label{eq:fy-shuffle}
 \sigma \;=\; \prod_{i=n}^{2} \bigl(i,\, j_i\bigr), 
@@ -214,19 +211,19 @@ Score_i =
 \frac{r_{\max} - r_i}{r_{\max} - r_{\min}}
 \end{equation}
 
-\subsubsection{Message Budgets}\label{sec:limited-rate}
+\subsubsection{Message Limits}\label{sec:limited-rate}
 
-Inspired by the reported “less-is-more” effects, we cap the number of migration messages that each robot may broadcast (Eq.~\ref{eq:msg_budget}). Each agent is given a message budget $B$ per sliding time window $W$. Once the budget is exhausted, the robot stays silent until the window advances, no matter how often its onboard genetic algorithm requests migration.  Different from earlier IR-based systems that relied on a short-range \emph{narrowcast} channel \cite{aust_hidden_2022}, we deliver the message to all peers using the topology inference schemes discussed previously.
+Inspired by the reported “less-is-more” effects, we cap the number of migration messages that each robot may broadcast (Eq.~\ref{eq:msg_budget}). Each agent is given a message limit $B$ per sliding time window $W$. Once the limit is exhausted, the robot stays silent until the window advances, no matter how often its onboard genetic algorithm requests migration.  Different from earlier IR-based systems that relied on a short-range \emph{narrowcast} channel \cite{aust_hidden_2022}, we deliver the message to all peers using the topology inference schemes discussed previously.
 
 \begin{equation}\label{eq:msg_budget}
 \forall t:\quad M_W(t)=\sum_{i}\mathbf{1}_{\{t-W< t_i \le t\}} \le B
 \end{equation}
 
-Here, $t_i$ are the send times, $M_W(t)$ is the number of broadcast messages sent in the last $W=8$s, and the budget is fixed at $B=1$. These values were chosen after pilot tests showed that, without the budget, each peer emitted roughly 15 messages per experiment, effectively limiting migration by half. \\
+Here, $t_i$ are the send times, $M_W(t)$ is the number of broadcast messages sent in the last $W=8$s, and the limit is fixed at $B=1$. These values were chosen after pilot tests showed that, without the limit, each peer emitted roughly 15 messages per experiment, effectively limiting migration by half. \\
 
 \subsubsection{Transmission Frequency}\label{sec:transmission-frequency}
 
-To further explore the communication behaviour of the swarm under simultaneous transmission conditions, we modulate the migration interval between islands. Each migration is postponed by random delay drawn from the highest peer-to-peer latency observed so far, which is estimated from the latest ACK round-trip times on every link, described by Eq.~\ref{alg:transmission_freq}:
+To further explore the communication behaviour of the swarm under simultaneous transmission conditions, we modulate the migration interval between islands to spread transmission bursts. Each migration is postponed by random delay drawn from the highest peer-to-peer latency observed so far, which is estimated from the latest ACK round-trip times on every link, described by Eq.~\ref{alg:transmission_freq}:
 
 \begin{equation}\label{alg:transmission_freq}
 \Delta t \sim \mathrm{Uniform}\bigl(0,\,L_{\max}\bigr), 
@@ -236,15 +233,15 @@ L_{\max} = \max_{j}\{\tau_{j}\}
 
 where ($\tau_{j}$) is the one-hop latency to peer ($j$). If random mode is disabled, ($\Delta t = 0$) and messages are sent immediately by calling \texttt{esp\_now\_send}. The intention of this approach is to control the transmission of messages in a stochastic manner to reduce unintended channel contention in the swarm network.
 
-\subsection{Communication Performance Metrics}\label{sec:evaluation-metrics}
+\subsection{Performance Metrics}\label{sec:evaluation-metrics}
 
-To evaluate the quality of the communication in the swarm, each robot records granular \emph{sender-receiver}: latency $l$ (ms), RSSI $r$ (dBm), net kilobyte rate $t$ (Kbps), transmission-error flags $e$, and per-core CPU load $u$. These raw logs are post-processed by the data pipeline previously detailed in Section \ref{sec:architecture}. AWS then computes the aggregated per-device and per-experiment metrics, (i) $L$ \emph{mean latency}, the time taken for a message to be sent and acknowledged, (ii) $J$ \emph{mean jitter (ms)}, the standard deviation of successive latencies, (iii) $E$ \emph{mean error rate (\%)}, the percentage of messages that were sent but not acknowledged, and (iv) $T$ \emph{mean throughput (kbps)}, the data is successfully transferred by each agent. To assess overall network performance, a QoS score was computed as:
+To evaluate the quality of the communication in the swarm, each robot records granular \emph{sender-receiver}: latency $l$ (ms), RSSI $r$ (dBm), net kilobyte rate $t$ (Kbps), transmission-error flags $e$, and per-core CPU load $u$. These raw logs are post-processed by the data pipeline previously detailed in Section \ref{sec:architecture}. AWS then computes the aggregated per-device and per-experiment metrics, (i) $L$ \emph{mean latency}, the time taken for a message to be sent and acknowledged, (ii) $J$ \emph{mean jitter (ms)}, the standard deviation of successive latencies, (iii) $E$ \emph{mean error rate (\%)}, the percentage of messages that were sent but not acknowledged, and (iv) $T$ \emph{mean throughput (Kbps)}, the data is successfully transferred by each agent. To assess overall network performance, a QoS score was computed as:
 
 \begin{equation}
-\mathrm{QoS} = w_0 \cdot (1 - \hat{L}) + w_1 \cdot (1 - \hat{J}) + w_2 \cdot (1 - \hat{P}) + w_3 \cdot \hat{T}
+\mathrm{QoS} = w_0 \cdot (1 - \hat{L}) + w_1 \cdot (1 - \hat{J}) + w_2 \cdot (1 - \hat{E}) + w_3 \cdot \hat{T}
 \end{equation}
 
-Where, $\hat{L}$, $\hat{J}$, $\hat{E}$, $\hat{T}$ are the normalised global metrics aggregated at the experiment-level in the range of $[0,1]$ and the weights $w_i$ are defined in Table \ref{tab:qos}. A higher QoS value indicates better overall network communication performance. % add performance metrics, adaptation rate is defined as the proportion of agents that share the current lowest fitness score, averaged over 2-second windows.
+Where, $\hat{L}$, $\hat{J}$, $\hat{E}$, $\hat{T}$ are the normalised global metrics aggregated at the experiment-level in the range of $[0,1]$ and the weights $w_i$ are defined in Table \ref{tab:qos}. A higher QoS value indicates better overall network communication performance. $QoS_c$ weights latency/jitter for consensus/voting tasks, $QoS_s$ weights errors and throughput for sparse deployments. % add performance metrics, adaptation rate is defined as the proportion of agents that share the current lowest fitness score, averaged over 2-second windows.
 
 \begin{table}[H]
 \centering
@@ -260,8 +257,9 @@ Where, $\hat{L}$, $\hat{J}$, $\hat{E}$, $\hat{T}$ are the normalised global metr
   \end{tabular}
 \end{table}
 
-\section{Results}\label{sec:results}
+No inferential statistics were performed. For each condition we executed $n\geq16$ independent runs. Figures report median with IQR (or mean ± SD where noted) across runs. All comparisons are descriptive and should be interpreted accordingly. All experiments used fixed per-run random seeds for GA initialisation. Collected logs and plotting scripts are archived in \cite{yallico_httpsgithubcomyallicorobotics_dissertation_2025}, in the "data\_analysis" folder. \\
 
+\section{Results}\label{sec:results}
 As shown in Fig.~\ref{fig:topology}a, the latency and jitter of the swarm network differ significantly between topology inference schemes. Across experiments, \emph{comm-aware} generally achieves lower latency and more stable delivery compared to the \emph{stochastic} mode. Fig.~\ref{fig:topology}b-c show throughput vs topology/message limits. \emph{Stochastic} yields higher raw throughput with wider variability. \\
 
 \begin{figure*}[h]
@@ -299,7 +297,7 @@ Error rates are small and comparable for smaller density swarms, rising during 1
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.47\textwidth]{speed_impact.pdf}
-    \caption{(a) Mean RSSI values across different locomotion modes, (b) mean RSSI values accross different topology inference schemes}
+    \caption{(a) Mean RSSI values across different locomotion modes, (b) mean RSSI values across different topology inference schemes}
     \label{fig:rssi}
 \end{figure}
 
@@ -332,76 +330,74 @@ An evaluation of the characteristics of the $QoS$ metrics for the 13-agent swarm
 \begin{table*}[ht]
 \scriptsize
 \centering
-\caption{Experimental configurations}
+\caption{Experiment schedule and mean results $\pm~SD$, minimum of 16 runs per-experiment}
 \label{tab:exp_config}
 \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c}
 \toprule
-\textbf{Robots} & \textbf{Topology} & \textbf{Locomotion} & \textbf{Message Limit} & \textbf{Transmission} & \textbf{Latency (ms)} & \textbf{Jitter (ms)} & \textbf{Error Rate (\%)} & \textbf{Throughput} & \textbf{QoS\_c} & \textbf{QoS\_s} \\
-\midrule
-2 (Baseline) & Stochastic & Static & Unlimited & None & -- & -- & -- & -- & -- & -- \\
+\textbf{Robots} & \textbf{Topology} & \textbf{Locomotion} & \textbf{Message Limit} & \textbf{Transmission} & \textbf{$L$(ms)} & \textbf{$J$(ms)} & \textbf{$E$(\%)} & \textbf{$T$(Kbps)} & \textbf{$QoS_c$} & \textbf{$QoS_s$} \\
 \midrule
 \multirow{10}{*}{3}
   & \multirow{5}{*}{Stochastic}
     & \multirow{2}{*}{Static}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 15.1$\pm$1.9 & 10.8$\pm$2.1 & 0.0$\pm$0.0 & 0.3$\pm$0.8 & 0.86 & 0.82 \\
+  &   &          & Unlimited & Modulated & 20.8$\pm$3.5 & 10.0$\pm$1.8 & 0.1$\pm$0.05 & 0.3$\pm$0.8 & 0.83 & 0.81 \\
+  &   &          & Limited   & None      & 12.9$\pm$2.7 & 8.6$\pm$2.4  & 0.0$\pm$0.0 & 0.2$\pm$0.6 & 0.85 & 0.80 \\
   \cmidrule{3-11}
   &   & \multirow{2}{*}{Brownian}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 13.0$\pm$1.8 & 9.3$\pm$1.6 & 0.0$\pm$0.0 & 0.3$\pm$0.8 & 0.87 & 0.83 \\
+  &   &          & Unlimited & Modulated & 17.7$\pm$2.9 & 9.5$\pm$2.5 & 0.1$\pm$0.05 & 0.3$\pm$0.8 & 0.84 & 0.82 \\
+  &   &          & Limited   & None      & 11.1$\pm$2.3 & 7.3$\pm$2.0 & 0.0$\pm$0.0 & 0.2$\pm$0.6 & 0.87 & 0.81 \\
   \cmidrule{2-11}
-  & \multirow{5}{*}{comm-aware}
+  & \multirow{5}{*}{Comm-aware}
     & \multirow{2}{*}{Static}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 11.1$\pm$1.8 & 7.6$\pm$2.7 & 0.0$\pm$0.0 & 0.2$\pm$0.5 & 0.87 & 0.80 \\
+  &   &          & Limited   & None      & 10.5$\pm$1.7 & 6.9$\pm$4.0 & 0.0$\pm$0.0 & 0.1$\pm$0.4 & 0.86 & 0.79 \\
   \cmidrule{3-11}
   &   & \multirow{2}{*}{Brownian}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 9.0$\pm$1.6 & 5.9$\pm$2.3 & 0.3$\pm$0.02 & 0.2$\pm$0.5 & 0.87 & 0.77 \\
+  &   &          & Limited   & None      & 8.2$\pm$1.7 & 4.5$\pm$2.2 & 0.0$\pm$0.0 & 0.1$\pm$0.3 & 0.88 & 0.79 \\
 \midrule
 \multirow{10}{*}{8}
   & \multirow{5}{*}{Stochastic}
     & \multirow{2}{*}{Static}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 43.5$\pm$14.6 & 23.7$\pm$4.6 & 0.1$\pm$0.01 & 0.7$\pm$2.6 & 0.72 & 0.84 \\
+  &   &          & Unlimited & Modulated & 37.5$\pm$10.4 & 22.2$\pm$7.3 & 0.1$\pm$0.01 & 0.6$\pm$2.5 & 0.75 & 0.84 \\
+  &   &          & Limited   & None      & 31.1$\pm$15.2 & 14.7$\pm$5.3 & 0.1$\pm$0.01 & 0.4$\pm$1.8 & 0.78 & 0.82 \\
   \cmidrule{3-11}
   &   & \multirow{2}{*}{Brownian}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 32.7$\pm$13.2 & 20.7$\pm$4.6 & 0.2$\pm$0.01 & 0.6$\pm$2.5 & 0.77 & 0.85 \\
+  &   &          & Unlimited & Modulated & 40.0$\pm$9.4  & 21.0$\pm$5.9 & 0.1$\pm$0.01 & 0.6$\pm$2.4 & 0.77 & 0.85 \\
+  &   &          & Limited   & None      & 25.6$\pm$13.5 & 12.8$\pm$5.1 & 0.2$\pm$0.01 & 0.4$\pm$1.7 & 0.81 & 0.82 \\
   \cmidrule{2-11}
-  & \multirow{5}{*}{comm-aware}
+  & \multirow{5}{*}{Comm-aware}
     & \multirow{2}{*}{Static}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 19.4$\pm$6.3 & 13.3$\pm$3.0 & 0.04$\pm$0.01 & 0.4$\pm$1.2 & 0.84 & 0.84 \\
+  &   &          & Limited   & None      & 18.7$\pm$6.7 & 11.3$\pm$3.3 & 0.1$\pm$0.01 & 0.3$\pm$0.9 & 0.83 & 0.80 \\
   \cmidrule{3-11}
   &   & \multirow{2}{*}{Brownian}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 15.3$\pm$5.6 & 10.2$\pm$2.5 & 0.1$\pm$0.01 & 0.4$\pm$1.7 & 0.87 & 0.84 \\
+  &   &          & Limited   & None      & 15.0$\pm$6.4 & 8.9$\pm$3.5 & 0.1$\pm$0.02 & 0.3$\pm$0.9 & 0.85 & 0.80 \\
 \midrule
 \multirow{10}{*}{13}
   & \multirow{5}{*}{Stochastic}
     & \multirow{2}{*}{Static}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 91.5$\pm$33.4 & 47.4$\pm$8.4 & 1.8$\pm$0.7 & 0.77$\pm$3.7 & 0.37 & 0.58 \\
+  &   &          & Unlimited & Modulated & 51.2$\pm$20.2 & 33.4$\pm$13.0 & 0.2$\pm$0.1 & 0.72$\pm$3.0 & 0.64 & 0.81 \\
+  &   &          & Limited   & None      & 56.0$\pm$33.8 & 22.6$\pm$9.5 & 1.6$\pm$0.5 & 0.58$\pm$2.7 & 0.61 & 0.65 \\
   \cmidrule{3-11}
   &   & \multirow{2}{*}{Brownian}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Unlimited & Modulated & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 86.3$\pm$34.0 & 45.4$\pm$9.2 & 1.9$\pm$0.7 & 0.8$\pm$3.7 & 0.40 & 0.58 \\
+  &   &          & Unlimited & Modulated & 51.7$\pm$18.3 & 35.0$\pm$12.8 & 0.3$\pm$0.1 & 0.7$\pm$3.1 & 0.64 & 0.80 \\
+  &   &          & Limited   & None      & 53.1$\pm$30.3 & 21.9$\pm$8.3 & 2.4$\pm$0.7 & 0.6$\pm$2.6 & 0.60 & 0.57 \\
   \cmidrule{2-11}
-  & \multirow{5}{*}{comm-aware}
+  & \multirow{5}{*}{Comm-aware}
     & \multirow{2}{*}{Static}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 33.5$\pm$16.9 & 17.3$\pm$5.4 & 0.2$\pm$0.02 & 0.6$\pm$2.0 & 0.78 & 0.83 \\
+  &   &          & Limited   & None      & 27.5$\pm$16.5 & 11.8$\pm$5.8 & 0.2$\pm$0.01 & 0.4$\pm$1.5 & 0.80 & 0.81 \\
   \cmidrule{3-11}
   &   & \multirow{2}{*}{Brownian}
-                 & Unlimited & None      & -- & -- & -- & -- & -- & -- \\
-  &   &          & Limited   & None      & -- & -- & -- & -- & -- & -- \\
+                 & Unlimited & None      & 31.5$\pm$15.3 & 16.5$\pm$4.1 & 0.7$\pm$0.03 & 0.6$\pm$2.0 & 0.77 & 0.79 \\
+  &   &          & Limited   & None      & 26.3$\pm$15.5 & 11.1$\pm$4.7 & 0.8$\pm$0.03 & 0.4$\pm$1.5 & 0.79 & 0.75 \\
 \bottomrule
 \end{tabular}
 \end{table*}

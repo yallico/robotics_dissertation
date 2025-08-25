@@ -79,11 +79,11 @@ frequency_palette = dict(zip(frequency_order, pastel3_alt[:len(frequency_order)]
 ################################
 ### Determine which plot to make
 ################################
-is_seven = False
+is_seven = True
 is_eight = False
 is_nine = False
 is_ten = False
-is_eleven = True
+is_eleven = False
 
 
 if is_seven:
@@ -131,15 +131,16 @@ if is_seven:
         )
         .groupby([exp_col])
         .agg(mean_jitter=("device_jitter", "mean"),
-            mean_latency=("mean_latency", "mean")
+             std_jitter=("device_jitter", "std"),
+            mean_latency=("mean_latency", "mean"),
+            std_latency=("mean_latency", "std"),
             )
         ).reset_index()
     
     #calculate mean throughput by exp_col, fre_col from full_df
     exp_throughput = (
         full_df.groupby([exp_col])["throughput"]
-        .mean()
-        .rename("mean_throughput")
+        .agg(mean_throughput=("mean"), std_throughput=("std"))
         .reset_index()
     )
 
@@ -181,9 +182,10 @@ if is_seven:
     err_rates = (
         err_tbl
         .groupby([exp_col], as_index=False)
-        .agg(error_rate=("dev_error_rate", "mean"))
+        .agg(error_rate=("dev_error_rate", "mean"), std_error_rate=("dev_error_rate", "std"))
         .reset_index()
     )
+
 
     grouped_data = (
     full_df.groupby([exp_col, top_col, num_col, msg_col, fre_col, loc_col])
@@ -202,15 +204,36 @@ if is_seven:
         .reset_index(drop=True)
     )
 
-    #normalise the continous variables in combined_stats
-    continuous_vars = ["mean_jitter", "mean_latency", "mean_throughput", "error_rate"]#, "fitness_score", "adapted_time_s"]
+    #normalise the continous variables in combined_stats, but keep originals
+    continuous_vars = ["mean_jitter", "mean_latency", "mean_throughput", "error_rate"]  # , "fitness_score", "adapted_time_s"]
     scaler = MinMaxScaler()
-    combined_stats[continuous_vars] = scaler.fit_transform(combined_stats[continuous_vars])
 
-    # calculate QoS columns
-    combined_stats["QoS_c"] = 0.5*(1 - combined_stats["mean_latency"]) + 0.25*(1 - combined_stats["mean_jitter"]) + 0.15*(1-combined_stats["error_rate"])  + 0.1*combined_stats["mean_throughput"]
-    combined_stats["QoS_s"] = 0.15*(1 - combined_stats["mean_latency"]) + 0.15*(1 - combined_stats["mean_jitter"]) + 0.50*(1-combined_stats["error_rate"])  + 0.2*combined_stats["mean_throughput"]
+    # prepare data to scale; fill NaNs with column mean to avoid errors
+    to_scale = combined_stats[continuous_vars].copy()
+    to_scale = to_scale.fillna(to_scale.mean())
 
+    # perform scaling and store in new columns without overwriting originals
+    scaled_df = pd.DataFrame(
+        scaler.fit_transform(to_scale),
+        columns=[f"{c}_scaled" for c in continuous_vars],
+        index=combined_stats.index,
+    )
+    combined_stats = pd.concat([combined_stats, scaled_df], axis=1)
+
+    # calculate QoS columns using the scaled versions
+    combined_stats["QoS_c"] = (
+        0.5 * (1 - combined_stats["mean_latency_scaled"])
+        + 0.25 * (1 - combined_stats["mean_jitter_scaled"])
+        + 0.15 * (1 - combined_stats["error_rate_scaled"])
+        + 0.1 * combined_stats["mean_throughput_scaled"]
+    )
+    combined_stats["QoS_s"] = (
+        0.15 * (1 - combined_stats["mean_latency_scaled"])
+        + 0.15 * (1 - combined_stats["mean_jitter_scaled"])
+        + 0.50 * (1 - combined_stats["error_rate_scaled"])
+        + 0.2 * combined_stats["mean_throughput_scaled"]
+    )
+    
     #Plot subplot 1,3
     fig, axes = plt.subplots(1, 4, figsize=(12.8, 3.6), gridspec_kw={'width_ratios': [1, 1, 1, 1]}, sharey=True)
     #axes 1 and 2 to share y axis
