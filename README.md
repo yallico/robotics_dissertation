@@ -2,10 +2,22 @@
 
 A platform for enabling communication within swarm robotics systems using ESP32 microcontrollers. This project leverages the ESP32's capabilities along with various components to create a decentralized communication system for swarm robots.
 
+![Swarm Arena](report_conference/arena.png)
+
 ## Directory Structure
 
 - **/src** - Source code for the platform
   - **/components** - External libraries and components
+    - **/data_logging** - For writing data concurrently in SD card
+    - **/env_config** - Set up Wi-Fi and environment variables
+    - **/espnow_main** - Manage decentralised communication for swarm
+    - **/genetic_algorithm** - Embedded evolution implementation (elitist)
+    - **/global_vars** - Variables used for experimental runs (IVs)
+    - **/gui_manager** - Manage M5 display
+    - **/https** - Handle experimental data stream to S3
+    - **/ota** - Over-the-air updates component
+    - **/rtc_m5** - Synchronise experiments with real-time clock module
+    - **/sd_card_manager** - Handle SD card operations  
     - **/axp192** - Power management IC driver
     - **/i2c_manager** - I2C communication manager for ESP32
     - **/m5core2_axp192** - M5Core2-specific AXP192 implementation
