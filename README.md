@@ -2,7 +2,11 @@
 
 A platform for enabling communication within swarm robotics systems using ESP32 microcontrollers. This project leverages the ESP32's capabilities along with various components to create a decentralized communication system for swarm robots.
 
-![Swarm Arena](report_conference/arena.png)
+<div align="center">
+  <img src="report_conference/arena.png" alt="Swarm Arena" />
+  <br>
+  <em>Swarm Arena: (a) dimensions and (b) example of a Brownian locomotion experiment with 8 robots.</em>
+</div>
 
 ## Directory Structure
 
